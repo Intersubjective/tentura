@@ -33,6 +33,7 @@ const _viewer = 'Uviewer000001';
 const _readId = 'Nread00000001';
 const _newId = 'Nnew000000001';
 const _nextId = 'Nnew000000002';
+const _obligationId = 'Naction000001';
 const _deskId = 'Ndesk00000001';
 const _deskBeaconId = 'Bdesk00000001';
 const _readTitle = 'Earlier message';
@@ -42,6 +43,195 @@ const _timestamp = '2026-11-01T08:00:00Z';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('Unread count after Read all with search open', () {
+    for (final (name, term, matches, sweepable, obligation) in const [
+      ('an empty History result', _noMatch, <String>[], 1, false),
+      ('the matching History receipt', _newId, [_newId], 1, false),
+      ('one of two unread History receipts', _newId, [_newId], 2, false),
+      ('a live History obligation', _obligationId, [_obligationId], 1, true),
+    ]) {
+      test('keeps the server total for $name', () {
+        return _withFeed((feed) async {
+          feed.server
+            ..secondReceipt = sweepable == 2
+            ..obligation = obligation
+            // Newer read rows can fill the head before an unread receipt
+            // has ever been loaded by the client.
+            ..newerReadCount = 50;
+          final expectedBefore = sweepable + (obligation ? 1 : 0);
+          await feed.deliverReceipt(unread: expectedBefore);
+          final history = feed.open(_history);
+          await feed.search(history, _history, term);
+          expect(history.state.items.map((row) => row.id), matches);
+          final before = await feed.repository.fetch(view: AttentionView.all);
+          expect(before.summary.unreadTotal, expectedBefore);
+          expect(
+            before.page.items.map((row) => row.id),
+            isNot(contains(_newId)),
+          );
+          final beforeSweep = history.state.summary.unreadTotal;
+
+          expect(await history.markAllSeen(), isTrue);
+          final expectedAfter = obligation ? 1 : 0;
+          await feed.waitForSummary(expectedAfter, sweepEligible: false);
+          expect(history.state.searchText, term);
+          final afterSweep = history.state.summary.unreadTotal;
+
+          if (obligation) {
+            final unread = await feed.repository.fetch(
+              view: AttentionView.unread,
+            );
+            final remaining = unread.page.items.single;
+            expect(remaining.id, _obligationId);
+            expect(remaining.isSeen, isTrue);
+            expect(remaining.isLiveObligation, isTrue);
+          }
+          await history.refresh();
+          expect(history.state.refreshError, isNull);
+          expect(history.state.searchText, term);
+          final afterRefresh = history.state.summary.unreadTotal;
+          final clearingFrames = await _clearSearch(feed, history, _history);
+
+          expect(
+            {
+              'filtered before Read all': beforeSweep,
+              'after the new server summary': afterSweep,
+              'after refreshing with search open': afterRefresh,
+              'after the unfiltered head lands':
+                  history.state.summary.unreadTotal,
+              'totals emitted while clearing search': clearingFrames.toSet(),
+            },
+            {
+              'filtered before Read all': expectedBefore,
+              'after the new server summary': expectedAfter,
+              'after refreshing with search open': expectedAfter,
+              'after the unfiltered head lands': expectedAfter,
+              'totals emitted while clearing search': {expectedAfter},
+            },
+          );
+        });
+      });
+    }
+
+    test(
+      'updates the Activity count with search open and when clearing it',
+      () {
+        return _withFeed((feed) async {
+          feed.server.newerReadCount = 50;
+          await feed.deliverReceipt();
+          final activity = feed.open(_activity);
+          await _until(() => activity.state.firstLoadDone, 'Activity head');
+          expect(activity.state.summary.unreadTotal, 1);
+          expect(
+            activity.state.items.map((row) => row.id),
+            isNot(contains(_newId)),
+          );
+
+          activity.setSearch(_noMatch);
+          await _until(
+            () => activity.state.searchText == _noMatch,
+            'Activity search text',
+          );
+          expect(await activity.markAllSeen(), isTrue);
+          await feed.waitForSummary(0);
+          expect(activity.state.searchText, _noMatch);
+          final afterSweep = activity.state.summary.unreadTotal;
+          final clearingFrames = await _clearSearch(feed, activity, _activity);
+
+          expect(afterSweep, 0);
+          expect(clearingFrames, everyElement(0));
+          expect(activity.state.summary.unreadTotal, 0);
+        });
+      },
+    );
+
+    testWidgets(
+      'removes the Russian phone badge while keeping the search text',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        await tester.runAsync(
+          () => _withFeed((feed) async {
+            final services = GetIt.I
+              ..pushNewScope()
+              ..registerSingleton(feed.attention)
+              ..registerSingleton(feed.sync.case_)
+              ..registerSingleton(Logger('history-unread-badge'))
+              ..registerSingleton<InviteAcceptedSetupPort>(
+                NoopInviteAcceptedSetupPort(),
+              );
+            ensureNoopAttentionActorProfilesRegistered();
+            const locale = Locale('ru');
+            final l10n = lookupL10n(locale);
+            try {
+              await tester.pumpWidget(
+                StackRouterScope(
+                  controller: _HistoryRouter(),
+                  stateHash: 0,
+                  child: MaterialApp(
+                    theme: TenturaTheme.light(),
+                    locale: locale,
+                    localizationsDelegates: L10n.localizationsDelegates,
+                    supportedLocales: L10n.supportedLocales,
+                    home: const MediaQuery(
+                      data: MediaQueryData(size: kPhoneSurface),
+                      child: TenturaResponsiveScope(child: UpdatesScreen()),
+                    ),
+                  ),
+                ),
+              );
+              final history = tester
+                  .element(find.byType(Scaffold))
+                  .read<UpdatesFeedCubit>();
+              await _until(() => history.state.firstLoadDone, 'History head');
+              await tester.pumpAndSettle();
+              final tab = find.byKey(const ValueKey<String>('updates-unread'));
+              List<String?> tabText() => tester
+                  .widgetList<Text>(
+                    find.descendant(of: tab, matching: find.byType(Text)),
+                  )
+                  .map((text) => text.data)
+                  .toList();
+              final zeroUnreadTab = tabText();
+              expect(zeroUnreadTab, [l10n.updatesUnread]);
+
+              feed.server.newerReadCount = 50;
+              await feed.deliverReceipt();
+              await _until(
+                () => history.state.summary.unreadTotal == 1,
+                'unfiltered unread count',
+              );
+              await tester.tap(find.byTooltip(l10n.updatesSearchHint));
+              await tester.pumpAndSettle();
+              final field = find.byType(TextField);
+              await tester.enterText(field, _noMatch);
+              await feed.waitForSearch(_history, _noMatch);
+              await tester.pumpAndSettle();
+              expect(history.state.items, isEmpty);
+              expect(tabText(), [l10n.updatesUnread, '1']);
+              final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+              expect(tester.widget<TextButton>(readAll).enabled, isTrue);
+              await tester.tap(readAll);
+              await feed.waitForSummary(0);
+              await tester.pumpAndSettle();
+
+              expect(
+                tester.widget<TextField>(field).controller!.text,
+                _noMatch,
+              );
+              expect(tester.takeException(), isNull);
+              expect(tabText(), zeroUnreadTab);
+            } finally {
+              await tester.pumpWidget(const SizedBox.shrink());
+              await services.popScope();
+            }
+          }),
+        );
+      },
+    );
+  });
 
   group('History Read all after a delayed response', () {
     test('keeps the new search after a page for the old search arrives', () {
@@ -632,6 +822,27 @@ void main() {
 (bool, bool) _readAll(UpdatesFeedCubit cubit) =>
     (cubit.state.sweepEligible, cubit.state.canReadAll);
 
+Future<List<int>> _clearSearch(
+  _Feed feed,
+  UpdatesFeedCubit cubit,
+  String destination,
+) async {
+  final frames = <int>[];
+  final subscription = cubit.stream.listen(
+    (state) => frames.add(state.summary.unreadTotal),
+  );
+  try {
+    cubit.setSearch('');
+    await feed.waitForSearch(destination, '');
+    expect(cubit.state.searchText, isEmpty);
+    expect(cubit.state.refreshError, isNull);
+    expect(frames, isNotEmpty);
+    return frames;
+  } finally {
+    await subscription.cancel();
+  }
+}
+
 Future<void> _expectRefreshWaitingForPage(
   _HeldResponse page,
   Future<void> refresh,
@@ -756,13 +967,13 @@ final class _Feed {
         session.pages.containsKey(session.activeView);
   }, '$destination head for search "$text"');
 
-  Future<void> deliverReceipt({String id = _newId}) async {
+  Future<void> deliverReceipt({String id = _newId, int unread = 1}) async {
     server.receiptId = id;
     server.delivered = true;
     server._seen = false;
     server._cleared = false;
     _invalidateReceipts();
-    await waitForSummary(1);
+    await waitForSummary(unread);
   }
 
   void _invalidateReceipts({String? beaconId}) {
@@ -804,10 +1015,10 @@ final class _Feed {
         unread,
   );
 
-  Future<void> waitForSummary(int unread) => _until(() {
+  Future<void> waitForSummary(int unread, {bool? sweepEligible}) => _until(() {
     final summary = attention.surfaceSummarySnapshot;
     return summary.historySummary?.unreadTotal == unread &&
-        summary.forYouReceiptSweepEligible == (unread > 0);
+        summary.forYouReceiptSweepEligible == (sweepEligible ?? unread > 0);
   }, 'server surface summary with $unread unread');
 
   Future<void> close() async {
@@ -846,6 +1057,9 @@ final class _DeskReceipt {
 // The Activity surface rejects non-blank search.
 final class _ReceiptServer {
   bool delivered = false;
+  bool secondReceipt = false;
+  bool obligation = false;
+  int newerReadCount = 0;
   String receiptId = _newId;
   _DeskReceipt? desk;
   bool _seen = false;
@@ -896,6 +1110,7 @@ final class _ReceiptServer {
   Map<String, dynamic> _snapshot(WireSent request) {
     final desk = this.desk;
     final deskUnread = desk != null && !desk.cleared;
+    final sweepable = delivered && !_cleared ? (secondReceipt ? 2 : 1) : 0;
     switch (request.operationName) {
       case 'AttentionSurfaceSummary':
         final eligible = delivered && !_cleared;
@@ -908,8 +1123,9 @@ final class _ReceiptServer {
             'forYouDot': eligible,
             'forYouSweepEligible': eligible,
             'forYouReceiptSweepEligible': eligible,
-            'unreadTotal': (eligible ? 1 : 0) + (deskUnread ? 1 : 0),
-            'needsYouTotal': 0,
+            'unreadTotal':
+                sweepable + (deskUnread ? 1 : 0) + (obligation ? 1 : 0),
+            'needsYouTotal': obligation ? 1 : 0,
           },
         };
       case 'AttentionFeed':
@@ -918,7 +1134,6 @@ final class _ReceiptServer {
             surface == null || surface == AttentionSurface.activityWire;
         final onDeskSurface =
             surface == null || surface == AttentionSurface.myWorkWire;
-        final unread = onRequestedSurface && delivered && !_cleared;
         final all = request.variables['view'] == 'all';
         final search = _searchText(request);
         final searchWords = search.isEmpty
@@ -929,6 +1144,63 @@ final class _ReceiptServer {
                   .where(
                     (word) => word.isNotEmpty,
                   );
+        final items = [
+          if (onRequestedSurface && obligation)
+            _matchingReceipt(
+              _obligationId,
+              'Needs a response',
+              searchWords: searchWords,
+              seen: _seen,
+              cleared: false,
+              requiresAction: true,
+            ),
+          if (onRequestedSurface && all)
+            for (var row = 0; row < newerReadCount; row++)
+              _matchingReceipt(
+                'Nrecent${row.toString().padLeft(6, '0')}',
+                _readTitle,
+                searchWords: searchWords,
+                seen: true,
+                cleared: true,
+                createdAt: '2026-11-02T08:00:00Z',
+              ),
+          if (onRequestedSurface && delivered && (!_cleared || all))
+            _matchingReceipt(
+              receiptId,
+              _newTitle,
+              searchWords: searchWords,
+              seen: _seen,
+              cleared: _cleared,
+            ),
+          if (onRequestedSurface && secondReceipt && (!_cleared || all))
+            _matchingReceipt(
+              _nextId,
+              _newTitle,
+              searchWords: searchWords,
+              seen: _seen,
+              cleared: _cleared,
+            ),
+          if (onDeskSurface && desk != null && (deskUnread || all))
+            _matchingReceipt(
+              _deskId,
+              'My Desk reply',
+              searchWords: searchWords,
+              seen: desk.seen,
+              cleared: desk.cleared,
+              surface: AttentionSurface.myWorkWire,
+              beaconId: desk.beaconId,
+            ),
+          if (onRequestedSurface && all)
+            _matchingReceipt(
+              _readId,
+              _readTitle,
+              searchWords: searchWords,
+              seen: true,
+              cleared: true,
+            ),
+        ].nonNulls.toList();
+        final limit = request.variables['limit'] as int? ?? 50;
+        final offset = request.variables['cursor'] == null ? 0 : limit;
         return {
           '__typename': 'query_root',
           'attentionFeed': {
@@ -936,40 +1208,16 @@ final class _ReceiptServer {
             'summary': {
               '__typename': 'v2_AttentionSummary',
               'unreadTotal':
-                  (unread ? 1 : 0) + (onDeskSurface && deskUnread ? 1 : 0),
-              'needsYouTotal': 0,
+                  (onRequestedSurface ? sweepable + (obligation ? 1 : 0) : 0) +
+                  (onDeskSurface && deskUnread ? 1 : 0),
+              'needsYouTotal': onRequestedSurface && obligation ? 1 : 0,
             },
             'page': {
               '__typename': 'v2_AttentionPage',
-              'nextCursor': null,
-              'items': [
-                if (onRequestedSurface && delivered && (!_cleared || all))
-                  _matchingReceipt(
-                    receiptId,
-                    _newTitle,
-                    searchWords: searchWords,
-                    seen: _seen,
-                    cleared: _cleared,
-                  ),
-                if (onDeskSurface && desk != null && (deskUnread || all))
-                  _matchingReceipt(
-                    _deskId,
-                    'My Desk reply',
-                    searchWords: searchWords,
-                    seen: desk.seen,
-                    cleared: desk.cleared,
-                    surface: AttentionSurface.myWorkWire,
-                    beaconId: desk.beaconId,
-                  ),
-                if (onRequestedSurface && all)
-                  _matchingReceipt(
-                    _readId,
-                    _readTitle,
-                    searchWords: searchWords,
-                    seen: true,
-                    cleared: true,
-                  ),
-              ].nonNulls.toList(),
+              'nextCursor': items.length > offset + limit
+                  ? 'older-receipts'
+                  : null,
+              'items': items.skip(offset).take(limit).toList(),
             },
           },
         };
@@ -979,7 +1227,8 @@ final class _ReceiptServer {
         desk?.seen = true;
         return {
           '__typename': 'mutation_root',
-          'attentionMarkAllSeen': (delivered ? 1 : 0) + (deskUnread ? 1 : 0),
+          'attentionMarkAllSeen':
+              sweepable + (deskUnread ? 1 : 0) + (obligation ? 1 : 0),
         };
       case 'AttentionDismissAll':
         expect(request.variables['includeOutcomes'], isFalse);
@@ -991,9 +1240,12 @@ final class _ReceiptServer {
             '__typename': 'v2_AttentionDismissAllResult',
             'operationId': request.variables['operationId'],
             'status': 'complete',
-            'appliedReceiptIds': [if (delivered) receiptId],
+            'appliedReceiptIds': [
+              if (sweepable > 0) receiptId,
+              if (sweepable > 1) _nextId,
+            ],
             'appliedOutcomeBeaconIds': <String>[],
-            'appliedCount': delivered ? 1 : 0,
+            'appliedCount': sweepable,
             'skipped': <Object>[],
             'failed': <Object>[],
             'pendingCount': 0,
@@ -1081,6 +1333,8 @@ Map<String, dynamic>? _matchingReceipt(
   required Iterable<String>? searchWords,
   required bool seen,
   required bool cleared,
+  bool requiresAction = false,
+  String createdAt = _timestamp,
   String surface = AttentionSurface.activityWire,
   String? beaconId = 'Bbeacon000001',
 }) {
@@ -1106,13 +1360,13 @@ Map<String, dynamic>? _matchingReceipt(
     'title': title,
     'body': 'Message preview',
     'actionUrl': '/#/',
-    'createdAt': _timestamp,
+    'createdAt': createdAt,
     'beaconId': surface == AttentionSurface.myWorkWire ? beaconId : null,
     'seenAt': seen ? _timestamp : null,
     'collapsedCount': 1,
     'sourceEventKey': id,
     'presentationPayloadJson': jsonEncode(payload),
-    'requiresAction': false,
+    'requiresAction': requiresAction,
     'clearedAt': cleared ? _timestamp : null,
     'clearReason': cleared ? 'manual' : null,
     'surface': surface,

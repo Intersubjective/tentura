@@ -841,7 +841,11 @@ void main() {
       },
     );
 
-    test('search normalizes and survives pagination', () async {
+    test('History search normalizes and survives pagination', () async {
+      const history = AttentionFeedDestinationId.history;
+      attention
+        ..detachFeedSession(_feedDest)
+        ..attachFeedSession(history);
       final initial = Completer<AttentionFeed>();
       final searched = Completer<AttentionFeed>();
       final next = Completer<AttentionFeed>();
@@ -859,7 +863,7 @@ void main() {
       );
       await _settle();
 
-      attention.setSearch(_feedDest, '  needle  ');
+      attention.setSearch(history, '  needle  ');
       await _settle();
       searched.complete(
         AttentionFeed(
@@ -871,7 +875,7 @@ void main() {
         ),
       );
       await _settle();
-      final loadNext = attention.fetchNextPage();
+      final loadNext = attention.fetchNextPage(destinationId: history);
       await _settle();
       next.complete(_feed(items: [_receipt(id: 'two')]));
       await loadNext;
@@ -881,19 +885,19 @@ void main() {
           view: AttentionView.all,
           cursor: null,
           search: null,
-          surface: AttentionSurface.activity,
+          surface: null,
         ),
         (
           view: AttentionView.all,
           cursor: null,
           search: 'needle',
-          surface: AttentionSurface.activity,
+          surface: null,
         ),
         (
           view: AttentionView.all,
           cursor: 'page-two',
           search: 'needle',
-          surface: AttentionSurface.activity,
+          surface: null,
         ),
       ]);
     });

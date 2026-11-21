@@ -323,11 +323,7 @@ final class AttentionCase implements AttentionReconcilePort {
     final summaryFuture = _repository.surfaceSummary();
     final pageFutures = [
       for (final request in requested)
-        _repository.fetch(
-          view: request.session.activeView,
-          search: request.session.normalizedSearch,
-          surface: surfaceForDestination(request.destinationId),
-        ),
+        _fetchSessionPage(request.destinationId, request.session),
     ];
     final AttentionSurfaceSummary summary;
     final List<AttentionFeed> feeds;
@@ -556,7 +552,6 @@ final class AttentionCase implements AttentionReconcilePort {
     if (_accountId.isEmpty) return;
     final session = _feedSessions.session(destinationId);
     final view = session.activeView;
-    final search = session.normalizedSearch;
     final current = session.pages[view];
     final cursor = current?.nextCursor;
     if (cursor == null || cursor.isEmpty) return;
@@ -572,12 +567,7 @@ final class AttentionCase implements AttentionReconcilePort {
     final mutationSerial = _mutationSerial;
     final AttentionFeed feed;
     try {
-      feed = await _repository.fetch(
-        view: view,
-        cursor: cursor,
-        search: search,
-        surface: surfaceForDestination(destinationId),
-      );
+      feed = await _fetchSessionPage(destinationId, session, cursor: cursor);
     } on Object catch (error) {
       // The server refused the cursor at decode. Retrying the tail can only
       // fail again; reset and re-read the head instead.
@@ -1250,6 +1240,23 @@ final class AttentionCase implements AttentionReconcilePort {
     }
   }
 
+  Future<AttentionFeed> _fetchSessionPage(
+    String destinationId,
+    AttentionFeedSession session, {
+    String? cursor,
+  }) {
+    final surface = surfaceForDestination(destinationId);
+    // The Activity endpoint only serves unfiltered pages.
+    return _repository.fetch(
+      view: session.activeView,
+      cursor: cursor,
+      search: surface == AttentionSurface.activity
+          ? null
+          : session.normalizedSearch,
+      surface: surface,
+    );
+  }
+
   Future<void> _requestHeadRefresh(String destinationId) async {
     if (_accountId.isEmpty) return;
     if (_headRefreshInFlight[destinationId] == true) {
@@ -1262,13 +1269,8 @@ final class AttentionCase implements AttentionReconcilePort {
     final session = _feedSessions.session(destinationId);
     final requestGeneration = session.requestGeneration;
     final view = session.activeView;
-    final search = session.normalizedSearch;
     try {
-      final feed = await _repository.fetch(
-        view: view,
-        search: search,
-        surface: surfaceForDestination(destinationId),
-      );
+      final feed = await _fetchSessionPage(destinationId, session);
       if (accountGeneration != _accountGeneration) return;
       // A page that left before a mutation cannot describe the world after
       // it; the mutation's own refresh is already queued behind this one.
@@ -1371,13 +1373,19 @@ final class AttentionCase implements AttentionReconcilePort {
     if (!_surfaceSummarySubject.isClosed) {
       _surfaceSummarySubject.add(summary);
     }
-    _emit(
-      updateHistory
-          ? snapshot.copyWith(
-              summary: summary.historySummary ?? snapshot.summary,
-            )
-          : snapshot,
-    );
+    final historySummary = updateHistory ? summary.historySummary : null;
+    if (historySummary != null) {
+      const destination = AttentionFeedDestinationId.history;
+      final history = _feedSessions.session(destination);
+      // Filtered History pages leave the account-wide total to this refresh.
+      if (history.normalizedSearch != null) {
+        _feedSessions.update(
+          destination,
+          history.copyWith(summary: historySummary),
+        );
+      }
+    }
+    _emit(snapshot.copyWith(summary: historySummary ?? snapshot.summary));
   }
 
   Future<void> _runAfterAckBarriers(

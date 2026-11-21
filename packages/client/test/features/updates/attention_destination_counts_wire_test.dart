@@ -201,7 +201,7 @@ void main() {
     );
 
     test(
-      'search in ${destination == _history ? 'Updates' : 'Activity'} '
+      'search text in ${destination == _history ? 'Updates' : 'Activity'} '
       'keeps filtered counts out of the account title',
       () async {
         await _exercise(_Server(), (h) async {
@@ -211,15 +211,12 @@ void main() {
           expect(history.state.summary.unreadTotal, 33);
           await _titleTick();
           searched.setSearch('Событие');
-          await _until(
-            () => searched.state.items.any((row) => row.id == 'Nsearch000001'),
-            'filtered rows',
-          );
+          await _expectSearchResult(h, destination);
           await _drain();
           await _titleTick();
           expect(
             searched.state.summary.unreadTotal,
-            destination == _history ? 33 : 5,
+            destination == _history ? 33 : 15,
           );
           expect(history.state.summary.unreadTotal, 33);
           expect(h.attention.snapshot.summary.unreadTotal, 33);
@@ -430,7 +427,7 @@ void main() {
 
     testWidgets(
       'Russian Updates badge and title keep 33 after '
-      '${destination == _history ? 'Updates' : 'Activity'} search',
+      '${destination == _history ? 'Updates' : 'Activity'} search text changes',
       (tester) async {
         await _phoneScenario(
           tester,
@@ -438,12 +435,7 @@ void main() {
           (h) async {
             await h.seed();
             h.cubits[destination]!.setSearch('Событие');
-            await _until(
-              () => h.cubits[destination]!.state.items.any(
-                (row) => row.id == 'Nsearch000001',
-              ),
-              'filtered destination rows',
-            );
+            await _expectSearchResult(h, destination);
             await _drain();
             await _titleTick();
           },
@@ -463,9 +455,9 @@ void main() {
                 h.indicator.titles.last.count,
                 h.cubits[destination]!.state.summary.unreadTotal,
               ),
-              (33, 33, 33, destination == _history ? 33 : 5),
+              (33, 33, 33, destination == _history ? 33 : 15),
               reason:
-                  'search filters rows without filtering the Updates badge or account title',
+                  'search text preserves the Updates badge and account title',
             );
             expect(tester.takeException(), isNull);
           },
@@ -474,6 +466,22 @@ void main() {
       timeout: const Timeout(Duration(seconds: 20)),
     );
   }
+}
+
+Future<void> _expectSearchResult(_Harness h, String destination) async {
+  final cubit = h.cubits[destination]!;
+  final expectedId = destination == _history
+      ? 'Nsearch000001'
+      : 'Nactivity0001';
+  await _until(() {
+    final session = h.attention.feedSession(destination);
+    return session.searchText == 'Событие' &&
+        session.pages.containsKey(session.activeView) &&
+        cubit.state.searchText == 'Событие' &&
+        cubit.state.items.length == 1 &&
+        cubit.state.items.single.id == expectedId;
+  }, 'destination rows with search text open');
+  expect(cubit.state.refreshError, isNull);
 }
 
 Future<void> _phoneScenario(
@@ -685,6 +693,11 @@ final class _Server {
     final nextPage = request.variables['cursor'] != null;
     final search =
         (request.variables['search'] as String?)?.isNotEmpty ?? false;
+    expect(
+      surface == AttentionSurface.activityWire && search,
+      isFalse,
+      reason: 'the Activity API rejects requests with nonblank search',
+    );
     if (holdHeads && !nextPage && !_released.contains(surface)) {
       final gate = Completer<void>();
       _held.add((surface: surface, gate: gate));
