@@ -84,8 +84,6 @@ void main() {
     repository = _FakeRepository();
     suggestions = PeopleTagSuggestionCase(
       repository,
-      env: const Env(),
-      logger: Logger('test'),
     );
   });
 

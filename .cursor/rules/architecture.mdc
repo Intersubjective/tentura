@@ -33,7 +33,7 @@ features/
 
 #### Domain Layer (`domain/` or `features/*/domain/`)
 - **Entities**: Freezed immutable classes representing business objects (see codegen.mdc for Freezed usage)
-- **Use Cases**: Business logic orchestration (extend `UseCaseBase` where the package uses that base)
+- **Use Cases**: Orchestrate business logic. Extend `UseCaseBase` only when the case uses `env` or `logger`. Otherwise, inject only the feature dependencies.
 - **Ports** (`*_repository_port.dart`, etc.): Narrow interfaces for what domain needs from infrastructure — **server** use cases depend on **ports only**, not concrete `data/repository` types. **Client** features may also declare ports in `features/*/domain/port/` (e.g. `features/constellation/domain/port/constellation_repository_port.dart`) or shared ones in `lib/domain/port/`; the data repository implements the port (`@LazySingleton(as: …Port, env: [dev, prod])`) and use cases inject the port. Prefer a port over a concrete repository type when the use case needs a test seam or the implementation is swapped per environment.
 - **Exceptions**: Domain-specific error types (see advanced-patterns.mdc for exception hierarchy)
 - **Rules**: 
@@ -95,7 +95,7 @@ Nothing (pure)
 
 ## Common Patterns (read canonical source, don't copy)
 
-- **Use case** (`@singleton`, extends `UseCaseBase`, injects repos/ports): @packages/client/lib/features/beacon_view/domain/use_case/beacon_view_case.dart
+- **Use case** (`@singleton`, extends `UseCaseBase` to use `logger`, injects feature dependencies): @packages/client/lib/features/beacon_view/domain/use_case/beacon_view_case.dart
 - **Repository** (`@lazySingleton`, returns domain entities via `toEntity()`): @packages/client/lib/features/beacon_view/data/repository/coordination_repository.dart
 - **Cubit** (injects a `*Case`, `emit(state.copyWith(...))`, Freezed state): @packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart
 

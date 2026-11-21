@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
@@ -77,7 +78,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
       await _suggestions.notNow(widget.event);
     } catch (e, s) {
       // Best-effort: the card stays hidden; a lost write may resurface it.
-      _suggestions.logger.warning('tag suggestion notNow failed', e, s);
+      GetIt.I<Logger>().warning('tag suggestion notNow failed', e, s);
     }
   }
 
@@ -88,7 +89,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
       await _suggestions.disable();
     } catch (e, s) {
       // Best-effort: the card stays hidden; a lost write may resurface it.
-      _suggestions.logger.warning('tag suggestion disable failed', e, s);
+      GetIt.I<Logger>().warning('tag suggestion disable failed', e, s);
     }
   }
 

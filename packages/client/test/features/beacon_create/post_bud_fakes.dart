@@ -219,14 +219,11 @@ final class BudHarness {
   final FakeBudProfiles profiles;
   final port = FakePostBudPort();
 
-  BeaconCreateCase get createCase =>
-      buildBeaconCreateCase(beacons: write);
+  BeaconCreateCase get createCase => buildBeaconCreateCase(beacons: write);
 
   PostBudCase get postBudCase => PostBudCase(
     port,
     OpIdService(),
-    env: const Env(),
-    logger: Logger('post-bud-test'),
   );
 
   MessagePrefillCase get prefillCase => MessagePrefillCase(hierarchy);

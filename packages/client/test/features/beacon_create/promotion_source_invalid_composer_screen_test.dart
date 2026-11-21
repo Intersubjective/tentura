@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
@@ -612,8 +611,6 @@ void main() {
               postBudCase: PostBudCase(
                 PostBudRepository(remote),
                 OpIdService(),
-                env: const Env(),
-                logger: GetIt.I<Logger>(),
               ),
               childCreationContext: kBudContext,
               effects: effects,

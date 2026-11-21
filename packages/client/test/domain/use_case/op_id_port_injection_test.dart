@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 
 import 'package:tentura/data/repository/attention_repository.dart';
@@ -16,7 +15,6 @@ import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
-import 'package:tentura/env.dart';
 
 import '../../features/beacon_create/fake_beacon_ports.dart';
 import '../../features/beacon_create/post_bud_fakes.dart';
@@ -67,12 +65,7 @@ void main() {
 
     test('PostBudCase returns a fresh injected id per session', () {
       final opIds = _CountingOpIds();
-      final sut = PostBudCase(
-        FakePostBudPort(),
-        opIds,
-        env: const Env(),
-        logger: Logger('op-id-port-injection-test'),
-      );
+      final sut = PostBudCase(FakePostBudPort(), opIds);
 
       expect(sut.newClientCommandId(), 'op-1');
       expect(sut.newClientCommandId(), 'op-2');

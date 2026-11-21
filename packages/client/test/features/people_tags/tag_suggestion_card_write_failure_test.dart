@@ -73,13 +73,10 @@ void main() {
     );
     await peopleTags.load();
     GetIt.I
+      ..registerSingleton<Logger>(Logger(_loggerName))
       ..registerSingleton<PeopleTagsCase>(peopleTags)
       ..registerSingleton<PeopleTagSuggestionCase>(
-        PeopleTagSuggestionCase(
-          repository,
-          env: const Env(),
-          logger: Logger(_loggerName),
-        ),
+        PeopleTagSuggestionCase(repository),
       );
   });
 
@@ -118,7 +115,7 @@ void main() {
     testWidgets('a failing Not now still hides the card and logs a warning', (
       tester,
     ) async {
-      expect(GetIt.I<PeopleTagSuggestionCase>(), isA<UseCaseBase>());
+      expect(GetIt.I<PeopleTagSuggestionCase>(), isNot(isA<UseCaseBase>()));
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
       expect(find.byKey(_card), findsOneWidget);

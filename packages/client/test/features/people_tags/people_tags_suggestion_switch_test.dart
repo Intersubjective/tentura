@@ -103,8 +103,6 @@ void main() {
       ..registerSingleton<PeopleTagSuggestionCase>(
         PeopleTagSuggestionCase(
           repository,
-          env: const Env(),
-          logger: Logger('test'),
         ),
       );
     return repository;

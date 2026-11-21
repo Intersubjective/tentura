@@ -1,8 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:tentura/domain/use_case/use_case_base.dart';
-
 import '../entity/people_tag_suggestion_event.dart';
 import '../port/people_tags_repository_port.dart';
 
@@ -10,12 +8,8 @@ import '../port/people_tags_repository_port.dart';
 /// with it; the server state (`canSuggest`) decides, the client only keeps a
 /// card from appearing twice for one event.
 @singleton
-final class PeopleTagSuggestionCase extends UseCaseBase {
-  PeopleTagSuggestionCase(
-    this._repository, {
-    required super.env,
-    required super.logger,
-  });
+final class PeopleTagSuggestionCase {
+  PeopleTagSuggestionCase(this._repository);
 
   final PeopleTagsRepositoryPort _repository;
 

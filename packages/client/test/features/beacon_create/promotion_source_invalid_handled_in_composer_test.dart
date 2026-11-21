@@ -13,7 +13,6 @@ import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/data/repository/post_bud_repository.dart';
@@ -223,8 +222,6 @@ void main() {
             postBudCase: PostBudCase(
               PostBudRepository(remote),
               OpIdService(),
-              env: const Env(),
-              logger: Logger('post-bud-test'),
             ),
             childCreationContext: kBudContext,
             effects: effects,

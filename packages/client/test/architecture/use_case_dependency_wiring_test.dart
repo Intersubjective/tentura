@@ -20,6 +20,11 @@ const _casePaths = {
 };
 
 const _ambientDependencies = {'env', 'logger'};
+const _postBudAndSuggestionCases = {
+  'PostBudCase': 'lib/domain/use_case/post_bud_case.dart',
+  'PeopleTagSuggestionCase':
+      'lib/features/people_tags/domain/use_case/people_tag_suggestion_case.dart',
+};
 final _ambientNames = RegExp(r'\b(?:env|logger|UseCaseBase)\b');
 final _forwardAmbientNames = RegExp(
   r'\b(?:env|logger|Env|Logger|UseCaseBase)\b',
@@ -42,6 +47,103 @@ void main() {
   _testWiring('ForwardCase wiring only supplies feature dependencies', {
     'ForwardCase': _casePaths['ForwardCase']!,
   });
+  group('Client use cases depend only on services they use', () {
+    _testWiring(
+      'Post budding and people tag suggestions only need feature dependencies',
+      _postBudAndSuggestionCases,
+    );
+    test('the shared base serves at least three cases that read its fields', () {
+      final subclasses = <String, _AmbientFieldReads>{};
+      for (final file in Directory(
+        'lib',
+      ).listSync(recursive: true, followLinks: false).whereType<File>()) {
+        if (!file.path.endsWith('.dart') ||
+            _generatedDart.hasMatch(file.path) ||
+            file.path.contains('/_g/')) {
+          continue;
+        }
+        final source = file.readAsStringSync();
+        if (!source.contains('UseCaseBase')) continue;
+        final unit = parseString(content: source, path: file.path).unit;
+        for (final declaration
+            in unit.declarations.whereType<ClassDeclaration>()) {
+          if (declaration.extendsClause?.superclass.name.lexeme !=
+              'UseCaseBase') {
+            continue;
+          }
+          final reads = _AmbientFieldReads();
+          declaration.body.accept(reads);
+          subclasses['${declaration.namePart.typeName.lexeme} (${file.path})'] =
+              reads;
+        }
+      }
+      expect(
+        subclasses.entries.where((entry) => entry.value.fields.isNotEmpty),
+        hasLength(greaterThanOrEqualTo(3)),
+      );
+
+      const basePath = 'lib/domain/use_case/use_case_base.dart';
+      final base =
+          parseString(
+            content: File(basePath).readAsStringSync(),
+            path: basePath,
+          ).unit.declarations.whereType<ClassDeclaration>().singleWhere(
+            (node) => node.namePart.typeName.lexeme == 'UseCaseBase',
+          );
+      expect(base.baseKeyword, isNotNull);
+      final body = base.body as BlockClassBody;
+      final fields = {
+        for (final member in body.members.whereType<FieldDeclaration>())
+          for (final field in member.fields.variables)
+            field.name.lexeme: member.fields.type?.toSource(),
+      };
+      expect(fields, containsPair('env', 'Env'));
+      expect(fields, containsPair('logger', 'Logger'));
+      final requiredFields = body.members
+          .whereType<ConstructorDeclaration>()
+          .single
+          .parameters
+          .parameters
+          .whereType<FieldFormalParameter>()
+          .where((parameter) => parameter.isRequiredNamed)
+          .map((parameter) => parameter.name.lexeme);
+      expect(requiredFields, containsAll(_ambientDependencies));
+
+      expect(
+        subclasses.entries
+            .where((entry) => entry.value.fields.isEmpty)
+            .map((entry) => entry.key),
+        isEmpty,
+        reason: 'Each subclass must read env or logger in its own body',
+      );
+    });
+  });
+}
+
+class _AmbientFieldReads extends RecursiveAstVisitor<void> {
+  final fields = <String>{};
+
+  void _record(String? receiver) {
+    if (_ambientDependencies.contains(receiver)) fields.add(receiver!);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    _record(node.target?.toSource());
+    super.visitMethodInvocation(node);
+  }
+
+  @override
+  void visitPrefixedIdentifier(PrefixedIdentifier node) {
+    _record(node.prefix.name);
+    super.visitPrefixedIdentifier(node);
+  }
+
+  @override
+  void visitPropertyAccess(PropertyAccess node) {
+    _record(node.target?.toSource());
+    super.visitPropertyAccess(node);
+  }
 }
 
 void _testWiring(String description, Map<String, String> casePaths) {
@@ -94,11 +196,12 @@ void _testWiring(String description, Map<String, String> casePaths) {
                 );
               }
             }
-            for (final parameter
-                in constructor.parameters.parameters
-                    .whereType<SuperFormalParameter>()) {
-              if (_ambientDependencies.contains(parameter.name.lexeme)) {
-                violations.add('$path declares super.${parameter.name.lexeme}');
+            for (final parameter in constructor.parameters.parameters) {
+              final parameterName = parameter.name?.lexeme;
+              if (_ambientDependencies.contains(parameterName) &&
+                  (parameter is SuperFormalParameter ||
+                      _postBudAndSuggestionCases.containsKey(name))) {
+                violations.add('$path declares ${parameter.toSource()}');
               }
             }
           }

@@ -30,10 +30,11 @@ contracts. It is *not* "domain depends on data".
 ## Layers
 
 Each feature: `features/<name>/{data,domain,ui}`. Shared domain in
-`lib/domain/` (entities like `Beacon`, `Profile`; enums; exceptions;
-`UseCaseBase`).
+`lib/domain/` contains entities like `Beacon` and `Profile`, enums, exceptions,
+and `UseCaseBase` for use cases that use `env` or `logger`.
 
-- **Domain** — Freezed entities, use cases (extend `UseCaseBase`), ports
+- **Domain** — Freezed entities, use cases (extend `UseCaseBase` only when
+  using `env` or `logger`, otherwise inject only feature dependencies), ports
   (`*_repository_port.dart` on server), domain exceptions. No I/O, no
   framework types, no imports from `data/` or `ui/`.
 - **Data** — repositories (`@lazySingleton`, return domain entities via

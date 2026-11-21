@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -553,9 +552,34 @@ void main() {
     PostBudCase realCase(BudHarness h, RemoteApiService remote) => PostBudCase(
       PostBudRepository(remote),
       OpIdService(),
-      env: const Env(),
-      logger: Logger('post-bud-wire-test'),
     );
+
+    testWidgets('the composer opens the created Request with only the Post bud '
+        'repository and operation IDs', (tester) async {
+      final wire = await startWire(tester, factCount: 0);
+      registerFactRepository(wire.facts);
+      late final PostBudCase postBud;
+      expect(
+        () => postBud =
+            Function.apply(PostBudCase.new, [
+                  PostBudRepository(wire.remote),
+                  OpIdService(),
+                ])
+                as PostBudCase,
+        returnsNormally,
+        reason: 'The composer can construct PostBudCase without env or logger',
+      );
+      final pumped = await _pump(
+        tester,
+        realFactRepository: true,
+        budCase: (_) => postBud,
+      );
+      await _submit(tester, real: true);
+
+      expect(wire.bud.single['postId'], kBudPostId);
+      final args = pumped.router.opened.single.args! as BeaconViewRouteArgs;
+      expect(args.id, 'Bchild0000001');
+    });
 
     testWidgets('the fact list response fills the checklist; ticked ids go '
         'out as factIds in order', (tester) async {

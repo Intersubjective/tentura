@@ -437,8 +437,6 @@ void main() {
       GetIt.I.registerSingleton<PeopleTagSuggestionCase>(
         PeopleTagSuggestionCase(
           _SuggestionRepository(),
-          env: const Env(),
-          logger: Logger('test'),
         ),
       );
 
@@ -510,8 +508,6 @@ void main() {
       GetIt.I.registerSingleton<PeopleTagSuggestionCase>(
         PeopleTagSuggestionCase(
           _SuggestionRepository(),
-          env: const Env(),
-          logger: Logger('test'),
         ),
       );
       await openConsumers();

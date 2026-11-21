@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
-import 'package:tentura/env.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/port/people_tags_repository_port.dart';
@@ -41,8 +39,6 @@ void main() {
     repository = _FakeRepository();
     suggestions = PeopleTagSuggestionCase(
       repository,
-      env: const Env(),
-      logger: Logger('test'),
     );
   });
 

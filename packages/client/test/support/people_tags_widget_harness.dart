@@ -16,8 +16,6 @@ void registerEmptyPeopleTags() {
   if (!getIt.isRegistered<PeopleTagSuggestionCase>()) {
     final suggestions = PeopleTagSuggestionCase(
       FakePeopleTagsRepository(),
-      env: const Env(),
-      logger: Logger('PeopleTagsWidgetHarness'),
     );
     getIt.registerSingleton<PeopleTagSuggestionCase>(suggestions);
     addTearDown(() async {

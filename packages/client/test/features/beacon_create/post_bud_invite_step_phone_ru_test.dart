@@ -352,8 +352,6 @@ Future<_Pumped> _pumpInviteStep(
     postBudCase: PostBudCase(
       PostBudRepository(remote),
       OpIdService(),
-      env: const Env(),
-      logger: Logger('PostBudInvitePickerTest'),
     ),
     childCreationContext: kBudContext,
     effects: effects,

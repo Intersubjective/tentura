@@ -5,18 +5,11 @@ import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/port/post_bud_port.dart';
 
-import 'use_case_base.dart';
-
 /// Budding a Request from a Post (plan C3/D1). Entry points that start a bud
 /// check `kPostBuddingEnabled`; this case does not.
 @singleton
-final class PostBudCase extends UseCaseBase {
-  PostBudCase(
-    this._port,
-    this._opIds, {
-    required super.env,
-    required super.logger,
-  });
+final class PostBudCase {
+  PostBudCase(this._port, this._opIds);
 
   final PostBudPort _port;
 
