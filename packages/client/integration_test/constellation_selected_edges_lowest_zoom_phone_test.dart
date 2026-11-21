@@ -23,7 +23,7 @@ import 'package:get_it/get_it.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/main.dart' as app;

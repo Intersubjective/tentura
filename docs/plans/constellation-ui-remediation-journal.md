@@ -197,7 +197,7 @@ flutter test
 
 **Changed files:**
 - `packages/client/lib/design_system/tentura_tokens.dart`
-- `packages/client/lib/features/constellation/ui/utils/constellation_presentation_frame.dart` (new)
+- `packages/client/lib/features/constellation/ui/util/constellation_presentation_frame.dart` (new)
 - `packages/client/lib/features/constellation/ui/widget/constellation_overflow_group.dart`
 - `packages/client/test/features/constellation/constellation_presentation_frame_test.dart` (new)
 - `docs/plans/constellation-ui-remediation-journal.md`
@@ -353,7 +353,7 @@ flutter test
 
 **Changed files:**
 - `packages/client/lib/design_system/tentura_tokens.dart`
-- `packages/client/lib/features/constellation/ui/utils/constellation_edge_style.dart` (new)
+- `packages/client/lib/features/constellation/ui/util/constellation_edge_style.dart` (new)
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
 - `packages/client/lib/features/graph/ui/widget/graph_legend_content.dart`

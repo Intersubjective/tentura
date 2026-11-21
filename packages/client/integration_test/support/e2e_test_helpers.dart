@@ -45,7 +45,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';

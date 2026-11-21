@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 

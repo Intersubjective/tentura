@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_new_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_unread_glow_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';

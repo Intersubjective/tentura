@@ -13,7 +13,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../support/phone_surface.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'dart:math' as math;
 
 Matrix4 _cameraMatrix(WidgetTester tester) {

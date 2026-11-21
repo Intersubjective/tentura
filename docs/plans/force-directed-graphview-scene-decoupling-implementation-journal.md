@@ -572,7 +572,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 ### Changed paths (M06)
 
 - `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
-- `packages/client/lib/features/constellation/ui/utils/constellation_graph_scene.dart` (new)
+- `packages/client/lib/features/constellation/ui/util/constellation_graph_scene.dart` (new)
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
 - `packages/client/test/features/constellation/constellation_scene_layout_test.dart` (new)

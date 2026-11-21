@@ -17,7 +17,7 @@ import 'package:get_it/get_it.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/main.dart' as app;

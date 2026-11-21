@@ -5,7 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/test_ids.dart';
 

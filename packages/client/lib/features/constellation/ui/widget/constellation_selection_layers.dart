@@ -22,7 +22,7 @@ import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
 import '../util/layout_geometry_adapters.dart';
 import 'constellation_tidied_snack_bar.dart';
-import '../utils/constellation_graph_scene.dart';
+import '../util/constellation_graph_scene.dart';
 
 export '../bloc/constellation_selection_cubit.dart'
     show ConstellationSelectionCubit, maybeConstellationSelection;

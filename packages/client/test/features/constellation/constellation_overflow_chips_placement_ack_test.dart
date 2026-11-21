@@ -14,7 +14,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_anchor_
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';

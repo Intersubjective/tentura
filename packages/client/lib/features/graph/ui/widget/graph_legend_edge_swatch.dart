@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 
 import '../util/graph_edge_stroke.dart';
 import '../util/graph_edge_style.dart';

@@ -15,7 +15,7 @@ import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/util/post_expiry_clock.dart';
-import '../utils/constellation_presentation_frame.dart';
+import '../util/constellation_presentation_frame.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_consts.dart';
@@ -71,7 +71,7 @@ import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/util/graph_scene_ids.dart';
 import '../../../graph/ui/util/tentura_layout_algorithms.dart';
-import '../utils/constellation_graph_scene.dart';
+import '../util/constellation_graph_scene.dart';
 import '../scene/constellation_interaction_controller.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../scene/constellation_forward_tree_scene_layout.dart';

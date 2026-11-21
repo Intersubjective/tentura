@@ -19,7 +19,7 @@ import 'package:tentura/features/graph/ui/widget/graph_legend_content.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_edge_swatch.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';

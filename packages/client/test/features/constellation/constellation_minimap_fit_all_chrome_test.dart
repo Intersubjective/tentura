@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 

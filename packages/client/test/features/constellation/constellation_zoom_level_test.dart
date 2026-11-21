@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 
 void main() {
   test('the shipped Field renders up to 400 people', () {

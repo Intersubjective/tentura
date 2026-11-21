@@ -27,7 +27,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 

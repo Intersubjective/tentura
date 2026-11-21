@@ -7,7 +7,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../../domain/constellation_trust_chain.dart';
-import '../utils/constellation_presentation_frame.dart';
+import '../util/constellation_presentation_frame.dart';
 import 'constellation_node_ring_layer.dart';
 
 /// One short pulse when a «new on your Field» ring first appears (#898).

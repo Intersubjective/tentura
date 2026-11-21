@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/home/ui/widget/home_bottom_navigation_bar.dart';

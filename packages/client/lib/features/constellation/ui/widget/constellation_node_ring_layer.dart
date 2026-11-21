@@ -11,8 +11,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
-import '../utils/constellation_presentation_frame.dart';
-import '../utils/constellation_tap_resolver.dart';
+import '../util/constellation_presentation_frame.dart';
+import '../util/constellation_tap_resolver.dart';
 
 /// How a trust badge looks: a glyph disc on the person's top start corner.
 /// Colour is never the only cue: the glyph differs as well (#643).

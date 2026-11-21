@@ -12,7 +12,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/port/constellation_tag_magnet_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_tag_magnet_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_magnet_control.dart';

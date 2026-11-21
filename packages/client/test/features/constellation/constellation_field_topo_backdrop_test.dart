@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/domain/utils/field_topo_contours.dart';
+import 'package:tentura/features/constellation/domain/util/field_topo_contours.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_hull_layer.dart';
 

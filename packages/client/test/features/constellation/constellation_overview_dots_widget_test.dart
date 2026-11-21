@@ -12,8 +12,8 @@ import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';

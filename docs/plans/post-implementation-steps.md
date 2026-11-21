@@ -492,7 +492,7 @@ are green.
 **Files**
 - `packages/client/lib/features/graph/domain/entity/edge_details.dart` (equality :22): add a
   `String semanticId` (default: today's `'src->dst'`), include it in `==`/`hashCode`.
-- `packages/client/lib/features/constellation/ui/utils/constellation_graph_scene.dart` (:33): resolve
+- `packages/client/lib/features/constellation/ui/util/constellation_graph_scene.dart` (:33): resolve
   edges by `semanticId`, not by the endpoint suffix.
 - `constellation_cubit.dart` `addEdge` (:2234-2265): key and assert by `semanticId`
   (`'src->dst#kind'`); `constellation_body.dart` painter (:982-984): look up by `semanticId`;

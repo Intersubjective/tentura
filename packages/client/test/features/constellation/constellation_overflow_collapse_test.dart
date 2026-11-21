@@ -7,8 +7,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _chipKey = Key('constellation.overflow.ego');

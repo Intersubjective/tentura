@@ -13,7 +13,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_new_peo
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_new_people_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_new_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_unread_glow_layer.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

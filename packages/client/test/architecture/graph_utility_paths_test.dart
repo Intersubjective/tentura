@@ -21,9 +21,11 @@ const _newRelative = '../util/';
 const _oldDirectory = '$_graph/ui/$_legacyFolder';
 const _newDirectory = '$_graph/ui/util';
 const _constellationUi = '$_client/lib/features/constellation/ui';
-const _constellationUtilities = '$_constellationUi/utils';
-const _constellationScene =
-    '$_constellationUtilities/constellation_graph_scene.dart';
+const _constellationUtilitiesAtGraphMove = '$_constellationUi/$_legacyFolder';
+const _constellationSceneAtGraphMove =
+    '$_constellationUtilitiesAtGraphMove/constellation_graph_scene.dart';
+const _liveConstellationScene =
+    '$_constellationUi/util/constellation_graph_scene.dart';
 const _testPath = '$_client/test/architecture/graph_utility_paths_test.dart';
 // Pre-move digests let a depth-one checkout check the original bytes.
 const _originalDigests = {
@@ -76,7 +78,7 @@ const _expectedImports = {
     '$_relativeUtil/$_sceneIds',
     '$_relativeUtil/$_layoutAlgorithms',
   },
-  _constellationScene: {'$_relativeUtil/$_sceneIds'},
+  _liveConstellationScene: {'$_relativeUtil/$_sceneIds'},
   '$_constellationUi/widget/constellation_viewport_overlay.dart': {
     '$_packageUtil/$_sceneIds',
   },
@@ -212,7 +214,7 @@ Future<void> _auditMove(
             '--',
             _oldDirectory,
             _newDirectory,
-            _constellationUtilities,
+            _constellationUtilitiesAtGraphMove,
           ], environment: environment),
         ).toSet()
       : _fields(
@@ -225,7 +227,7 @@ Future<void> _auditMove(
             '--',
             _oldDirectory,
             _newDirectory,
-            _constellationUtilities,
+            _constellationUtilitiesAtGraphMove,
           ]),
         ).toSet();
   final moves = {
@@ -246,7 +248,7 @@ Future<void> _auditMove(
       '$_client/lib/features/constellation/ui/scene/constellation_interaction_controller.dart',
       '$_client/lib/features/constellation/ui/scene/constellation_magnet_layout.dart',
       '$_client/lib/features/constellation/ui/scene/constellation_scene_controller.dart',
-      _constellationScene,
+      _constellationSceneAtGraphMove,
       '$_client/lib/features/constellation/ui/widget/constellation_viewport_overlay.dart',
       '$_client/test/features/graph/graph_edge_style_test.dart',
       '$_client/test/features/constellation/constellation_scene_layout_test.dart',
@@ -303,7 +305,7 @@ Future<void> _auditMove(
   );
   expect(
     layout,
-    contains(_constellationScene),
+    contains(_constellationSceneAtGraphMove),
     reason: 'The Constellation scene keeps its own utility path',
   );
 
@@ -377,7 +379,7 @@ void main() {
         '--',
         _oldDirectory,
         _newDirectory,
-        _constellationScene,
+        _liveConstellationScene,
       ]),
     ).where((path) => _file(path).existsSync()).toSet();
     expect(
@@ -390,14 +392,26 @@ void main() {
       {
         'tracked or pending paths': {
           for (final name in _files) '$_newDirectory/$name',
-          _constellationScene,
+          _liveConstellationScene,
         },
         'legacy directory exists': false,
       },
     );
     expect(
-      _fields(await _git(['ls-files', '-z', '--', _constellationScene])),
-      [_constellationScene],
+      _fields(
+        await _git([
+          'ls-files',
+          '-z',
+          '--',
+          _constellationSceneAtGraphMove,
+          _liveConstellationScene,
+        ]),
+      ),
+      anyOf([
+        equals([_constellationSceneAtGraphMove]),
+        equals([_liveConstellationScene]),
+      ]),
+      reason: 'The index contains the scene before or after its relocation',
     );
   });
 

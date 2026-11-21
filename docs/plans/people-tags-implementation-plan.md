@@ -561,7 +561,7 @@ still passes; gate on: a visible person with no Requests is kept (a new test nex
 ### B7b — Field: presence rendering (temporary, bond)
 
 **Files:** node: dashed outline for `temporary` (new `constellationDashedCirclePath` next to
-`constellationEdgeDashPath`, `F/ui/utils/constellation_edge_style.dart:34`) and a thin dashed link to
+`constellationEdgeDashPath`, `F/ui/util/constellation_edge_style.dart:34`) and a thin dashed link to
 `temporaryBeaconId`'s Request (now in the snapshot, A7a); panel lines via the panel `subtitle` slot:
 bond → `peopleTagsWorkingTogether` with the first `bondContexts` title, temporary →
 `peopleTagsTemporary`. Gated by `kFieldMembershipV2Enabled`.
@@ -807,7 +807,7 @@ clock).
 
 ### E1 — One zoom-level owner
 
-**Files:** `C/consts.dart` `kFieldSemanticZoomEnabled = false`; `F/ui/utils/constellation_presentation_frame.dart`:
+**Files:** `C/consts.dart` `kFieldSemanticZoomEnabled = false`; `F/ui/util/constellation_presentation_frame.dart`:
 `ConstellationDetailLevel { close, district, overview }`, thresholds 0.85 / 0.45, settled level =
 pure function of scale (hysteresis only while a gesture is active); new
 `F/ui/scene/constellation_zoom_level_controller.dart` (ValueListenable) owned by the screen;

@@ -5,8 +5,8 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
-import '../utils/constellation_magnet_label_clearance.dart';
-import '../utils/constellation_tap_resolver.dart';
+import '../util/constellation_magnet_label_clearance.dart';
+import '../util/constellation_tap_resolver.dart';
 import 'constellation_tag_magnet_control.dart';
 
 /// Screen-sized hit regions over scene-space labels; camera changes move the

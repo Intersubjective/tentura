@@ -635,7 +635,7 @@ A «Для вас» row with `inviteId` renders the invite card (inviter, note, 
 ### D5 — Field `grewFrom`
 
 - `ConstellationEdgeKind.grewFrom` (`constellation_scene_controller.dart:26`).
-- Add it to both exhaustive switches (`constellation_scene_controller.dart:506-545`, `ui/utils/constellation_edge_style.dart:61-111`) and to the legend (`graph_legend_content.dart`).
+- Add it to both exhaustive switches (`constellation_scene_controller.dart:506-545`, `ui/util/constellation_edge_style.dart:61-111`) and to the legend (`graph_legend_content.dart`).
 - Call `addEdge(srcId: parentBeaconId, dstId: childId)` when both nodes are present.
 
 **Tests:** a scene-controller unit test (the edge is present iff both nodes are) and a style test.

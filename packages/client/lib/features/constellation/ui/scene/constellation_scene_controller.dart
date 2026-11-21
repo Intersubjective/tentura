@@ -25,7 +25,7 @@ import '../../../graph/ui/util/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
 
-import '../utils/constellation_graph_scene.dart';
+import '../util/constellation_graph_scene.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
 import 'scene_update_gate.dart';

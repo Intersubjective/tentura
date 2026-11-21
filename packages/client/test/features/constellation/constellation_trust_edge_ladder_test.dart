@@ -22,7 +22,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_trust_c
 import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 
 import '../../support/constellation_store_fixture.dart';
 

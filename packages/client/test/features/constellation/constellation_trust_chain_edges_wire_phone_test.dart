@@ -25,7 +25,7 @@ import 'package:tentura/features/constellation/data/repository/constellation_tru
 import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 

@@ -10,7 +10,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import '../../domain/constellation_trust_chain.dart';
-import '../utils/constellation_presentation_frame.dart';
+import '../util/constellation_presentation_frame.dart';
 
 /// Brief brighten when unread glow first appears (#256 xdle.3).
 const kConstellationFieldUnreadPulseDuration = Duration(milliseconds: 350);

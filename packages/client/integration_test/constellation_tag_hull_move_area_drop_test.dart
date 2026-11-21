@@ -9,7 +9,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_hull_layer.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';

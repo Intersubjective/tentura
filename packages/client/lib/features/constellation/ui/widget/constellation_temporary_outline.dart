@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../utils/constellation_edge_style.dart';
+import '../util/constellation_edge_style.dart';
 
 /// The dashed ring around a temporary person's node. Fills the node it sits
 /// on and takes no pointer events.

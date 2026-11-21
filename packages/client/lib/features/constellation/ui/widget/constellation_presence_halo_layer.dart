@@ -9,7 +9,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../../domain/constellation_trust_chain.dart';
 import '../bloc/constellation_presence_cubit.dart';
-import '../utils/constellation_presentation_frame.dart';
+import '../util/constellation_presentation_frame.dart';
 
 /// Halo band width as a share of the body radius: the halo scales with the
 /// node, so a zoomed-out node is never covered by a fixed-size mark.
