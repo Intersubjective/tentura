@@ -3,7 +3,6 @@ import 'package:http/http.dart' show ClientException;
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
-import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
@@ -221,10 +220,10 @@ void main() {
         isA<ShowError>().having(
           (effect) => effect.error,
           'error',
-          isA<Localizable>().having(
+          isA<BeaconChildCommandConflictException>().having(
             (error) => error.toL10n('en'),
             'English message',
-            'A child request already exists for this message.',
+            "Couldn't submit this request. Please try again.",
           ),
         ),
       ]);

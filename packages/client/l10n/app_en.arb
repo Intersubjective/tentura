@@ -4292,6 +4292,10 @@
   "labelBeaconTabChat": "Discussion",
   "beaconChildRequestsTitle": "Child requests",
   "beaconCreateChildRequest": "Create child request",
+  "beaconChildCommandConflict": "Couldn't submit this request. Please try again.",
+  "@beaconChildCommandConflict": {
+    "description": "Shown when a child request creation command cannot be accepted or replayed."
+  },
   "beaconChildRequestsEmpty": "No child requests yet",
   "beaconChildRequestsActiveTitle": "Active",
   "beaconChildRequestsFinishedTitle": "Finished",

@@ -48,7 +48,11 @@ git config --global --add safe.directory '*'
 
 if [ "$pkg" = client ]; then
   flutter pub get
-  (cd "$pkg_dir" && flutter gen-l10n)
+  (
+    cd "$pkg_dir"
+    dart tool/generate_beacon_hierarchy_copy.dart --check
+    flutter gen-l10n
+  )
 else
   dart pub get
 fi

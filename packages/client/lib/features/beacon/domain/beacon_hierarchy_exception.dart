@@ -1,5 +1,7 @@
 import 'package:tentura_root/domain/entity/localizable.dart';
 
+import 'beacon_hierarchy_copy.dart';
+
 /// Typed translations of the nested-request GraphQL error codes (plan §3.5).
 ///
 /// Thrown by [_V2RoutingLink]'s `onGraphQLError` handler in
@@ -52,13 +54,7 @@ final class BeaconPromotionSourceInvalidException
   };
 }
 
-mixin _ExistingChildRequestCopy implements Localizable {
-  @override
-  String get toEn => 'A child request already exists for this message.';
-
-  @override
-  String get toRu => 'Из этого сообщения уже создан дочерний запрос.';
-
+mixin _EnglishFallbackCopy implements Localizable {
   @override
   String toL10n(String? locale) => locale == 'ru' ? toRu : toEn;
 }
@@ -66,7 +62,7 @@ mixin _ExistingChildRequestCopy implements Localizable {
 /// The source message already has a published child.
 final class BeaconSourceAlreadyPromotedException
     extends BeaconHierarchyException
-    with _ExistingChildRequestCopy {
+    with _EnglishFallbackCopy {
   const BeaconSourceAlreadyPromotedException({
     this.existingChildBeaconId,
     Object? message,
@@ -78,14 +74,26 @@ final class BeaconSourceAlreadyPromotedException
   final String? existingChildBeaconId;
 
   static const codeNumber = 1312;
+
+  @override
+  String get toEn => 'A child request already exists for this message.';
+
+  @override
+  String get toRu => 'Из этого сообщения уже создан дочерний запрос.';
 }
 
-/// The `clientCommandId` was reused with different input.
+/// The child creation command could not be accepted or replayed.
 final class BeaconChildCommandConflictException extends BeaconHierarchyException
-    with _ExistingChildRequestCopy {
+    with _EnglishFallbackCopy {
   const BeaconChildCommandConflictException([super.message]);
 
   static const codeNumber = 1313;
+
+  @override
+  String get toEn => beaconChildCommandConflictCopy.en;
+
+  @override
+  String get toRu => beaconChildCommandConflictCopy.ru;
 }
 
 /// The prior child draft for this command was deleted.

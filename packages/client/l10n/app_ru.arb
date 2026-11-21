@@ -3954,6 +3954,7 @@
   "labelBeaconTabChat": "Обсуждение",
   "beaconChildRequestsTitle": "Дочерние запросы",
   "beaconCreateChildRequest": "Создать дочерний запрос",
+  "beaconChildCommandConflict": "Не удалось отправить запрос. Попробуйте ещё раз.",
   "beaconChildRequestsEmpty": "Дочерних запросов пока нет",
   "beaconChildRequestsActiveTitle": "Активные",
   "beaconChildRequestsFinishedTitle": "Завершённые",

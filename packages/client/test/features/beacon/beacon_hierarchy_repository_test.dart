@@ -1,5 +1,6 @@
 import 'package:ferry/ferry.dart'
     show Client, DataSource, FetchPolicy, Link, NextLink, OperationType;
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 
@@ -12,11 +13,11 @@ import 'package:tentura/features/beacon/data/gql/_g/beacon_parent_reference.req.
 import 'package:tentura/features/beacon/data/gql/_g/beacon_promotion_source.req.gql.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_denial_code.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura_root/domain/entity/localizable.dart';
 
 import '../../support/remote_wire_harness.dart';
 
@@ -35,27 +36,42 @@ const _fetchPolicies = {
   OperationType.mutation: FetchPolicy.NoCache,
 };
 
+const _promotedCopyEn = 'A child request already exists for this message.';
+const _promotedCopyRu = 'Из этого сообщения уже создан дочерний запрос.';
+
+Matcher _conflictCopy(String locale) {
+  final isRussian = locale == 'ru';
+  final sourceMessageCopy = RegExp(
+    isRussian ? 'сообщени|уже создан' : 'message|already exists|existing child',
+    caseSensitive: false,
+  );
+  return allOf([
+    isNot(isEmpty),
+    isNot(matches(sourceMessageCopy)),
+    isNot(equals(isRussian ? _promotedCopyRu : _promotedCopyEn)),
+    isNot(equals(lookupL10n(Locale(locale)).errorGenericAction)),
+    isNot(contains('Unsupported locale')),
+    isNot(contains('BeaconChildCommandConflict')),
+    isNot(endsWith('...')),
+    if (isRussian) matches(RegExp('[А-Яа-яЁё]')),
+  ]);
+}
+
 void main() {
   test(
-    'a child draft command conflict carries localized existing-child copy',
+    'a child Request command conflict has its own localized copy',
     () async {
-      const en = 'A child request already exists for this message.';
-      const ru = 'Из этого сообщения уже создан дочерний запрос.';
-      final localizedCopy = isA<Localizable>()
-          .having((e) => e.toL10n('en'), 'English message', en)
-          .having((e) => e.toL10n('ru'), 'Russian message', ru);
-
       expect(
         () => throwIfBeaconHierarchyError(1312, {'beaconId': 'child-7'}),
         throwsA(
-          allOf(
-            isA<BeaconSourceAlreadyPromotedException>().having(
-              (e) => e.existingChildBeaconId,
-              'existing child ID',
-              'child-7',
-            ),
-            localizedCopy,
-          ),
+          isA<BeaconSourceAlreadyPromotedException>()
+              .having(
+                (e) => e.existingChildBeaconId,
+                'existing child ID',
+                'child-7',
+              )
+              .having((e) => e.toL10n('en'), 'English copy', _promotedCopyEn)
+              .having((e) => e.toL10n('ru'), 'Russian copy', _promotedCopyRu),
         ),
       );
 
@@ -86,9 +102,71 @@ void main() {
       expect(
         () => throwIfBeaconHierarchyError(1313, null),
         throwsA(
-          allOf(isA<BeaconChildCommandConflictException>(), localizedCopy),
+          isA<BeaconChildCommandConflictException>()
+              .having(
+                (e) => e.toL10n('de') == e.toL10n('en'),
+                'unsupported locale falls back to English',
+                isTrue,
+              )
+              .having(
+                (e) => e.toL10n(null) == e.toL10n('en'),
+                'unspecified locale falls back to English',
+                isTrue,
+              )
+              .having(
+                (e) => e.toL10n('en').trim(),
+                'English copy',
+                _conflictCopy('en'),
+              )
+              .having(
+                (e) => e.toL10n('ru').trim(),
+                'Russian copy',
+                _conflictCopy('ru'),
+              )
+              .having(
+                (e) => e.toL10n('ru') != e.toL10n('en'),
+                'Russian copy differs from English',
+                isTrue,
+              ),
         ),
       );
+    },
+  );
+
+  test(
+    'a child Request draft without a source message receives localized conflict copy',
+    () async {
+      final sent = <WireSent>[];
+      await withRemoteWire(
+        const {},
+        sent,
+        (remote) async {
+          await expectLater(
+            BeaconHierarchyRepository(remote).createChild(
+              parentBeaconId: 'parent-1',
+              clientCommandId: 'cmd-old',
+              title: 'Other title',
+              draft: true,
+            ),
+            throwsA(
+              isA<BeaconChildCommandConflictException>()
+                  .having(
+                    (e) => e.toL10n('ru').trim(),
+                    'Russian copy',
+                    _conflictCopy('ru'),
+                  )
+                  .having(
+                    (e) => e.toL10n('en').trim(),
+                    'English copy',
+                    _conflictCopy('en'),
+                  ),
+            ),
+          );
+        },
+        errors: {'BeaconChildCreate': wireCodeError(1313)},
+      );
+      expect(sent.single.operationName, 'BeaconChildCreate');
+      expect(sent.single.variables['sourceMessageId'], isNull);
     },
   );
 
