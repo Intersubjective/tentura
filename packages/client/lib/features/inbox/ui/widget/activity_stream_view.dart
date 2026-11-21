@@ -1184,13 +1184,7 @@ class _ActivityStreamCell extends StatelessWidget {
       case ForYouStreamEntryKind.card:
         // A grouped Post shows its newest directed event. Baton receipts must
         // retain that event's private copy and source-message destination.
-        AttentionReceipt? latest;
-        for (final event in receipt.eventsPreview) {
-          if (latest == null || event.createdAt.isAfter(latest.createdAt)) {
-            latest = event;
-          }
-        }
-        final latestEvent = latest;
+        final latestEvent = receipt.latestPreviewEvent;
         if (receipt.beaconKind == kBeaconKindPost &&
             latestEvent != null &&
             batonReceiptDisplayCopy(

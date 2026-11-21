@@ -17,6 +17,8 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/service/unsaved_changes_guard_impl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -25,6 +27,8 @@ import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/data/service/beacon_room_composer_draft_store.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
@@ -58,6 +62,7 @@ final class _Settings extends Fake implements SettingsCubit {
 }
 
 const _postId = 'Bbackpost0001';
+const _activityPostId = 'post-1';
 
 Beacon _beacon(String id, BeaconKind kind) => Beacon(
   id: id,
@@ -107,7 +112,12 @@ class _ProfileCubit extends Mock implements ProfileCubit {
 
 final _l10n = L10nEn();
 
-Future<RootRouter> _pump(WidgetTester tester, String location) async {
+Future<RootRouter> _pump(
+  WidgetTester tester,
+  String location, {
+  String postId = _postId,
+  Widget? home,
+}) async {
   await registerBeaconViewHarnessGetIt(profile: _viewer);
   registerEmptyPeopleTags();
   for (final unregister in [
@@ -123,10 +133,10 @@ Future<RootRouter> _pump(WidgetTester tester, String location) async {
   }
   GetIt.I
     ..registerSingleton<BeaconKindRepository>(
-      _FakeBeaconKindRepository({_postId: BeaconKind.post}),
+      _FakeBeaconKindRepository({postId: BeaconKind.post}),
     )
     ..registerSingleton<BeaconRepository>(
-      _BeaconOnlyRepository({_postId: _beacon(_postId, BeaconKind.post)}),
+      _BeaconOnlyRepository({postId: _beacon(postId, BeaconKind.post)}),
     )
     ..registerSingleton<UnsavedChangesGuardPort>(UnsavedChangesGuard());
   addTearDown(() async {
@@ -140,18 +150,20 @@ Future<RootRouter> _pump(WidgetTester tester, String location) async {
   addTearDown(() => HomeRoute.page = homePage);
   HomeRoute.page = PageInfo(
     HomeRoute.name,
-    builder: (ctx) => Scaffold(
-      body: Column(
-        children: [
-          const Text('home-stub'),
-          TextButton(
-            onPressed: () =>
-                unawaited(ctx.router.root.push(PostViewRoute(id: _postId))),
-            child: const Text('open-detail'),
+    builder: (ctx) =>
+        home ??
+        Scaffold(
+          body: Column(
+            children: [
+              const Text('home-stub'),
+              TextButton(
+                onPressed: () =>
+                    unawaited(ctx.router.root.push(PostViewRoute(id: _postId))),
+                child: const Text('open-detail'),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
+        ),
   );
 
   final router = RootRouter(
@@ -220,6 +232,83 @@ String _url(RootRouter r) => r.navigationHistory.urlState.url;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('Grouped Post Activity navigation', () {
+    testWidgets('with Home open, switches to Inbox and opens the message in '
+        'the Post room', (tester) async {
+      _stubActivityNavigationPages();
+      final reselect = HomeTabReselectCubit();
+      GetIt.I.registerSingleton(reselect);
+      addTearDown(() async {
+        await GetIt.I.unregister<HomeTabReselectCubit>();
+        await reselect.close();
+      });
+      final router = await _pump(
+        tester,
+        kPathConversations,
+        postId: _activityPostId,
+        home: _activityNavigationHome(),
+      );
+      expect(router.stackData.map((route) => route.name), [HomeRoute.name]);
+      final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
+      expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.conversations).index);
+
+      unawaited(router.openFromUpdate(_groupedPostReceipt()));
+      await _settle(tester);
+
+      expect(router.stackData.map((route) => route.name), [
+        HomeRoute.name,
+        PostViewRoute.name,
+      ]);
+      expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.inbox).index);
+      expect(reselect.state.inboxReceiptsOpenCount, 1);
+      final postScreen = find.byType(PostViewScreen);
+      final roomSurface = find.descendant(
+        of: postScreen,
+        matching: find.byType(BeaconRoomSurface),
+      );
+      expect(postScreen, findsOneWidget);
+      expect(roomSurface, findsOneWidget);
+      final detail = router.stackData.last;
+      final screen = tester.widget<PostViewScreen>(postScreen);
+      final room = tester.widget<BeaconRoomSurface>(roomSurface);
+      expect(detail.params.getString('id'), _activityPostId);
+      expect(screen.id, _activityPostId);
+      expect(
+        {
+          'route': Uri.parse(router.currentUrl).queryParameters['message'],
+          'screen': screen.messageId,
+          'room': room.messageId,
+        },
+        {'route': 'M1', 'screen': 'M1', 'room': 'M1'},
+      );
+    });
+
+    testWidgets('without Home open, creates a Home stack with the message '
+        'on the Post detail route', (tester) async {
+      _stubActivityNavigationPages();
+      final router = await _pump(
+        tester,
+        kPathDebugSettings,
+        postId: _activityPostId,
+        home: _activityNavigationHome(),
+      );
+      expect(router.stackData.map((route) => route.name), [
+        DebugSettingsRoute.name,
+      ]);
+
+      await router.openFromUpdate(_groupedPostReceipt());
+      await _settle(tester);
+
+      expect(router.stackData.map((route) => route.name), [
+        HomeRoute.name,
+        PostViewRoute.name,
+      ]);
+      final detail = router.stackData.last.argsAs<PostViewRouteArgs>();
+      expect(detail.id, _activityPostId);
+      expect(detail.messageId, 'M1');
+    });
+  });
+
   group('Post back arrow, opened from the list', () {
     testWidgets('one tap returns to the list and a second open and back '
         'works too', (tester) async {
@@ -285,4 +374,66 @@ void main() {
       });
     }
   });
+}
+
+AttentionReceipt _groupedPostReceipt() {
+  final message = AttentionReceipt(
+    id: 'chat-receipt',
+    category: 'coordination',
+    kind: 'roomActivityLowPriority',
+    priority: 'normal',
+    title: 'New reply',
+    body: 'I can bring a book',
+    actionUrl: '/#/view?id=$_activityPostId',
+    createdAt: DateTime.utc(2026, 11, 11, 12),
+    collapsedCount: 1,
+    presentationKey: 'room_message_posted',
+    presentationPayloadJson: '{"eventType":"roomMessagePosted"}',
+    surface: AttentionSurface.activity,
+    beaconId: _activityPostId,
+    beaconKind: 1,
+    destinationKind: 'beacon_room_message',
+    targetEntityId: 'M1',
+  );
+  return message.copyWith(
+    id: 'group-$_activityPostId',
+    collapsedCount: 0,
+    itemKind: AttentionItemKind.requestActivity,
+    destinationKind: 'beacon',
+    targetEntityId: _activityPostId,
+    presentationKey: 'request_status_changed',
+    presentationPayloadJson: '{}',
+    eventTotal: 1,
+    eventsPreview: [message],
+  );
+}
+
+Widget _activityNavigationHome() => AutoTabsRouter(
+  routes: [for (final spec in HomeTabSpec.all) spec.shell()],
+  duration: Duration.zero,
+  transitionBuilder: (_, child, _) => child,
+  builder: (_, child) => child,
+);
+
+void _stubActivityNavigationPages() {
+  final conversations = ConversationsRoute.page;
+  final inbox = InboxRoute.page;
+  final settings = DebugSettingsRoute.page;
+  addTearDown(() {
+    ConversationsRoute.page = conversations;
+    InboxRoute.page = inbox;
+    DebugSettingsRoute.page = settings;
+  });
+  ConversationsRoute.page = PageInfo(
+    ConversationsRoute.name,
+    builder: (_) => const Text('Conversations'),
+  );
+  InboxRoute.page = PageInfo(
+    InboxRoute.name,
+    builder: (_) => const Text('Inbox'),
+  );
+  DebugSettingsRoute.page = PageInfo(
+    DebugSettingsRoute.name,
+    builder: (_) => const Text('Debug settings'),
+  );
 }

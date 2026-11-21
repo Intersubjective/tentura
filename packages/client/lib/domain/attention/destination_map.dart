@@ -3,6 +3,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
+import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
 import 'plan_receipt_event_type.dart';
 
@@ -19,6 +20,19 @@ Uri _beaconDetailUri(
     isPost: _receiptIsPost(receipt),
     queryParameters: queryParameters,
   ),
+);
+
+Uri _roomMessageUri(
+  String beaconId,
+  AttentionReceipt receipt,
+  String messageId,
+) => _beaconDetailUri(
+  beaconId,
+  receipt,
+  queryParameters: {
+    kQueryBeaconViewTab: kBeaconViewTabThreads,
+    kQueryMessageId: messageId,
+  },
 );
 
 /// Resolves typed server targets while retaining [AttentionReceipt.actionUrl]
@@ -41,6 +55,16 @@ Uri attentionDestination(AttentionReceipt receipt) {
       },
     );
   }
+  if (receipt.destinationKind == 'beacon' &&
+      receipt.itemKind == AttentionItemKind.requestActivity &&
+      _receiptIsPost(receipt)) {
+    if (receipt.latestPreviewEvent case AttentionReceipt(
+      destinationKind: 'beacon_room_message',
+      targetEntityId: final String messageId,
+    ) when messageId.isNotEmpty) {
+      return _roomMessageUri(target, receipt, messageId);
+    }
+  }
   return switch (receipt.destinationKind) {
     'beacon' => _beaconDetailUri(target, receipt),
     'beacon_people_offer' when beaconId != null => _beaconDetailUri(
@@ -62,13 +86,10 @@ Uri attentionDestination(AttentionReceipt receipt) {
         when beaconId != null &&
             (receipt.coordinationItemId?.trim().isNotEmpty ?? false) =>
       Uri(path: '$kPathBeaconLobby/$beaconId'),
-    'beacon_room_message' when beaconId != null => _beaconDetailUri(
+    'beacon_room_message' when beaconId != null => _roomMessageUri(
       beaconId,
       receipt,
-      queryParameters: {
-        kQueryBeaconViewTab: kBeaconViewTabThreads,
-        kQueryMessageId: target,
-      },
+      target,
     ),
     'profile' => Uri(path: '$kPathProfileView/$target'),
     _ => Uri.parse(receipt.actionUrl),

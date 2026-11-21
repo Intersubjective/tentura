@@ -97,6 +97,16 @@ abstract class AttentionReceipt with _$AttentionReceipt {
 
   const AttentionReceipt._();
 
+  AttentionReceipt? get latestPreviewEvent {
+    AttentionReceipt? latest;
+    for (final event in eventsPreview) {
+      if (latest == null || event.createdAt.isAfter(latest.createdAt)) {
+        latest = event;
+      }
+    }
+    return latest;
+  }
+
   bool get isSeen => seenAt != null;
   bool get isCleared => clearedAt != null;
   bool get isLiveObligation => requiresAction && settlementKind == null;

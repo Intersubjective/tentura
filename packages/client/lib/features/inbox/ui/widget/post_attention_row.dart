@@ -31,7 +31,7 @@ enum PostAttentionVariant {
 
 /// The variant a grouped Post [receipt] is drawn as, off its latest event.
 PostAttentionVariant postAttentionVariantOf(AttentionReceipt receipt) {
-  final latest = _latestEvent(receipt);
+  final latest = receipt.latestPreviewEvent;
   if (latest == null) return PostAttentionVariant.arrival;
   if (latest.kind == 'roomMention') return PostAttentionVariant.mention;
   return switch (attentionEventTypeOf(latest.presentationPayloadJson)) {
@@ -40,16 +40,6 @@ PostAttentionVariant postAttentionVariantOf(AttentionReceipt receipt) {
     'roomMessagePosted' => PostAttentionVariant.reply,
     _ => PostAttentionVariant.arrival,
   };
-}
-
-AttentionReceipt? _latestEvent(AttentionReceipt receipt) {
-  AttentionReceipt? latest;
-  for (final event in receipt.eventsPreview) {
-    if (latest == null || event.createdAt.isAfter(latest.createdAt)) {
-      latest = event;
-    }
-  }
-  return latest;
 }
 
 /// A Post in the For You stream: lighter than a Request card — one
@@ -74,7 +64,7 @@ class PostAttentionRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final variant = postAttentionVariantOf(receipt);
-    final latest = _latestEvent(receipt);
+    final latest = receipt.latestPreviewEvent;
     final authorId = receipt.beaconAuthorId ?? '';
     final author = Profile(
       id: authorId,
