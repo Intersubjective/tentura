@@ -15,7 +15,7 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura/features/constellation/domain/layout/constellation_layout_engine.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura/features/constellation/domain/layout/spatial_index.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 

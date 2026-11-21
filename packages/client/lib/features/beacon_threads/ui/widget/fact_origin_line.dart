@@ -11,7 +11,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Where a copied fact came from (plan D6): «Brought from another Request» /
 /// «…Post», never the source's title or names. Shown only for copies; a tap

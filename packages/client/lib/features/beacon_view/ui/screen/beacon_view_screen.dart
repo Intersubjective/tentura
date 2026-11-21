@@ -39,7 +39,7 @@ import 'package:tentura/ui/navigation/is_deep_link_query.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../widget/beacon_activity_sheet.dart';

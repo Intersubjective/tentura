@@ -8,7 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// Shared coordination-item presentation (colors, icons, compound glyphs).
 ///
 /// Lives in `ui/widget` (not in a single feature) so every feature and
-/// `ui/utils` depends inward on one stable interface-adapter module. Maps the
+/// `ui/util` depends inward on one stable interface-adapter module. Maps the
 /// pure domain enums ([CoordinationItemKind] / [CoordinationItemStatus] /
 /// [CoordinationItemEventKind]) onto Flutter `Color` / `IconData` / `Widget`.
 

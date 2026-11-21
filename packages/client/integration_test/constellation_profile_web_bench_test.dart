@@ -50,8 +50,8 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_pla
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
-import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:web/web.dart' as web;
 

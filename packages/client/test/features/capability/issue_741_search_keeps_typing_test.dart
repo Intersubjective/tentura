@@ -13,7 +13,7 @@ import 'package:tentura/features/capability/ui/widget/capability_search_field.da
 import 'package:tentura/features/profile_view/ui/dialog/edit_capabilities_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';

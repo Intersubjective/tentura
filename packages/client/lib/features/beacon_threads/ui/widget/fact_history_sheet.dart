@@ -13,8 +13,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_cubit.dart'
 import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Opens the fact history sheet (issue #181 plan §3/D2/D5): a modal listing
 /// [BeaconFactTimelineEntry] rows newest first, word-diffed against the

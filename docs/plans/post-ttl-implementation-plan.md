@@ -586,7 +586,7 @@ generated files, wrapped `flutter test` per §0.2.
 - shared formatter `features/post_view/ui/post_remaining_label.dart`:
   `String postRemainingLabel(L10n, Duration)` (≥ 24 h → days rounded down, ≥ 1 h → hours, else
   minutes, min 1).
-- `lib/ui/utils/post_expiry_clock.dart` (or the nearest shared ui utility folder): `PostExpiryClock`
+- `lib/ui/util/post_expiry_clock.dart` (or the nearest shared ui utility folder): `PostExpiryClock`
   — given the injectable `clock` and a set of `DateTime` deadlines, emits a tick at the nearest
   future deadline and once per minute while any deadline is < 1 h away (countdown refresh); re-armed
   whenever the deadline set changes; also ticks on app resume (`AppLifecycleListener`). One instance

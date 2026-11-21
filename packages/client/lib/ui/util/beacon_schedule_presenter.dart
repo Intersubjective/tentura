@@ -4,8 +4,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/duration_format.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/duration_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 /// Beyond this lead time the schedule line shows a self-evident absolute date
 /// (e.g. "5 May – 8 May") instead of a relative countdown ("starts in …"). A

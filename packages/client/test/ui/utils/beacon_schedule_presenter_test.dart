@@ -6,7 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
+import 'package:tentura/ui/util/beacon_schedule_presenter.dart';
 
 void main() {
   setUpAll(() async {

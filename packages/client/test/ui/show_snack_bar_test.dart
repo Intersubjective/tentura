@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 void main() {
   testWidgets('showSnackBar with action shows close icon', (tester) async {

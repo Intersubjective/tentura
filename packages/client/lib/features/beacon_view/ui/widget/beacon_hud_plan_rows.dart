@@ -5,7 +5,7 @@ import 'package:tentura/domain/coordination/beacon_you_plan_slots.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';

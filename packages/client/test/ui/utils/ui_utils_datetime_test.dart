@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 void main() {
   setUpAll(() async {

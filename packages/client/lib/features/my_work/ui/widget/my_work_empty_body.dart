@@ -6,7 +6,7 @@ import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Empty My Desk body — callback-only; parent owns navigation.
 class MyWorkEmptyBody extends StatelessWidget {

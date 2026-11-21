@@ -292,7 +292,7 @@ Commit this phase's change on its own before moving to P3.
 
 **File:** `packages/client/lib/features/block/ui/sheet/block_user_sheet.dart`
 
-Add the snackbar helper import: `import 'package:tentura/ui/utils/ui_utils.dart';`
+Add the snackbar helper import: `import 'package:tentura/ui/util/ui_utils.dart';`
 (for `showSnackBar`) and the router import used elsewhere for
 `context.router.push(...)`: `import 'package:tentura/app/router/root_router.gr.dart';`
 (check the exact import path other features use for `BlockedUsersRoute`, e.g.

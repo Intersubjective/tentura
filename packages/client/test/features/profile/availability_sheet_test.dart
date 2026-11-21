@@ -11,7 +11,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 

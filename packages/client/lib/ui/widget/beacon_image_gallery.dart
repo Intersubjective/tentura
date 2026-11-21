@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'beacon_gallery_viewer.dart';
 import 'beacon_image.dart';

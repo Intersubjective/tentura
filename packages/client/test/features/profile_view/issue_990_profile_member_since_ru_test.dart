@@ -28,7 +28,7 @@ import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/profile_member_since.dart';
+import 'package:tentura/ui/util/profile_member_since.dart';
 
 import '../../support/fake_person_shared_context_port.dart';
 import '../../support/phone_surface.dart';

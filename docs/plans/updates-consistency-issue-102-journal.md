@@ -353,7 +353,7 @@ Carried forward from the U2 review, still open:
 
 New finding for U4 (in addition to the "accepted your ask" noun bug):
 - `_UpdatesCard._shortAge` is a private, hardcoded-English duplicate of the existing localized
-  `packages/client/lib/ui/utils/relative_time.dart#compactRelativeTimeAgo`. Russian users currently
+  `packages/client/lib/ui/util/relative_time.dart#compactRelativeTimeAgo`. Russian users currently
   see English ages ("5m", "2d") in the Updates feed. U4 must reuse the shared helper rather than add
   a third time-formatting variant.
 

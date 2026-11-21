@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
 
 void main() {
   const formatter = CodeUnitLengthLimitingTextInputFormatter(6);

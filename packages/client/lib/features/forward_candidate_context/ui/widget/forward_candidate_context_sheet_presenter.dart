@@ -6,9 +6,9 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
-import 'package:tentura/ui/utils/profile_member_since.dart';
-import 'package:tentura/ui/utils/profile_presence_line.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/profile_member_since.dart';
+import 'package:tentura/ui/util/profile_presence_line.dart';
 
 import '../../domain/entity/candidate_connection_context.dart';
 import '../bloc/forward_candidate_context_state.dart';

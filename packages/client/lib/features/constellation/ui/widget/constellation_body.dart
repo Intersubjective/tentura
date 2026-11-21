@@ -36,7 +36,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';

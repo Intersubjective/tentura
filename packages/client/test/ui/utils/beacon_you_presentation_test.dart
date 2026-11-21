@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/util/beacon_you_presentation.dart';
 
 BeaconYouSituationInput _input({
   BeaconStatus lifecycle = BeaconStatus.open,

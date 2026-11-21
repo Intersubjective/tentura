@@ -6,7 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
 
 BeaconActivityEvent _transition(String id, int from, int to, String reason) =>
     BeaconActivityEvent(

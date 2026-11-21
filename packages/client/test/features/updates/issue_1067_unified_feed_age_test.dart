@@ -10,7 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../../support/phone_surface.dart';

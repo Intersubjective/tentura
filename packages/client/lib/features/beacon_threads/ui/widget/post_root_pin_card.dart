@@ -11,7 +11,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 /// Expanded or collapsed Post root card for the Post room, composer preview,

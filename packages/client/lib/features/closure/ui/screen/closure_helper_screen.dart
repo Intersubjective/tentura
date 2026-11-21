@@ -9,7 +9,7 @@ import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/domain/entity/closure_role.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../bloc/closure_helper_cubit.dart';
 import '../widget/share_flow_diagram.dart';

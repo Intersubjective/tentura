@@ -1,5 +1,5 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Everything a member can do with a Post from its screen: the app bar, the
 /// ⋮ menu and the «О посте» sheet all resolve to one of these, and the screen

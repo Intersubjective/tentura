@@ -15,7 +15,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_copy_destination_
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Fact picker for the composer's attach-menu "Fact" item (quote mode,
 /// plan #1288 P10, P11).

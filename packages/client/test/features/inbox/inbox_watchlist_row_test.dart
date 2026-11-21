@@ -12,7 +12,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
+import 'package:tentura/ui/util/beacon_card_deadline.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 

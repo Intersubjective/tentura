@@ -1130,9 +1130,9 @@ TESTS:
 - `git diff --check` → clean
 FILES:
 - `packages/client/lib/domain/util/availability_presets.dart`
-- `packages/client/lib/ui/utils/calendar_day_display.dart`
-- `packages/client/lib/ui/utils/availability_line.dart`
-- `packages/client/lib/ui/utils/beacon_card_deadline.dart`
+- `packages/client/lib/ui/util/calendar_day_display.dart`
+- `packages/client/lib/ui/util/availability_line.dart`
+- `packages/client/lib/ui/util/beacon_card_deadline.dart`
 - `packages/client/l10n/app_en.arb`
 - `packages/client/l10n/app_ru.arb`
 - `packages/client/test/domain/util/availability_presets_test.dart`

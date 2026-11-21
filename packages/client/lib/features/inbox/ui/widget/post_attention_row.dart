@@ -10,8 +10,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/utils/plain_text_preview.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/plain_text_preview.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 

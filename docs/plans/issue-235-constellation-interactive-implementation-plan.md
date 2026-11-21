@@ -402,7 +402,7 @@ P2 can run in parallel with P1, because it only touches the server.
 
 ### U38 Adaptive slicing (D7)
 - **Pure:** `lib/domain/scheduling/adaptive_slice_controller.dart`. EWMA α = 0.3, first batch `setpoint / ewma`, +8 units on time, ×0.5 over, floor 1, hard cap 8 ms.
-- **UI:** `lib/ui/utils/frame_slice_scheduler.dart`:
+- **UI:** `lib/ui/util/frame_slice_scheduler.dart`:
   - a frame permit (one slice per frame);
   - a deadline check after each unit;
   - `scheduleTask(Priority.idle)`, with a 100 ms starvation wake-up via `WakeUpPort` → `Priority.animation`;

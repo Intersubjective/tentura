@@ -17,7 +17,7 @@ import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/is_deep_link_query.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../widget/beacon_view_loading_shell.dart';
 import 'beacon_view_screen.dart';

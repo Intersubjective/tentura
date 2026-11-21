@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// How long an Undo bar stays up unless the caller says otherwise.
 const kUndoSnackBarDuration = Duration(seconds: 10);

@@ -1,6 +1,6 @@
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/calendar_day_display.dart';
+import 'package:tentura/ui/util/calendar_day_display.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 /// Renders `resume_on` for `{when}` placeholders (pure calendar date; no `toLocal()`).

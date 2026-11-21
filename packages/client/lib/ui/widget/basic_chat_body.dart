@@ -37,8 +37,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/one_node_button.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/snack_bar_clearance.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/snack_bar_clearance.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// True when [message] is a `childCreated` notice whose promotion source is
 /// already in [loadedMessageIds] — the source bubble owns the preview card.

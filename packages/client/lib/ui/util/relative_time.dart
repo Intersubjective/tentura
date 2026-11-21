@@ -1,5 +1,5 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Compact human-readable "time ago" label: just now → minutes → hours → days.
 String compactRelativeTimeAgo({

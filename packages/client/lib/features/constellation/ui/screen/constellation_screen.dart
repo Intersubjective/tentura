@@ -24,9 +24,9 @@ import 'package:tentura/features/graph/ui/widget/graph_trust_write_notices.dart'
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
-import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_mutual_trust_case.dart';

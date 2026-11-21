@@ -22,8 +22,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart'
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
 /// Actions for a single fact card (modal).

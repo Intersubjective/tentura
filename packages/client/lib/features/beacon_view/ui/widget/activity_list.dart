@@ -8,8 +8,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 

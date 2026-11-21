@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/snack_bar_clearance.dart';
+import 'package:tentura/ui/util/snack_bar_clearance.dart';
 import 'package:tentura/ui/widget/one_node_button.dart';
 
 import 'forward_input_decoration.dart';

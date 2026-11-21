@@ -8,7 +8,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import 'child_beacon_preview_loader.dart';

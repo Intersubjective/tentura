@@ -6,8 +6,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../l10n/l10n.dart';
 import '../message/common_messages.dart';
-import '../utils/copy_text_to_clipboard.dart';
-import '../utils/ui_utils.dart';
+import '../util/copy_text_to_clipboard.dart';
+import '../util/ui_utils.dart';
 import '../widget/qr_code.dart';
 
 class ShareCodeDialog extends StatefulWidget {

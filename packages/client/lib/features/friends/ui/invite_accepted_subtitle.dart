@@ -1,6 +1,6 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 /// Accepted-invite subtitle: relative under 7 days ("Joined 3h ago"),
 /// absolute date at/after ("Joined on Aug 14") so it never decays into a

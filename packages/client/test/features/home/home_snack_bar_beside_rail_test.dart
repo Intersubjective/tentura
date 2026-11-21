@@ -26,7 +26,7 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../my_work/my_work_test_support.dart';

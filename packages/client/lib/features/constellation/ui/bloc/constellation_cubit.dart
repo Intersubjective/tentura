@@ -14,7 +14,7 @@ import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/ui/bloc/reload_when_online.dart';
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 import '../utils/constellation_presentation_frame.dart';
 
 import '../../domain/constellation_anchor_composition.dart';

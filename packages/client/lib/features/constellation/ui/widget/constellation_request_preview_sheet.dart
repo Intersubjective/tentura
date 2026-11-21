@@ -7,7 +7,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_field_item_actions.dart';
 import 'constellation_field_preview_people_rows.dart';

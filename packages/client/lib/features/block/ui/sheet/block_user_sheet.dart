@@ -9,7 +9,7 @@ import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Confirmation sheet for blocking another user (cascade toggle + impact preview).
 Future<void> showBlockUserSheet(

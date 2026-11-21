@@ -54,7 +54,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
+import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_apply_via_writes.dart';

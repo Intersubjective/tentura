@@ -11,7 +11,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 /// Sets the beacon room [current line] via [BeaconThreadsCase.updateRoomNowLine].

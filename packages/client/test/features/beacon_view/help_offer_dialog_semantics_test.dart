@@ -8,7 +8,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 const _hint = 'How will you help?';
 

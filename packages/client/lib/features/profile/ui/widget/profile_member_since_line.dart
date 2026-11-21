@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/profile_member_since.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/profile_member_since.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Calm metadata under the profile summary: join date plus tenure on Tentura.
 class ProfileMemberSinceLine extends StatelessWidget {

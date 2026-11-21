@@ -192,7 +192,7 @@ Old-account operations are never sent or retried under the replacement account's
 | `ConstellationSceneController` | `ui/scene/constellation_scene_controller.dart` (new) | Owns `GraphController`, `SceneUpdateGate`, the layout job driver and transitions. Adapts domain geometry ⇄ `Offset`/`Size`/`NodeDetails`. |
 | `SceneUpdateGate` | `ui/scene/scene_update_gate.dart` (new) | The D5 freeze, §5.4 |
 | `ConstellationInteractionController` | `ui/scene/constellation_interaction_controller.dart` (new) | Gesture state machine, drag cluster, camera capture, §5.4 |
-| `FrameSliceScheduler` | `lib/ui/utils/frame_slice_scheduler.dart` (new) | Drives resumable domain work with `Stopwatch` plus `SchedulerBinding`, §5.6 |
+| `FrameSliceScheduler` | `lib/ui/util/frame_slice_scheduler.dart` (new) | Drives resumable domain work with `Stopwatch` plus `SchedulerBinding`, §5.6 |
 | `ConstellationPlacementMarker` | `ui/widget/constellation_placement_marker.dart` (new) | "Not saved" / "saving…" marker, Retry/Discard; design-system tokens, l10n strings |
 | Lazy-write timeout notice | `lib/ui/widget/lazy_write_timeout_notice.dart` (new; shared by Constellation and the graph screen) | Listens to the `LazyWriteNotice` streams and shows the design-system snackbar (D14, §5.9) |
 | Re-arrange | `ui/widget/constellation_camera_controls.dart` | Visible when `hasUserPlacements` (D2) |

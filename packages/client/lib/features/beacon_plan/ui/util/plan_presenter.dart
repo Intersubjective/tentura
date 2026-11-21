@@ -4,7 +4,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/duration_format.dart';
+import 'package:tentura/ui/util/duration_format.dart';
 
 import '../../domain/entity/beacon_plan.dart';
 import '../../domain/entity/plan_conflict.dart';

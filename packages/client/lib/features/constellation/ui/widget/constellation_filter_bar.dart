@@ -7,7 +7,7 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import '../../domain/constellation_filters.dart';
 import '../bloc/constellation_cubit.dart';

@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_plan_rows.dart'
     show planHudTime;
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 

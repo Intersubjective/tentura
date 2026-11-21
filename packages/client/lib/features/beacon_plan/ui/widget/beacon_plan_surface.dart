@@ -6,8 +6,8 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_cubit.dart';

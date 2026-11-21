@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 class _Validator with StringInputValidator {}
 

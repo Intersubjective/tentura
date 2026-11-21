@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
-import 'package:tentura/ui/utils/calendar_day_display.dart';
+import 'package:tentura/ui/util/beacon_card_deadline.dart';
+import 'package:tentura/ui/util/calendar_day_display.dart';
 
 void main() {
   setUpAll(() async {

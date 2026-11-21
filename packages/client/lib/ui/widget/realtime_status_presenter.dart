@@ -4,7 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 const _kRealtimePausedSnackDuration = Duration(seconds: 6);
 

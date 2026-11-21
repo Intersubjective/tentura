@@ -1,5 +1,5 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 
 /// Pending-invite subtitle: `Waiting · {relative time}`.
 String invitePendingSubtitle({

@@ -5,7 +5,7 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';

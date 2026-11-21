@@ -92,7 +92,7 @@ inconsistency, a wrong stored instant.
 Independently of §0.2, several client formatters render a `DateTime` without
 first calling `.toLocal()`:
 
-- `packages/client/lib/ui/utils/ui_utils.dart:78-82` — `dateFormatYMD`/
+- `packages/client/lib/ui/util/ui_utils.dart:78-82` — `dateFormatYMD`/
   `timeFormatHm` call `DateFormat.format(dateTime)` directly, with no
   `.toLocal()`. Correctness depends entirely on the caller.
 - Three call sites pass an un-converted value into these helpers:
@@ -103,8 +103,8 @@ first calling `.toLocal()`:
   (formats `beacon.startAt`/`beacon.endAt`).
 - Four other call sites already convert correctly before calling these same
   helpers or do their own local diffing:
-  `packages/client/lib/ui/utils/schedule_date_format.dart:10-11,29-30`,
-  `packages/client/lib/ui/utils/relative_time.dart:9`,
+  `packages/client/lib/ui/util/schedule_date_format.dart:10-11,29-30`,
+  `packages/client/lib/ui/util/relative_time.dart:9`,
   `packages/client/lib/ui/widget/coordination_log_row_chrome.dart:97`,
   `packages/client/lib/features/beacon_view/ui/widget/help_offer_tile.dart:179`,
   `packages/client/lib/features/updates/ui/widget/updates_receipt_card.dart:48`.
@@ -382,7 +382,7 @@ Commit this phase's change on its own before moving to P3.
 
 ## Phase P3 — Client: `dateFormatYMD`/`timeFormatHm` always render viewer-local time
 
-**File:** `packages/client/lib/ui/utils/ui_utils.dart`
+**File:** `packages/client/lib/ui/util/ui_utils.dart`
 
 Replace lines 78-82:
 
@@ -426,7 +426,7 @@ that already convert before calling (`schedule_date_format.dart`,
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 void main() {
   setUpAll(() async {
@@ -566,9 +566,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 void main() {

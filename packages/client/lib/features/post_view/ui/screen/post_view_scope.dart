@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
 import 'post_view_screen.dart';

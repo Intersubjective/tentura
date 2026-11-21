@@ -11,7 +11,7 @@ import 'package:tentura/ui/util/beacon_hud_now_display.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/util/beacon_you_presentation.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';

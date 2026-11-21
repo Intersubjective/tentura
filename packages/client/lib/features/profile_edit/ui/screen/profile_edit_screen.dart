@@ -8,9 +8,9 @@ import 'package:image_cropper_for_web/cropper_editor.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
-import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
+import 'package:tentura/ui/util/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';

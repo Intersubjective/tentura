@@ -305,12 +305,12 @@ packages/client	   info - lib/ui/model/person_action_policy.dart:68:29 - Static 
 packages/client	   info - lib/ui/model/tab_attention_display.dart:3:6 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
 packages/client	   info - lib/ui/model/tab_attention_display.dart:4:15 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
 packages/client	   info - lib/ui/presenter/beacon_phase_presenter.dart:11:19 - Required named parameters should be before optional named parameters. Try moving the required named parameter to be before any optional named parameters. - always_put_required_named_parameters_first
-packages/client	   info - lib/ui/utils/availability_line.dart:35:7 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
-packages/client	   info - lib/ui/utils/availability_line.dart:68:7 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
-packages/client	   info - lib/ui/utils/calendar_day_display.dart:40:3 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
-packages/client	   info - lib/ui/utils/calendar_day_display.dart:41:3 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
-packages/client	   info - lib/ui/utils/plain_text_preview.dart:20:3 - Assignment could be inlined in 'return' statement. Try inlining the assigned value in the 'return' statement. - join_return_with_assignment
-packages/client	   info - lib/ui/utils/ui_utils.dart:231:53 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
+packages/client	   info - lib/ui/util/availability_line.dart:35:7 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
+packages/client	   info - lib/ui/util/availability_line.dart:68:7 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
+packages/client	   info - lib/ui/util/calendar_day_display.dart:40:3 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
+packages/client	   info - lib/ui/util/calendar_day_display.dart:41:3 - Missing a message in an assert. Try adding a message to the assert. - prefer_asserts_with_message
+packages/client	   info - lib/ui/util/plain_text_preview.dart:20:3 - Assignment could be inlined in 'return' statement. Try inlining the assigned value in the 'return' statement. - join_return_with_assignment
+packages/client	   info - lib/ui/util/ui_utils.dart:231:53 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
 packages/client	   info - lib/ui/widget/accordion_expansion.dart:51:26 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
 packages/client	   info - lib/ui/widget/accordion_expansion.dart:7:53 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
 packages/client	   info - lib/ui/widget/auto_leading_with_fallback.dart:26:22 - The referenced name isn't visible in scope. Try adding an import for the referenced name. - comment_references
@@ -1982,7 +1982,7 @@ packages/client	   info • 'value' is deprecated and shouldn't be used. Use com
 packages/client	   info • 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion. Try replacing the use of the deprecated member with the replacement • test/design_system/tentura_relation_chip_test.dart:71:17 • deprecated_member_use
 packages/client	   info • 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion. Try replacing the use of the deprecated member with the replacement • test/design_system/tentura_relation_chip_test.dart:72:55 • deprecated_member_use
 packages/client	   info • Angle brackets will be interpreted as HTML. Try using backticks around the content with angle brackets, or try replacing `<` with `&lt;` and `>` with `&gt;` • lib/features/inbox/domain/entity/inbox_provenance.dart:150:55 • unintended_html_in_doc_comment
-packages/client	   info • Assignment could be inlined in 'return' statement. Try inlining the assigned value in the 'return' statement • lib/ui/utils/plain_text_preview.dart:20:3 • join_return_with_assignment
+packages/client	   info • Assignment could be inlined in 'return' statement. Try inlining the assigned value in the 'return' statement • lib/ui/util/plain_text_preview.dart:20:3 • join_return_with_assignment
 packages/client	   info • Closure should be a tearoff. Try using a tearoff rather than a closure • lib/app/platform/tab_attention_indicator_web.dart:35:10 • unnecessary_lambdas
 packages/client	   info • Closure should be a tearoff. Try using a tearoff rather than a closure • lib/features/forward/ui/widget/forward_recipient_picker_hover_card.dart:109:24 • unnecessary_lambdas
 packages/client	   info • Closure should be a tearoff. Try using a tearoff rather than a closure • test/domain/attention/attention_read_clear_axis_test.dart:35:65 • unnecessary_lambdas
@@ -2082,10 +2082,10 @@ packages/client	   info • Missing a message in an assert. Try adding a message
 packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/domain/util/availability_presets.dart:14:3 • prefer_asserts_with_message
 packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/domain/util/availability_presets.dart:24:3 • prefer_asserts_with_message
 packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/domain/util/availability_presets.dart:34:3 • prefer_asserts_with_message
-packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/utils/availability_line.dart:35:7 • prefer_asserts_with_message
-packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/utils/availability_line.dart:68:7 • prefer_asserts_with_message
-packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/utils/calendar_day_display.dart:40:3 • prefer_asserts_with_message
-packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/utils/calendar_day_display.dart:41:3 • prefer_asserts_with_message
+packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/util/availability_line.dart:35:7 • prefer_asserts_with_message
+packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/util/availability_line.dart:68:7 • prefer_asserts_with_message
+packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/util/calendar_day_display.dart:40:3 • prefer_asserts_with_message
+packages/client	   info • Missing a message in an assert. Try adding a message to the assert • lib/ui/util/calendar_day_display.dart:41:3 • prefer_asserts_with_message
 packages/client	   info • Missing a message in an assert. Try adding a message to the assert • test/data/gql/graphql_contract_support.dart:24:3 • prefer_asserts_with_message
 packages/client	   info • Missing a newline at the end of the file. Try adding a newline at the end of the file • test/domain/attention/attention_group_projection_test.dart:306:2 • eol_at_end_of_file
 packages/client	   info • Missing an 'await' for the 'Future' computed by this expression. Try adding an 'await' or wrapping the expression with 'unawaited' • lib/domain/attention/attention_actor_profiles_case.dart:76:21 • unawaited_futures
@@ -2379,7 +2379,7 @@ packages/client	   info • The referenced name isn't visible in scope. Try addi
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/effect/ui_effect.dart:3:64 • comment_references
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/model/tab_attention_display.dart:3:6 • comment_references
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/model/tab_attention_display.dart:4:15 • comment_references
-packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/utils/ui_utils.dart:231:53 • comment_references
+packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/util/ui_utils.dart:231:53 • comment_references
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/widget/accordion_expansion.dart:51:26 • comment_references
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/widget/accordion_expansion.dart:7:53 • comment_references
 packages/client	   info • The referenced name isn't visible in scope. Try adding an import for the referenced name • lib/ui/widget/auto_leading_with_fallback.dart:26:22 • comment_references

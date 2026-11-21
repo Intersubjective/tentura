@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';

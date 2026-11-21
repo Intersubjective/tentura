@@ -10,7 +10,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/people_tags/domain/people_tags_exception.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../widget/people_tag_person_row.dart';
 import '../widget/people_tag_profiles.dart';

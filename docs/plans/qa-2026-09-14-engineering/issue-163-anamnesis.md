@@ -37,7 +37,7 @@ User-facing noun: **Request** (internal `Beacon`). l10n key stays `beaconDescrip
 | `_descriptionBlurred == true` | Yes |
 | `showValidationHints == true` (after failed Next) | Yes |
 
-`beaconDescriptionValidator` returns `l10n.beaconDescriptionRequired` when trimmed text is empty ([`string_input_validator.dart`](../../packages/client/lib/ui/utils/string_input_validator.dart)).
+`beaconDescriptionValidator` returns `l10n.beaconDescriptionRequired` when trimmed text is empty ([`string_input_validator.dart`](../../packages/client/lib/ui/util/string_input_validator.dart)).
 
 ## Root cause (engineering)
 

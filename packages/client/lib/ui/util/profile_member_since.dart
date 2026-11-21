@@ -1,5 +1,5 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 enum ProfileTenureUnit { days, months, years }
 

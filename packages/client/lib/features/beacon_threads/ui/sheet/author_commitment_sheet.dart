@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/presenter/beacon_people_labels.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 

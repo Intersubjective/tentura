@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/profile_member_since.dart';
+import 'package:tentura/ui/util/profile_member_since.dart';
 
 void main() {
   final fixedNow = DateTime.utc(2026, 11, 4, 12);

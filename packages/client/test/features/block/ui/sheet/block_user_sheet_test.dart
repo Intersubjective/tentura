@@ -14,7 +14,7 @@ import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../../../ui/effect/fake_ui_effect_port.dart';
 

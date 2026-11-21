@@ -40,7 +40,7 @@ None of these overlap with files this plan's units touch.
 |---|------|-------|--------|
 | 1 | P1 — client wire-format fix (`scheduleDateTimeToIso`, `.toUtc()`) | `packages/client/lib/features/beacon/data/repository/beacon_repository.dart` + new test | complete |
 | 2 | P2 — server defensive UTC normalization (`InputFieldDatetime`) | `packages/server/lib/api/controllers/graphql/input/_input_types.dart` + new test | complete |
-| 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/utils/ui_utils.dart` + new test | complete |
+| 3 | P3 — `dateFormatYMD`/`timeFormatHm` always `.toLocal()` | `packages/client/lib/ui/util/ui_utils.dart` + new test | complete |
 | 4 | P4 — format `review.closesAt` instead of raw ISO | `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart` + extended test | complete |
 | 5 | P5 — multi-timezone regression matrix | new `timezone_conversion_matrix_test.dart` + `run_timezone_matrix.sh` | complete |
 | 6 | P6 — full regression pass (manager-run, not a worker unit) | n/a | complete |

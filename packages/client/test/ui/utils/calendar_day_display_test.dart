@@ -4,7 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/calendar_day_display.dart';
+import 'package:tentura/ui/util/calendar_day_display.dart';
 
 void main() {
   setUpAll(() async {

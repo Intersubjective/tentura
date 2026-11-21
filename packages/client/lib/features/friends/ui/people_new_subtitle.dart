@@ -1,6 +1,6 @@
 import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 
 /// Reason line for a person in the People «New» section (#912).
 String peopleNewSectionSubtitle({

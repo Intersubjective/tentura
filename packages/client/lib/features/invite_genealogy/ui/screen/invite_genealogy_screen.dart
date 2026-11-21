@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';

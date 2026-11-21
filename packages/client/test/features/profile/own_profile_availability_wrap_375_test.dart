@@ -15,7 +15,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile/ui/widget/profile_body.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 
 const _accountId = 'user-375';
 

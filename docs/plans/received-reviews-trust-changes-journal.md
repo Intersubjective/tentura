@@ -345,7 +345,7 @@ Flutter/design-system imports per clean-architecture rule. `fetchSummary`/old
 - **Route path:** `/beacon/reviews-received/:id` — distinct from `/beacon/review/:id` (`ReviewContributionsRoute`); matches B2 `AttentionDestinationKind.receivedReviews` wire name family.
 - **Cubit:** new `ReceivedReviewsCubit` rather than extending `EvaluationCubit` — read-only fetch, no overlap with write/submit state machine.
 - **Role labels:** reused `evaluationRoleAuthor` / `evaluationRoleHelpOfferer` / `evaluationRoleForwarder`; added `evaluationRoleFormerCommitter` for int `3` (client `EvaluationParticipantRole` still lacks this value).
-- **Date display:** `compactRelativeTimeAgo` from `ui/utils/relative_time.dart` via `TenturaMetaText` — matches Updates receipt cards.
+- **Date display:** `compactRelativeTimeAgo` from `ui/util/relative_time.dart` via `TenturaMetaText` — matches Updates receipt cards.
 - **§6.6 deferred:** `EvaluationSummaryCard` untouched (next unit C3 retires it with entry points).
 - **`destination_map.dart`:** not updated here (D1 / Updates unit); route exists for future `received_reviews` deep links once map branch lands.
 

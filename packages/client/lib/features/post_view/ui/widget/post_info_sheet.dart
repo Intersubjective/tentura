@@ -18,7 +18,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_shee
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../bloc/post_view_cubit.dart';
 import '../post_remaining_label.dart';

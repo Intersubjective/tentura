@@ -8,7 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';

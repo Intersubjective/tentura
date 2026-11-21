@@ -48,7 +48,7 @@ void main() {
     );
 
     test('snackbar errors report explicitly and do not severe-log', () {
-      final source = File('lib/ui/utils/ui_utils.dart').readAsStringSync();
+      final source = File('lib/ui/util/ui_utils.dart').readAsStringSync();
 
       expect(source, contains('reportUserFacingError(error'));
       expect(source, contains('warning(fullText'));

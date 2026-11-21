@@ -20,7 +20,7 @@
 
 **Primary null-check (reproduced in tests):** `BeaconYouResponsibilityLine._buildBlockedSegment` (`packages/client/lib/ui/widget/beacon_you_responsibility_line.dart` ~143) executes `final cue = openBlocker!` when `shouldShowBlockedYouSegment` is true.
 
-`shouldShowBlockedYouSegment` (`packages/client/lib/ui/utils/beacon_you_presentation.dart` ~74–87) returns true when:
+`shouldShowBlockedYouSegment` (`packages/client/lib/ui/util/beacon_you_presentation.dart` ~74–87) returns true when:
 
 1. `phaseResult.rowHarmony.preferBlockedYouSegment == true`, and  
 2. `blockerOpenTargetsViewer` (`packages/client/lib/ui/presenter/beacon_phase_input_builders.dart` ~140–151) is true — including when `CoordinationResponsibility.blockerOpen > 0` **without** requiring a non-null `OpenBlockerCue`.
@@ -41,7 +41,7 @@ So stale **YOU** responsibility counts (blocker still “open” in counts) comb
 | Header | `packages/client/lib/features/beacon_view/ui/widget/beacon_operational_header_card.dart` | Review window banner, author HUD ACT |
 | HUD metadata | `packages/client/lib/ui/widget/beacon_hud_metadata_composer.dart` | `buildBeaconViewHudMetadataEntries` |
 | YOU line | `packages/client/lib/ui/widget/beacon_you_responsibility_line.dart` | `_buildBlockedSegment` → `openBlocker!` |
-| Blocked gate | `packages/client/lib/ui/utils/beacon_you_presentation.dart` | `shouldShowBlockedYouSegment` |
+| Blocked gate | `packages/client/lib/ui/util/beacon_you_presentation.dart` | `shouldShowBlockedYouSegment` |
 | Blocker targeting | `packages/client/lib/ui/presenter/beacon_phase_input_builders.dart` | `blockerOpenTargetsViewer` |
 | Review submit | `packages/client/lib/features/evaluation/ui/screen/review_contributions_screen.dart` | `evaluation.submit` → `finalize` |
 | Enrichment | `packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart` | `_fetchBeaconByIdWithTimeline` `results[n]!` |
@@ -88,7 +88,7 @@ Do **not** change production code in the TDD-only pass; tests stay red until fix
 
 - `packages/client/lib/ui/widget/beacon_you_responsibility_line.dart`
 - `packages/client/lib/ui/presenter/beacon_phase_input_builders.dart`
-- `packages/client/lib/ui/utils/beacon_you_presentation.dart`
+- `packages/client/lib/ui/util/beacon_you_presentation.dart`
 - `packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart` (enrichment null-safety)
 - `packages/client/test/features/beacon_view/issue_184_now_tab_after_evaluation_submit_test.dart`
 

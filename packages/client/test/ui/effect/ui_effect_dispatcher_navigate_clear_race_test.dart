@@ -18,7 +18,7 @@ import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 final class _FakeAuthCubit extends Fake implements AuthCubit {
   _FakeAuthCubit()

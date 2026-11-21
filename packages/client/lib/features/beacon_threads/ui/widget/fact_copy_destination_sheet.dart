@@ -17,7 +17,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_message.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// More destinations than this get a search field (plan §6.2).
 const _kSearchThreshold = 5;

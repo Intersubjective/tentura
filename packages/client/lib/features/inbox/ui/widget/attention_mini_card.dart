@@ -13,8 +13,8 @@ import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// How many capability chips a mini-card renders before it caps.

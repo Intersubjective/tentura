@@ -25,7 +25,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
 import '../post_remaining_label.dart';

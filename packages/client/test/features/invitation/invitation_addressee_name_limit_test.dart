@@ -5,7 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 // #356: the invite-name field capped with TextField.maxLength, whose counter
 // counts user-perceived characters, while `displayNameValidator` and the

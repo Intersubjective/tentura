@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 void main() {
   setUpAll(() async {

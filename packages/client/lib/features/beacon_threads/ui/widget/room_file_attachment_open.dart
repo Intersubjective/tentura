@@ -5,7 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'room_file_save.dart';
 

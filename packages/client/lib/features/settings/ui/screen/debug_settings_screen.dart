@@ -11,7 +11,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
 
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 
