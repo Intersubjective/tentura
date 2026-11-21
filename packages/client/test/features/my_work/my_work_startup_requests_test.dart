@@ -176,8 +176,6 @@ void main() {
             signal,
             attention,
             FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
-            env: const Env(),
-            logger: Logger('root-startup-work'),
           );
           GetIt.I
             ..registerSingleton<AuthCubit>(_AuthenticatedAuth())

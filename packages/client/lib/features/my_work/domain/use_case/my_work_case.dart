@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
@@ -30,7 +29,7 @@ import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
 
 @singleton
-final class MyWorkCase extends UseCaseBase {
+final class MyWorkCase {
   static const _maxAttentionIdsPerRequest = 500;
 
   MyWorkCase(
@@ -45,10 +44,8 @@ final class MyWorkCase extends UseCaseBase {
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
     this._attentionCase,
-    this._planRepository, {
-    required super.env,
-    required super.logger,
-  });
+    this._planRepository,
+  );
 
   final MyWorkRepository _repository;
 

@@ -9,6 +9,7 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
@@ -24,11 +25,16 @@ import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
+import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/profile_view/data/repository/profile_shared_beacons_repository.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_shared_beacons_case.dart';
 
 import '../features/auth/auth_test_helpers.dart'
     show EmptyAuthLocal, EmptyAuthRemote, buildTestAuthCase;
+import '../features/beacon_plan/beacon_plan_test_support.dart'
+    show FakeBeaconPlanRepository, planJson;
+import '../features/beacon_view/beacon_view_case_test_support.dart'
+    show FakeBeaconDisplayRepository;
 import '../features/complaint/recording_complaint_case.dart'
     show FakeComplaintBeacons, FakeComplaintProfiles;
 import '../features/contacts/contacts_case_test.dart'
@@ -36,6 +42,7 @@ import '../features/contacts/contacts_case_test.dart'
 import '../features/credentials/credentials_case_test.dart'
     show FakeCredentialsRepository, TrackingAuthLocal;
 import '../features/inbox/inbox_case_test.dart' show buildTestBeaconThreadsCase;
+import '../features/my_work/my_work_test_support.dart' as my_work;
 import '../support/fake_block_case.dart';
 import '../support/test_realtime_sync.dart';
 
@@ -123,6 +130,36 @@ void main() {
         bookkeepingRefresh,
         FakeBlockCase(),
       ]);
+    });
+
+    test('MyWorkCase only needs its feature dependencies', () {
+      final realtime = buildTestRealtimeSync();
+      addTearDown(realtime.port.dispose);
+      final bookkeepingRefresh = BookkeepingRefreshSignal();
+      addTearDown(bookkeepingRefresh.dispose);
+      final roomHints = my_work.FakeRoomHints();
+
+      final dependencies = <Object>[
+        my_work.FakeMyWorkRepository(),
+        my_work.FakeArchiveRepository(),
+        my_work.FakeForwardRepository(),
+        my_work.FakeBeaconRepository(),
+        my_work.buildTestBeaconThreadsCase(roomHints),
+        roomHints,
+        FakeBeaconDisplayRepository(),
+        my_work.FakeMyWorkClosureRepository(),
+        realtime.case_,
+        bookkeepingRefresh,
+        my_work.buildStubAttentionCase(realtimeSyncCase: realtime.case_),
+        FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
+      ];
+
+      _expectFeatureDependenciesOnly<MyWorkCase>(MyWorkCase.new, dependencies);
+      expect(
+        () => Function.apply(MyWorkCase.new, [...dependencies, null]),
+        throwsNoSuchMethodError,
+        reason: 'MyWorkCase must reject a thirteenth positional argument',
+      );
     });
   });
 

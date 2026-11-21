@@ -21,7 +21,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/domain/entity/post_join_destination.dart';
@@ -53,10 +52,7 @@ import '../../support/phone_surface.dart';
 import '../../support/remote_load_failure_matcher.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_view/beacon_view_case_test_support.dart'
-    show FakeBeaconDisplayRepository;
 import '../block/support/controllable_block_case.dart' show noopBlockCase;
-import '../beacon_plan/beacon_plan_test_support.dart';
 import '../my_work/my_work_test_support.dart';
 
 const _userId = 'Uauthor000001';
@@ -183,19 +179,10 @@ MyWorkCase _deskCase(
   RemoteRequestClient? attentionClient,
 }) {
   final realtime = buildTestRealtimeSync().case_;
-  final hints = FakeRoomHints();
-  return MyWorkCase(
-    MyWorkRepository(remote),
-    FakeArchiveRepository(),
-    FakeForwardRepository(),
-    FakeBeaconRepository(),
-    buildTestBeaconThreadsCase(hints),
-    hints,
-    FakeBeaconDisplayRepository(),
-    FakeMyWorkClosureRepository(),
-    realtime,
-    BookkeepingRefreshSignal(),
-    buildAttentionCase(
+  return buildTestMyWorkCase(
+    repo: MyWorkRepository(remote),
+    realtimeSyncCase: realtime,
+    attentionCase: buildAttentionCase(
       repository: AttentionRepository(attentionClient ?? remote),
       accounts: _Accounts(),
       realtimeSyncCase: realtime,
@@ -203,9 +190,6 @@ MyWorkCase _deskCase(
       feedSessions: FeedSessionRegistry(),
       logger: Logger('home-desk-attention'),
     ),
-    FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
-    env: const Env(),
-    logger: Logger('home-desk'),
   );
 }
 

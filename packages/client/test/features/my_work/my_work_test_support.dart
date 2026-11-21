@@ -259,7 +259,7 @@ BeaconThreadsCase buildTestBeaconThreadsCase(
 }
 
 MyWorkCase buildTestMyWorkCase({
-  FakeMyWorkRepository? repo,
+  MyWorkRepository? repo,
   BeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
   ArchiveRepository? archiveRepo,
@@ -300,7 +300,5 @@ MyWorkCase buildTestMyWorkCase({
           realtimeSyncCase: realtime,
         ),
     planRepository ?? FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
-    env: const Env(),
-    logger: Logger('test'),
   );
 }

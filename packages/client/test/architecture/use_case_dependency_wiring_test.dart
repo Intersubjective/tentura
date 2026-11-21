@@ -12,9 +12,11 @@ const _casePaths = {
       'lib/features/credentials/domain/use_case/credentials_case.dart',
   'FriendsCase': 'lib/features/friends/domain/use_case/friends_case.dart',
   'InboxCase': 'lib/features/inbox/domain/use_case/inbox_case.dart',
+  'MyWorkCase': 'lib/features/my_work/domain/use_case/my_work_case.dart',
 };
 
 const _ambientDependencies = {'env', 'logger'};
+final _myWorkAmbientNames = RegExp(r'\b(?:env|logger|UseCaseBase)\b');
 
 void main() {
   group('Use case wiring only supplies feature dependencies', () {
@@ -35,6 +37,15 @@ void main() {
         final declaration = unit.declarations
             .whereType<ClassDeclaration>()
             .singleWhere((node) => node.namePart.typeName.lexeme == name);
+        if (name == 'MyWorkCase') {
+          if (declaration.finalKeyword == null) {
+            violations.add('$path must declare final class MyWorkCase');
+          }
+          for (final match in _myWorkAmbientNames.allMatches(source)) {
+            final line = unit.lineInfo.getLocation(match.start).lineNumber;
+            violations.add('$path:$line mentions ${match.group(0)}');
+          }
+        }
         if (declaration.extendsClause?.superclass.name.lexeme ==
             'UseCaseBase') {
           violations.add('$path extends UseCaseBase');
@@ -78,6 +89,16 @@ void main() {
             expect(calls, isNotEmpty, reason: 'DI must construct ${entry.key}');
             for (final call in calls) {
               violations.addAll(_ambientArguments(path, parsed, call));
+              if (call.name == 'MyWorkCase') {
+                final arguments = call.arguments.arguments;
+                if (arguments.length != 12 ||
+                    !arguments.every(_isPositionalDependencyLookup)) {
+                  violations.add(
+                    '$path must supply 12 positional gh<T>() lookups to '
+                    'MyWorkCase',
+                  );
+                }
+              }
             }
           }
         }
@@ -94,6 +115,7 @@ void main() {
               .toList()
             ..sort((left, right) => left.path.compareTo(right.path));
       final violations = <String>[];
+      var myWorkCalls = 0;
       for (final file in files) {
         final source = file.readAsStringSync();
         if (!_casePaths.keys.any(source.contains)) continue;
@@ -101,15 +123,31 @@ void main() {
         final constructors = _ConstructorCalls();
         parsed.unit.accept(constructors);
         for (final call in constructors.calls) {
+          if (call.name == 'MyWorkCase') myWorkCalls++;
           violations.addAll(_ambientArguments(file.path, parsed, call));
         }
       }
       expect(violations, isEmpty);
+      expect(
+        myWorkCalls,
+        lessThanOrEqualTo(5),
+        reason: 'Reuse buildTestMyWorkCase when another test needs MyWorkCase',
+      );
     });
   });
 }
 
 typedef _ConstructorCall = ({String name, ArgumentList arguments});
+
+bool _isPositionalDependencyLookup(Argument argument) {
+  final expression = argument.argumentExpression;
+  return argument is! NamedArgument &&
+      expression is MethodInvocation &&
+      expression.target == null &&
+      expression.methodName.name == 'gh' &&
+      expression.typeArguments?.arguments.length == 1 &&
+      expression.argumentList.arguments.isEmpty;
+}
 
 Iterable<String> _ambientArguments(
   String path,

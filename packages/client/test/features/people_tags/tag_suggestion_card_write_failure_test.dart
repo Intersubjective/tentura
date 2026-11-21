@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
@@ -117,6 +118,7 @@ void main() {
     testWidgets('a failing Not now still hides the card and logs a warning', (
       tester,
     ) async {
+      expect(GetIt.I<PeopleTagSuggestionCase>(), isA<UseCaseBase>());
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
       expect(find.byKey(_card), findsOneWidget);
@@ -129,6 +131,7 @@ void main() {
       expect(find.byKey(_card), findsNothing);
       expect(records, hasLength(1));
       expect(records.single.level, Level.WARNING);
+      expect(records.single.message, 'tag suggestion notNow failed');
       expect(records.single.error, isA<StateError>());
     });
 
@@ -147,6 +150,7 @@ void main() {
         expect(find.byKey(_card), findsNothing);
         expect(records, hasLength(1));
         expect(records.single.level, Level.WARNING);
+        expect(records.single.message, 'tag suggestion disable failed');
         expect(records.single.error, isA<StateError>());
       },
     );

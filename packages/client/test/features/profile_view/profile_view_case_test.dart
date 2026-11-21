@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/projection_tier.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
@@ -11,6 +12,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
@@ -73,7 +75,7 @@ void main() {
       expect(snapshot.subjectiveTags, isEmpty);
       expect(snapshot.sharedContexts, isEmpty);
       final loadRecords = records
-          .where((r) => r.loggerName == 'test')
+          .where((r) => r.loggerName == harness.logger.fullName)
           .where((r) => r.message.startsWith('ProfileViewCase.load'))
           .toList();
       expect(loadRecords, hasLength(2));
@@ -84,6 +86,61 @@ void main() {
       );
       expect(loadRecords.map((r) => r.stackTrace), everyElement(isNotNull));
     });
+
+    test(
+      'failed tag lookup logs at FINE and preserves shared contexts',
+      () async {
+        expect(harness.case_, isA<UseCaseBase>());
+        final error = StateError('tags unavailable');
+        const contexts = [(beaconId: 'B1', title: 'Fix the roof')];
+        harness
+          ..capabilities.subjectiveTagsError = error
+          ..sharedContexts.contexts = contexts;
+        final records = _captureProfileViewRecords(harness.logger);
+
+        final snapshot = await harness.case_.load('U-target');
+
+        expect(snapshot.subjectiveTags, isEmpty);
+        expect(snapshot.sharedContexts, contexts);
+        expect(records, hasLength(1));
+        expect(records.single.level, Level.FINE);
+        expect(records.single.error, same(error));
+        expect(
+          records.single.message,
+          startsWith('ProfileViewCase.load: fetchSubjectiveTags failed'),
+        );
+      },
+    );
+
+    test(
+      'failed shared context lookup logs at FINE and preserves tags',
+      () async {
+        final error = StateError('shared contexts unavailable');
+        const tags = [
+          TagProjection(
+            subjectUserId: 'U-target',
+            tagSlug: 'carpentry',
+            tier: ProjectionTier.ownOutcome,
+          ),
+        ];
+        harness
+          ..capabilities.subjectiveTags = tags
+          ..sharedContexts.error = error;
+        final records = _captureProfileViewRecords(harness.logger);
+
+        final snapshot = await harness.case_.load('U-target');
+
+        expect(snapshot.sharedContexts, isEmpty);
+        expect(snapshot.subjectiveTags, tags);
+        expect(records, hasLength(1));
+        expect(records.single.level, Level.FINE);
+        expect(records.single.error, same(error));
+        expect(
+          records.single.message,
+          startsWith('ProfileViewCase.load: fetchSharedContexts failed'),
+        );
+      },
+    );
   });
 
   group('ProfileViewCase authoritative relationship mutations', () {
@@ -185,6 +242,18 @@ void main() {
   });
 }
 
+List<LogRecord> _captureProfileViewRecords(Logger logger) {
+  final previousLevel = Logger.root.level;
+  Logger.root.level = Level.ALL;
+  addTearDown(() => Logger.root.level = previousLevel);
+  final records = <LogRecord>[];
+  final subscription = logger.onRecord
+      .where((record) => record.loggerName == logger.fullName)
+      .listen(records.add);
+  addTearDown(subscription.cancel);
+  return records;
+}
+
 Profile _profile({
   String displayName = 'Target',
   int myVote = 0,
@@ -222,11 +291,12 @@ final class _Harness {
       realtimeCase,
       sharedContexts,
       env: const Env(),
-      logger: Logger('test'),
+      logger: logger,
     );
   }
 
   final authLocal = StreamingAuthLocal();
+  final logger = Logger('profile-view-case-test');
   final contactsRepository = FakeContactsRepository();
   final contactStore = ContactNameStore();
   final sharedContexts = FakePersonSharedContextPort();
@@ -342,12 +412,13 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   Future<PersonCapabilityCues> fetchCues(String subjectId) async =>
       PersonCapabilityCues.empty;
 
+  List<TagProjection> subjectiveTags = const [];
   Error? subjectiveTagsError;
 
   @override
   Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async {
     if (subjectiveTagsError case final error?) throw error;
-    return const [];
+    return subjectiveTags;
   }
 
   @override

@@ -36,7 +36,6 @@ import 'package:tentura/domain/port/network_reachability_port.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/home/domain/entity/post_join_destination.dart';
@@ -67,9 +66,6 @@ import '../../support/attention_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_plan/beacon_plan_test_support.dart';
-import '../beacon_view/beacon_view_case_test_support.dart'
-    show FakeBeaconDisplayRepository;
 import '../block/support/controllable_block_case.dart' show noopBlockCase;
 import 'my_work_test_support.dart';
 
@@ -262,19 +258,10 @@ class _EmptyPostsRepository implements PostsRepositoryPort {
 
 MyWorkCase _deskCase(RemoteApiService remote) {
   final realtime = buildTestRealtimeSync().case_;
-  final hints = FakeRoomHints();
-  return MyWorkCase(
-    MyWorkRepository(remote),
-    FakeArchiveRepository(),
-    FakeForwardRepository(),
-    FakeBeaconRepository(),
-    buildTestBeaconThreadsCase(hints),
-    hints,
-    FakeBeaconDisplayRepository(),
-    FakeMyWorkClosureRepository(),
-    realtime,
-    BookkeepingRefreshSignal(),
-    buildAttentionCase(
+  return buildTestMyWorkCase(
+    repo: MyWorkRepository(remote),
+    realtimeSyncCase: realtime,
+    attentionCase: buildAttentionCase(
       repository: AttentionRepository(remote),
       accounts: _Accounts(),
       realtimeSyncCase: realtime,
@@ -282,9 +269,6 @@ MyWorkCase _deskCase(RemoteApiService remote) {
       feedSessions: FeedSessionRegistry(),
       logger: Logger('requests-recovery-attention'),
     ),
-    FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
-    env: const Env(),
-    logger: Logger('requests-recovery'),
   );
 }
 
