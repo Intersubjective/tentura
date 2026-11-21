@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
@@ -7,7 +9,12 @@ import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/image_picked.dart';
+import 'package:tentura/domain/port/beacon_image_port.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/port/op_id_port.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/env.dart';
 
@@ -26,6 +33,10 @@ final class _CountingOpIds implements OpIdPort {
   @override
   String newOpId() => 'op-${++calls}';
 }
+
+final _uuidV4 = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+);
 
 void main() {
   group('domain cases mint operation ids through OpIdPort', () {
@@ -79,6 +90,97 @@ void main() {
         ),
       );
     });
+  });
+
+  group('BeaconCreateCase image local keys', () {
+    test('an empty pick leaves the first two ids for the next pick', () async {
+      final opIds = _CountingOpIds();
+      final images = FakeBeaconImagePort();
+      final create = _buildBeaconCreateWithOpIds(images, opIds);
+
+      expect(await create.pickImages(), isEmpty);
+      expect(opIds.calls, 0);
+
+      images.picked = [
+        ImagePicked(fileName: 'first.jpg', bytes: Uint8List.fromList([1])),
+        ImagePicked(fileName: 'second.jpg', bytes: Uint8List.fromList([2])),
+      ];
+      final defaults = await buildBeaconCreateCase(images: images).pickImages();
+      expect(defaults, hasLength(2));
+      expect(
+        defaults.map((image) => image.localKey),
+        everyElement(matches(_uuidV4)),
+      );
+
+      final picked = await create.pickImages();
+
+      expect(
+        picked.map((image) => (image.fileName, image.localKey)),
+        [('first.jpg', 'op-1'), ('second.jpg', 'op-2')],
+      );
+      expect(opIds.calls, 2);
+    });
+
+    test('a cancelled crop leaves the first id for a completed crop', () async {
+      final opIds = _CountingOpIds();
+      final create = _buildBeaconCreateWithOpIds(FakeBeaconImagePort(), opIds);
+      final original = ImagePicked(
+        fileName: 'cover.jpg',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      ).toImageEntity().copyWith(localKey: 'original');
+      final cropUi = FakeImageCropUi();
+      const imageUrl = 'https://example.test/cover.jpg';
+
+      final cancelled = await create.adjustCoverCrop(
+        image: original,
+        imageUrl: imageUrl,
+        cropUi: cropUi,
+      );
+      expect(cancelled, isNull);
+      expect(cropUi.calls, 1);
+      expect(opIds.calls, 0);
+
+      final croppedBytes = Uint8List.fromList([2]);
+      cropUi.result = ImagePicked(fileName: 'square.jpg', bytes: croppedBytes);
+      final cropped = await create.adjustCoverCrop(
+        image: original,
+        imageUrl: imageUrl,
+        cropUi: cropUi,
+      );
+
+      expect(cropped, isNotNull);
+      expect(cropped!.imageBytes, orderedEquals(croppedBytes));
+      expect(cropped.localKey, 'op-1');
+      expect(opIds.calls, 1);
+    });
+
+    test(
+      'default and write-only callers can crop without an ID override',
+      () async {
+        final write = FakeBeaconWritePort();
+        final defaults = buildBeaconCreateCase();
+        final writeOnly = buildBeaconCreateCase(beacons: write);
+        final croppedBytes = Uint8List.fromList([2]);
+
+        for (final create in [defaults, writeOnly]) {
+          final cropped = await create.adjustCoverCrop(
+            image: const ImageEntity(id: 'cover'),
+            imageUrl: 'https://example.test/cover.jpg',
+            cropUi: FakeImageCropUi(
+              result: ImagePicked(fileName: 'square.jpg', bytes: croppedBytes),
+            ),
+          );
+          expect(cropped, isNotNull);
+          expect(cropped!.imageBytes, orderedEquals(croppedBytes));
+          expect(cropped.localKey, matches(_uuidV4));
+        }
+        await writeOnly.publishDraft('draft-1');
+        expect(write.publishedIds, ['draft-1']);
+
+        // Exercise both legacy call forms and require the new optional contract.
+        expect(buildBeaconCreateCase, isA<_BeaconCreateFactoryWithOpIds>());
+      },
+    );
   });
 
   group('AttentionCase operation ids', () {
@@ -210,6 +312,29 @@ void main() {
       expect(buildAttentionCase, isA<_AttentionFactoryWithOpIds>());
     });
   });
+}
+
+typedef _BeaconCreateFactoryWithOpIds =
+    BeaconCreateCase Function({
+      BeaconWritePort? beacons,
+      BeaconImagePort? images,
+      OpIdPort? opIds,
+    });
+
+BeaconCreateCase _buildBeaconCreateWithOpIds(
+  BeaconImagePort images,
+  OpIdPort opIds,
+) {
+  const Function factory = buildBeaconCreateCase;
+  expect(
+    factory,
+    isA<_BeaconCreateFactoryWithOpIds>(),
+    reason: 'The shared factory must accept an optional named opIds port',
+  );
+  return (factory as _BeaconCreateFactoryWithOpIds)(
+    images: images,
+    opIds: opIds,
+  );
 }
 
 typedef _AttentionFactoryWithOpIds =

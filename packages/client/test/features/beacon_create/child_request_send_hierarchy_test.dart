@@ -119,7 +119,7 @@ class _PublishingWritePort extends FakeBeaconWritePort {
 /// Records the public use-case boundary while executing its real behavior.
 class _RecordingCreateCase extends BeaconCreateCase {
   _RecordingCreateCase(FakeBeaconWritePort write)
-    : super(write, FakeBeaconImagePort());
+    : super(write, FakeBeaconImagePort(), OpIdService());
 
   final plainPublications = <String>[];
 

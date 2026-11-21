@@ -14,6 +14,7 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/data/service/remote_api_client/build_client.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -67,7 +68,7 @@ Future<void> main() async {
   final draftId = Uri.base.queryParameters['draft_id'] ?? '';
   final cubit = BeaconCreateCubit(
     kind: BeaconKind.post,
-    beaconCreateCase: BeaconCreateCase(beacons, images),
+    beaconCreateCase: BeaconCreateCase(beacons, images, OpIdService()),
     postPublishCase: PostPublishCase(PostPublishRepository(remote)),
     draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
     effects: effects,

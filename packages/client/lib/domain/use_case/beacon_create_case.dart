@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart' show ListEquality;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -10,6 +9,7 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// Which command was in flight when a save failed.
@@ -111,12 +111,12 @@ class BeaconSaveFailure implements Exception {
 /// Owns every multi-repository step of creating or editing a request.
 @singleton
 class BeaconCreateCase {
-  BeaconCreateCase(this._beacons, this._images);
+  BeaconCreateCase(this._beacons, this._images, this._opIds);
 
   final BeaconWritePort _beacons;
   final BeaconImagePort _images;
 
-  static const _uuid = Uuid();
+  final OpIdPort _opIds;
 
   static const _maxSetMediaAttempts = 3;
 
@@ -154,7 +154,7 @@ class BeaconCreateCase {
     final picked = await _images.pickMultipleImages();
     return [
       for (final image in picked)
-        image.toImageEntity().copyWith(localKey: _uuid.v4()),
+        image.toImageEntity().copyWith(localKey: _opIds.newOpId()),
     ];
   }
 
@@ -168,7 +168,7 @@ class BeaconCreateCase {
     final bytes = image.imageBytes ?? await _images.fetchImageBytes(imageUrl);
     final cropped = await cropUi.cropSquare(bytes);
     if (cropped == null) return null;
-    return cropped.toImageEntity().copyWith(localKey: _uuid.v4());
+    return cropped.toImageEntity().copyWith(localKey: _opIds.newOpId());
   }
 
   Future<BeaconSaveResult> create(BeaconSaveCommand command) =>

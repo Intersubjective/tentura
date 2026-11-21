@@ -10,6 +10,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'beacon_create_case_call_sites.dart';
@@ -17,6 +18,10 @@ import 'beacon_create_case_call_sites.dart';
 const _factoryName = beaconCreateFactory;
 const _legacyName = beaconCreateLegacyHelper;
 const _fakePortsPath = 'test/features/beacon_create/fake_beacon_ports.dart';
+const _opIdServicePath = 'lib/data/service/op_id_service.dart';
+const _createCasePath = 'lib/domain/use_case/beacon_create_case.dart';
+const _browserAppPath =
+    'integration_test/support/post_draft_reload_browser_app.dart';
 const _originalCallSites =
     'test/support/beacon_create_case_original_call_sites.json';
 
@@ -57,8 +62,26 @@ File _factoryFile() {
   return file;
 }
 
+Future<ResolvedUnitResult> _resolve(String path) async {
+  final absolutePath = File(path).absolute.path;
+  final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+  final contexts = AnalysisContextCollection(
+    includedPaths: [absolutePath],
+    sdkPath: flutterRoot == null ? null : '$flutterRoot/bin/cache/dart-sdk',
+  );
+  addTearDown(contexts.dispose);
+  final resolved = await contexts
+      .contextFor(absolutePath)
+      .currentSession
+      .getResolvedUnit(absolutePath);
+  expect(resolved, isA<ResolvedUnitResult>(), reason: 'Resolve $path');
+  return resolved as ResolvedUnitResult;
+}
+
+bool _isUuidPackage(String? uri) => uri?.startsWith('package:uuid/') ?? false;
+
 void main() {
-  test('one shared factory accepts optional write and image ports', () {
+  test('one shared factory accepts optional write, image and ID ports', () {
     final factory = _functions(_factoryFile(), _factoryName).single;
     expect(factory.returnType?.toSource(), 'BeaconCreateCase');
     final parameters = factory.functionExpression.parameters!.parameters;
@@ -68,37 +91,141 @@ void main() {
         for (final parameter in parameters)
           parameter.name?.lexeme: parameter.type?.toSource(),
       },
-      {'beacons': 'BeaconWritePort?', 'images': 'BeaconImagePort?'},
+      {
+        'beacons': 'BeaconWritePort?',
+        'images': 'BeaconImagePort?',
+        'opIds': 'OpIdPort?',
+      },
     );
-    expect(parameters, hasLength(2));
+    expect(parameters, hasLength(3));
   });
 
-  test('omitted ports get fresh shared fakes for each case', () async {
-    final path = _factoryFile().absolute.path;
-    final flutterRoot = Platform.environment['FLUTTER_ROOT'];
-    final contexts = AnalysisContextCollection(
-      includedPaths: [path],
-      sdkPath: flutterRoot == null ? null : '$flutterRoot/bin/cache/dart-sdk',
+  test(
+    'omitted ports get fresh fakes and an ID service for each case',
+    () async {
+      final resolved = await _resolve(_factoryFile().path);
+      final factory = resolved.unit.declarations
+          .whereType<FunctionDeclaration>()
+          .singleWhere((function) => function.name.lexeme == _factoryName);
+      final body = _FactoryBody();
+      factory.functionExpression.body.accept(body);
+      expect(body.caseConstructors, hasLength(1));
+      final construction = body.caseConstructors.single;
+      final parameters = construction.constructorName.element!.formalParameters;
+      expect(
+        parameters.every((parameter) => parameter.isRequiredPositional),
+        isTrue,
+      );
+      expect(
+        parameters.map((parameter) => parameter.type.getDisplayString()),
+        ['BeaconWritePort', 'BeaconImagePort', 'OpIdPort'],
+      );
+      final arguments = construction.argumentList.arguments;
+      expect(arguments, hasLength(3));
+      // Default collaborators are private. Inspect the actual fallback argument
+      // so a shared image fake fails even if each fetch returns a fresh buffer.
+      body
+        ..expectFreshFallback(arguments[0], 'beacons', 'FakeBeaconWritePort')
+        ..expectFreshFallback(arguments[1], 'images', 'FakeBeaconImagePort')
+        ..expectFreshFallback(
+          arguments[2],
+          'opIds',
+          'OpIdService',
+          sourcePath: _opIdServicePath,
+        );
+    },
+  );
+
+  test('BeaconCreateCase has no UUID import or field fallback', () async {
+    final resolved = await _resolve(_createCasePath);
+    final createCase = resolved.libraryElement.getClass(
+      beaconCreateConstructor,
+    )!;
+    final uuidImports = [
+      for (final directive
+          in resolved.unit.directives.whereType<ImportDirective>())
+        for (final uri in [
+          directive.uri.stringValue,
+          for (final configuration in directive.configurations)
+            configuration.uri.stringValue,
+        ])
+          if (_isUuidPackage(uri)) uri,
+    ];
+    final uuidFields = [
+      for (final field in createCase.fields)
+        if (field.type case InterfaceType(
+          :final element,
+        ) when _isUuidPackage(element.library.uri.toString()))
+          field.name,
+    ];
+
+    expect(
+      {'UUID imports': uuidImports, 'UUID fields': uuidFields},
+      {'UUID imports': isEmpty, 'UUID fields': isEmpty},
     );
-    addTearDown(contexts.dispose);
-    final resolved = await contexts
-        .contextFor(path)
-        .currentSession
-        .getResolvedUnit(path);
-    expect(resolved, isA<ResolvedUnitResult>());
-    final factory = (resolved as ResolvedUnitResult).unit.declarations
-        .whereType<FunctionDeclaration>()
-        .singleWhere((function) => function.name.lexeme == _factoryName);
+  });
+
+  test(
+    'picked images and cropped covers get their keys from the port',
+    () async {
+      final resolved = await _resolve(_createCasePath);
+      final createCase = resolved.unit.declarations
+          .whereType<ClassDeclaration>()
+          .singleWhere(
+            (declaration) =>
+                declaration.declaredFragment?.element.name ==
+                beaconCreateConstructor,
+          );
+      final methods = createCase.body.members.whereType<MethodDeclaration>();
+      final keyAssignments = <String, List<Expression>>{};
+      for (final name in ['pickImages', 'adjustCoverCrop']) {
+        final method = methods.singleWhere(
+          (method) => method.name.lexeme == name,
+        );
+        final collector = _ImageLocalKeys();
+        method.body.accept(collector);
+        keyAssignments[name] = collector.values;
+      }
+
+      final portCall = predicate<Expression>(
+        (expression) =>
+            expression is MethodInvocation &&
+            expression.methodName.name == 'newOpId' &&
+            expression.methodName.element?.library?.uri.toString() ==
+                'package:tentura/domain/port/op_id_port.dart' &&
+            expression.argumentList.arguments.isEmpty,
+        'a call to OpIdPort.newOpId()',
+      );
+      expect(keyAssignments, {
+        'pickImages': [portCall],
+        'adjustCoverCrop': [portCall],
+      });
+    },
+  );
+
+  test('browser draft reload supplies an operation ID port', () async {
+    final resolved = await _resolve(_browserAppPath);
     final body = _FactoryBody();
-    factory.functionExpression.body.accept(body);
+    resolved.unit.accept(body);
     expect(body.caseConstructors, hasLength(1));
-    final arguments = body.caseConstructors.single.argumentList.arguments;
-    expect(arguments, hasLength(2));
-    // Default collaborators are private. Inspect the actual fallback argument
-    // so a shared image fake fails even if each fetch returns a fresh buffer.
-    body
-      ..expectFreshFallback(arguments[0], 'beacons', 'FakeBeaconWritePort')
-      ..expectFreshFallback(arguments[1], 'images', 'FakeBeaconImagePort');
+    final construction = body.caseConstructors.single;
+    final arguments = construction.argumentList.arguments;
+    expect(
+      arguments,
+      hasLength(3),
+      reason: 'Pass an OpIdPort as the third argument',
+    );
+    final portType =
+        construction.constructorName.element!.formalParameters[2].type;
+    expect(portType.getDisplayString(), 'OpIdPort');
+    expect(
+      resolved.typeSystem.isSubtypeOf(
+        arguments[2].argumentExpression.staticType!,
+        portType,
+      ),
+      isTrue,
+      reason: 'The browser app must pass a value implementing OpIdPort',
+    );
   });
 
   test('client tests construct cases only through the shared factory', () {
@@ -293,6 +420,18 @@ void main() => registerBeaconCreateCaseFactoryTests(buildBeaconCreateCase);
   );
 }
 
+class _ImageLocalKeys extends RecursiveAstVisitor<void> {
+  final values = <Expression>[];
+
+  @override
+  void visitNamedArgument(NamedArgument node) {
+    if (node.name.lexeme == 'localKey') {
+      values.add(node.argumentExpression.unParenthesized);
+    }
+    super.visitNamedArgument(node);
+  }
+}
+
 Map<String, String> _customPorts(Map<String, String> ports) => {
   for (final MapEntry(:key, :value) in ports.entries)
     if ((key, value) != ('beacons', 'FakeBeaconWritePort()') &&
@@ -304,7 +443,12 @@ class _FactoryBody extends RecursiveAstVisitor<void> {
   final caseConstructors = <InstanceCreationExpression>[];
   final _initializers = <Element, Expression>{};
 
-  void expectFreshFallback(Argument argument, String port, String fakeType) {
+  void expectFreshFallback(
+    Argument argument,
+    String port,
+    String fallbackType, {
+    String sourcePath = _fakePortsPath,
+  }) {
     final selection = _initializer(argument);
     expect(selection, isA<BinaryExpression>(), reason: port);
     final fallback = selection! as BinaryExpression;
@@ -319,7 +463,7 @@ class _FactoryBody extends RecursiveAstVisitor<void> {
     final constructor = defaultPort as InstanceCreationExpression;
     expect(
       constructor.constructorName.element?.enclosingElement.name,
-      fakeType,
+      fallbackType,
     );
     expect(
       constructor
@@ -329,7 +473,7 @@ class _FactoryBody extends RecursiveAstVisitor<void> {
           .firstFragment
           .source
           .fullName,
-      File(_fakePortsPath).absolute.path,
+      File(sourcePath).absolute.path,
     );
     expect(constructor.argumentList.arguments, isEmpty);
   }
