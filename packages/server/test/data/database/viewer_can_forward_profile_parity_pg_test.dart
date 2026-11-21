@@ -51,7 +51,7 @@ Future<void> main() async {
         reason: 'the seeded cases must exercise both outcomes',
       );
 
-      await migrateDbSchemaThrough(writer, '0324');
+      await migrateDbSchemaThrough(writer, '0326');
       final beforeDelivery = await _functionDefinition(writer);
       expect(
         beforeDelivery,
@@ -73,13 +73,13 @@ Future<void> main() async {
           migrationsForTesting
               .map((migration) => migration.version)
               .skipWhile(
-                (version) => version != '0324',
+                (version) => version != '0326',
               )
               .take(2),
-          ['0324', '0325'],
+          ['0326', '0327'],
           reason: 'a measured regression needs the next registered migration',
         );
-        await migrateDbSchemaThrough(writer, '0325');
+        await migrateDbSchemaThrough(writer, '0327');
       }
 
       final signature = await writer.execute('''
