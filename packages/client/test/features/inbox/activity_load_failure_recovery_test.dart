@@ -329,8 +329,6 @@ Future<void> _withActivity(
     sync.case_,
     BookkeepingRefreshSignal(),
     noopBlockCase(),
-    env: const Env(),
-    logger: logger,
   );
   registerNoopPostsCase(sync.case_);
   ensureNoopAttentionActorProfilesRegistered();

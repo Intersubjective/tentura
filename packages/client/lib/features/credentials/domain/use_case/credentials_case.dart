@@ -1,20 +1,17 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/exception/server_exception.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 
 import '../../data/repository/credentials_repository.dart';
 import '../entity/credential_entity.dart';
 
 @injectable
-final class CredentialsCase extends UseCaseBase {
+final class CredentialsCase {
   CredentialsCase(
     this._repository,
-    this._authLocalRepository, {
-    required super.env,
-    required super.logger,
-  });
+    this._authLocalRepository,
+  );
 
   final CredentialsRepository _repository;
   final AuthLocalRepositoryPort _authLocalRepository;

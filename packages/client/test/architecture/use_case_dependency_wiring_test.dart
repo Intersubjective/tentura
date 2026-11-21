@@ -1,0 +1,168 @@
+import 'dart:io';
+
+import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const _casePaths = {
+  'AuthorInviteCase': 'lib/domain/use_case/author_invite_case.dart',
+  'CredentialsCase':
+      'lib/features/credentials/domain/use_case/credentials_case.dart',
+  'FriendsCase': 'lib/features/friends/domain/use_case/friends_case.dart',
+  'InboxCase': 'lib/features/inbox/domain/use_case/inbox_case.dart',
+};
+
+const _ambientDependencies = {'env', 'logger'};
+
+void main() {
+  group('Use case wiring only supplies feature dependencies', () {
+    test('case sources omit the shared base and its unused imports', () {
+      final violations = <String>[];
+      for (final MapEntry(key: name, value: path) in _casePaths.entries) {
+        final source = File(path).readAsStringSync();
+        final unit = parseString(content: source, path: path).unit;
+        for (final directive in unit.directives.whereType<ImportDirective>()) {
+          final uri = directive.uri.stringValue!;
+          if (uri.endsWith('use_case_base.dart') ||
+              uri.endsWith('/env.dart') ||
+              uri == 'env.dart' ||
+              uri.startsWith('package:logging/')) {
+            violations.add('$path imports $uri');
+          }
+        }
+        final declaration = unit.declarations
+            .whereType<ClassDeclaration>()
+            .singleWhere((node) => node.namePart.typeName.lexeme == name);
+        if (declaration.extendsClause?.superclass.name.lexeme ==
+            'UseCaseBase') {
+          violations.add('$path extends UseCaseBase');
+        }
+        if (declaration.body case BlockClassBody(:final members)) {
+          for (final constructor
+              in members.whereType<ConstructorDeclaration>()) {
+            for (final parameter
+                in constructor.parameters.parameters
+                    .whereType<SuperFormalParameter>()) {
+              if (_ambientDependencies.contains(parameter.name.lexeme)) {
+                violations.add('$path declares super.${parameter.name.lexeme}');
+              }
+            }
+          }
+        }
+      }
+      expect(violations, isEmpty);
+    });
+
+    test(
+      'generated DI factories construct the cases without env or logger',
+      () {
+        const path = 'lib/app/di/di_current.config.dart';
+        final parsed = parseString(
+          content: File(path).readAsStringSync(),
+          path: path,
+        );
+        final registrations = _CaseRegistrations();
+        parsed.unit.accept(registrations);
+        expect(registrations.calls.keys, unorderedEquals(_casePaths.keys));
+
+        final violations = <String>[];
+        for (final entry in registrations.calls.entries) {
+          for (final registration in entry.value) {
+            final constructors = _ConstructorCalls();
+            registration.argumentList.accept(constructors);
+            final calls = constructors.calls.where(
+              (call) => call.name == entry.key,
+            );
+            expect(calls, isNotEmpty, reason: 'DI must construct ${entry.key}');
+            for (final call in calls) {
+              violations.addAll(_ambientArguments(path, parsed, call));
+            }
+          }
+        }
+        expect(violations, isEmpty);
+      },
+    );
+
+    test('client test callers and builders omit env and logger', () {
+      final files =
+          Directory('test')
+              .listSync(recursive: true, followLinks: false)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))
+              .toList()
+            ..sort((left, right) => left.path.compareTo(right.path));
+      final violations = <String>[];
+      for (final file in files) {
+        final source = file.readAsStringSync();
+        if (!_casePaths.keys.any(source.contains)) continue;
+        final parsed = parseString(content: source, path: file.path);
+        final constructors = _ConstructorCalls();
+        parsed.unit.accept(constructors);
+        for (final call in constructors.calls) {
+          violations.addAll(_ambientArguments(file.path, parsed, call));
+        }
+      }
+      expect(violations, isEmpty);
+    });
+  });
+}
+
+typedef _ConstructorCall = ({String name, ArgumentList arguments});
+
+Iterable<String> _ambientArguments(
+  String path,
+  ParseStringResult parsed,
+  _ConstructorCall call,
+) sync* {
+  for (final argument in call.arguments.arguments.whereType<NamedArgument>()) {
+    final name = argument.name.lexeme;
+    if (_ambientDependencies.contains(name)) {
+      final line = parsed.lineInfo.getLocation(argument.offset).lineNumber;
+      yield '$path:$line passes $name to ${call.name}';
+    }
+  }
+}
+
+class _CaseRegistrations extends RecursiveAstVisitor<void> {
+  final calls = <String, List<MethodInvocation>>{};
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    final type = node.typeArguments?.arguments.singleOrNull;
+    if (node.target case SimpleIdentifier(
+      name: 'gh',
+    ) when type is NamedType && _casePaths.containsKey(type.name.lexeme)) {
+      (calls[type.name.lexeme] ??= []).add(node);
+    }
+    super.visitMethodInvocation(node);
+  }
+}
+
+class _ConstructorCalls extends RecursiveAstVisitor<void> {
+  final calls = <_ConstructorCall>[];
+
+  void _record(String name, ArgumentList arguments) {
+    if (_casePaths.containsKey(name)) {
+      calls.add((name: name, arguments: arguments));
+    }
+  }
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    _record(node.constructorName.type.name.lexeme, node.argumentList);
+    super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    // Implicit constructors can parse as method calls before name resolution.
+    final name = node.methodName.name;
+    _record(
+      name == 'new' ? node.target?.endToken.lexeme ?? name : name,
+      node.argumentList,
+    );
+    super.visitMethodInvocation(node);
+  }
+}

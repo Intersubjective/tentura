@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/author_invite_repository.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_author_invites_cubit.dart';
@@ -57,8 +55,6 @@ Map<String, Object?> jsonResponseData(Map<String, Object?> data) => {
       beaconId: 'B1',
       authorInviteCase: AuthorInviteCase(
         AuthorInviteRepository(remote),
-        env: const Env(),
-        logger: Logger('parallel-loader-retry-test'),
       ),
       actorProfiles: buildActorProfiles(const [_bob]),
       effects: effects,

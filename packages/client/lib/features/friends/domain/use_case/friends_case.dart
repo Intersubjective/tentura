@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
@@ -25,7 +24,7 @@ typedef FriendsSnapshot = ({
 });
 
 @singleton
-final class FriendsCase extends UseCaseBase {
+final class FriendsCase {
   FriendsCase(
     this._capabilities,
     this._invitations,
@@ -35,10 +34,8 @@ final class FriendsCase extends UseCaseBase {
     this._contacts,
     this._auth,
     this._realtime,
-    this._blockCase, {
-    required super.env,
-    required super.logger,
-  });
+    this._blockCase,
+  );
 
   final CapabilityRepositoryPort _capabilities;
   final InvitationRepository _invitations;

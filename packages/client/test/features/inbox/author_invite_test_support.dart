@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -9,7 +8,6 @@ import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/author_invite_port.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -89,11 +87,7 @@ final class FakeAuthorInvitePort implements AuthorInvitePort {
 }
 
 AuthorInviteCase buildAuthorInviteCase(FakeAuthorInvitePort port) =>
-    AuthorInviteCase(
-      port,
-      env: const Env(),
-      logger: Logger('author-invite-test'),
-    );
+    AuthorInviteCase(port);
 
 /// [AttentionActorProfilesCase] that knows [profiles].
 AttentionActorProfilesCase buildActorProfiles(List<Profile> profiles) =>

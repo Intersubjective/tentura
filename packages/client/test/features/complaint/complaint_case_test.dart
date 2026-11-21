@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
-import 'package:tentura/env.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/complaint/domain/use_case/complaint_case.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_entity.dart';
@@ -25,8 +23,6 @@ void main() {
     credentialsCase = CredentialsCase(
       credentialsRepo,
       TrackingAuthLocal(),
-      env: const Env(),
-      logger: Logger('CredentialsCaseTest'),
     );
     case_ = ComplaintCase(
       _FakeComplaintRepository(),

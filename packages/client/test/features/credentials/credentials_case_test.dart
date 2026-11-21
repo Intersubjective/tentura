@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/exception/credential_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/credentials/data/repository/credentials_repository.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_entity.dart';
 import 'package:tentura/features/credentials/domain/use_case/credentials_case.dart';
@@ -29,8 +27,6 @@ void main() {
     case_ = CredentialsCase(
       repository,
       authLocal,
-      env: const Env(),
-      logger: Logger('test'),
     );
   });
 

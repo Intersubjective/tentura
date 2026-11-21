@@ -6,7 +6,6 @@ import 'package:rxdart/rxdart.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -17,17 +16,15 @@ import '../entity/inbox_item.dart';
 import '../enum.dart';
 
 @singleton
-final class InboxCase extends UseCaseBase {
+final class InboxCase {
   InboxCase(
     this._repository,
     this._beaconRoomCase,
     this._forwardRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
-    this._blockCase, {
-    required super.env,
-    required super.logger,
-  });
+    this._blockCase,
+  );
 
   final InboxRepository _repository;
 

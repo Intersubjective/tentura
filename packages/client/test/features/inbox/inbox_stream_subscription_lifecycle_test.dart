@@ -206,8 +206,6 @@ class _Harness {
     RealtimeSyncCase(_RealtimePort(catchUps.stream, entities.stream)),
     _BookkeepingSignal(bookkeeping.stream),
     BlockCase(_BlockRepository(blocks.stream)),
-    env: const Env(),
-    logger: Logger('inbox stream lifecycle'),
   );
 
   List<_Source<dynamic>> get allSources => [

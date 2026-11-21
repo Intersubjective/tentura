@@ -312,8 +312,6 @@ Future<_Opened> _open(
         ..registerSingleton<AuthorInviteCase>(
           AuthorInviteCase(
             AuthorInviteRepository(remote),
-            env: const Env(),
-            logger: Logger('request-route-load-order'),
           ),
         );
       await tester.pumpWidget(

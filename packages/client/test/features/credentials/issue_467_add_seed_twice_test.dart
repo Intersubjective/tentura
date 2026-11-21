@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/credentials/data/repository/credentials_repository.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_entity.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_types.dart';
@@ -96,8 +94,6 @@ Future<_CountingCredentialsRepository> _pumpScreen(
   final case_ = CredentialsCase(
     repository,
     EmptyAuthLocal(),
-    env: const Env(),
-    logger: Logger('test'),
   );
   GetIt.I.registerFactory<CredentialsCubit>(
     () => CredentialsCubit(case_, _UnusedPlatform(), _NoopEffects()),

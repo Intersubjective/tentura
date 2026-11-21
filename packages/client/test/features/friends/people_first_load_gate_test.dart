@@ -290,8 +290,6 @@ final class _FriendsHarness {
       authCase,
       realtimeCase,
       blockCase,
-      env: const Env(),
-      logger: Logger('test'),
     );
     cubit = FriendsCubit(friendsCase, effects);
   }

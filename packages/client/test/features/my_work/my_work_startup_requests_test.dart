@@ -196,8 +196,6 @@ void main() {
                 realtime.case_,
                 signal,
                 block,
-                env: const Env(),
-                logger: Logger('root-startup-inbox'),
               ),
             )
             ..registerSingleton<PostsCase>(

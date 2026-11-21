@@ -164,8 +164,6 @@ Future<void> _registerFriendsHarness(InvitationRepository invitations) async {
         authCase,
         realtime.case_,
         FakeBlockCase(),
-        env: const Env(),
-        logger: Logger('test'),
       ),
     )
     ..registerSingleton<UiEffectPort>(FakeUiEffectPort());

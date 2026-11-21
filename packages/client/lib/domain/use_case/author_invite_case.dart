@@ -3,16 +3,10 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/port/author_invite_port.dart';
 
-import 'use_case_base.dart';
-
 /// The author-invite lifecycle (plan C4) and its read projections (plan C6).
 @singleton
-final class AuthorInviteCase extends UseCaseBase {
-  AuthorInviteCase(
-    this._port, {
-    required super.env,
-    required super.logger,
-  });
+final class AuthorInviteCase {
+  AuthorInviteCase(this._port);
 
   final AuthorInvitePort _port;
 

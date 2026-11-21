@@ -196,8 +196,6 @@ void main() {
             ..registerSingleton<AuthorInviteCase>(
               AuthorInviteCase(
                 AuthorInviteRepository(remote),
-                env: const Env(),
-                logger: Logger('request-left-teardown'),
               ),
             );
           await tester.pumpWidget(

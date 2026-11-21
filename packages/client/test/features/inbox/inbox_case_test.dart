@@ -749,8 +749,6 @@ InboxCase buildTestInboxCase(
   realtimeSyncCase ?? RealtimeSyncCase(_TestRealtimeSyncPort()),
   bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
   blockCase ?? noopBlockCase(),
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 BeaconThreadsCase _buildTestBeaconThreadsCase({

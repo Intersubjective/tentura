@@ -368,8 +368,6 @@ Future<void> _pumpHome(WidgetTester tester, MyWorkCase deskCase) async {
         realtime,
         BookkeepingRefreshSignal(),
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('home-inbox'),
       ),
     )
     ..registerSingleton<PostsCase>(

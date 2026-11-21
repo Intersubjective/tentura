@@ -5,7 +5,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 
@@ -16,7 +15,6 @@ import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/author_invite_port.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_author_invites_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -136,8 +134,6 @@ BeaconAuthorInvitesCubit _cubit(_Port port, FakeUiEffectPort effects) =>
       beaconId: 'B1',
       authorInviteCase: AuthorInviteCase(
         port,
-        env: const Env(),
-        logger: Logger('author-invites-test'),
       ),
       actorProfiles: buildActorProfiles(const [_ann, _bob, _cat, _dan]),
       effects: effects,
@@ -481,8 +477,6 @@ void main() {
         beaconId: 'B1',
         authorInviteCase: AuthorInviteCase(
           failing,
-          env: const Env(),
-          logger: Logger('author-invites-test'),
         ),
         actorProfiles: buildActorProfiles(const []),
         effects: effects,

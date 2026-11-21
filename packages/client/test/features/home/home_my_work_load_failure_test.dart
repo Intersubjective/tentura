@@ -296,8 +296,6 @@ Future<MyWorkCubit> _pumpHome(
         realtime,
         BookkeepingRefreshSignal(),
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('home-inbox'),
       ),
     )
     ..registerSingleton<PostsCase>(

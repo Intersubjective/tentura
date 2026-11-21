@@ -166,8 +166,6 @@ Future<_OpenedRoute> _openRoute(
         ..registerSingleton<AuthorInviteCase>(
           AuthorInviteCase(
             AuthorInviteRepository(remote),
-            env: const Env(),
-            logger: Logger('request-route-rounds'),
           ),
         );
       await tester.pumpWidget(

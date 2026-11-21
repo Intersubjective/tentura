@@ -147,8 +147,6 @@ void main() {
                 auth,
                 realtime.case_,
                 noopBlockCase(),
-                env: const Env(),
-                logger: Logger('untrust-people'),
               ),
               FakeUiEffectPort(),
             );

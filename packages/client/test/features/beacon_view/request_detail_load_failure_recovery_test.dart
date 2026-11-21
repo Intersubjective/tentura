@@ -212,8 +212,6 @@ Future<void> _withRequestRoute(
       ..registerSingleton<AuthorInviteCase>(
         AuthorInviteCase(
           AuthorInviteRepository(remote),
-          env: const Env(),
-          logger: Logger('request-load-recovery'),
         ),
       );
     await tester.pumpWidget(

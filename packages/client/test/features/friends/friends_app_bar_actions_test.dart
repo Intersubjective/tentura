@@ -332,8 +332,6 @@ void main() {
             authCase,
             realtimeCase,
             FakeBlockCase(),
-            env: const Env(),
-            logger: Logger('test'),
           ),
         );
         registeredFriendsCase = true;
@@ -486,8 +484,6 @@ void main() {
             authCase,
             realtime.case_,
             FakeBlockCase(),
-            env: const Env(),
-            logger: Logger('test'),
           ),
         )
         ..registerSingleton<UiEffectPort>(effects);

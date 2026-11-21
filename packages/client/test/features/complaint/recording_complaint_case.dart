@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/complaint/domain/use_case/complaint_case.dart';
 import 'package:tentura/features/credentials/domain/use_case/credentials_case.dart';
@@ -96,8 +94,6 @@ class RecordingComplaintCase {
       CredentialsCase(
         FakeCredentialsRepository(),
         TrackingAuthLocal(),
-        env: const Env(),
-        logger: Logger('RecordingComplaintCase'),
       ),
       beacons,
       profiles,

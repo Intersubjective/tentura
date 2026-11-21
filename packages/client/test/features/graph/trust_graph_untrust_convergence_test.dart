@@ -227,8 +227,6 @@ Future<void> main() async {
                 buildTestAuthCase(h.authLocal, EmptyAuthRemote()),
                 h.realtime,
                 noopBlockCase(),
-                env: const Env(),
-                logger: Logger('people-untrust'),
               ),
               h.effects,
             );

@@ -6,7 +6,6 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/platform_repository.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/credentials/data/repository/credentials_repository.dart';
 import 'package:tentura/features/credentials/domain/entity/credential_entity.dart';
 import 'package:tentura/features/credentials/domain/use_case/credentials_case.dart';
@@ -82,8 +81,6 @@ void main() {
       CredentialsCase(
         _StartUrlCredentialsRepository(startUrl),
         EmptyAuthLocal(),
-        env: const Env(),
-        logger: Logger('test'),
       ),
       PlatformRepository(log: Logger('PlatformRepository')),
       effects,
