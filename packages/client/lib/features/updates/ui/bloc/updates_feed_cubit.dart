@@ -88,17 +88,22 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     final session = _attention.feedSession(_destinationId);
     final page = session.pages[session.activeView];
     final items = page?.items ?? const <AttentionReceipt>[];
+    final surfaceSummary = _attention.surfaceSummarySnapshot;
+    // Search leaves the History session count at its last unfiltered value.
+    // Without search, the head can reach zero before the surface summary.
+    final historyUnreadTotal = session.normalizedSearch == null
+        ? session.summary.unreadTotal
+        : surfaceSummary.historySummary?.unreadTotal ??
+              session.summary.unreadTotal;
     emit(
       state.copyWith(
         view: session.activeView,
         searchText: session.searchText,
         summary: session.summary,
-        // Every sweepable receipt counts in unscoped History. Its page can
-        // reach zero before the separate surface refresh clears eligibility.
         sweepEligible:
             (_destinationId != AttentionFeedDestinationId.history ||
-                session.summary.unreadTotal > 0) &&
-            _attention.surfaceSummarySnapshot.forYouReceiptSweepEligible,
+                historyUnreadTotal > 0) &&
+            surfaceSummary.forYouReceiptSweepEligible,
         items: items,
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
         refreshError: session.headRefreshError,
