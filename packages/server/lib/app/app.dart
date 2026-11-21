@@ -10,7 +10,6 @@ import 'package:tentura_server/domain/use_case/trust_cutover_case.dart';
 
 import 'di.dart';
 import 'worker.dart';
-import 'workers/web_worker.dart';
 
 class App {
   ///
@@ -62,8 +61,8 @@ class App {
   /// Run App in Test environment with mocked repositories
   ///
   Future<void> runWithTestEnv({
-    Future<void> Function(({SendPort sendPort, Env env}) params) worker =
-        serveWeb,
+    required Future<void> Function(({SendPort sendPort, Env env}) params)
+    worker,
   }) async {
     final receivePort = ReceivePort();
     final ready = Completer<SendPort>();

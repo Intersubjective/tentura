@@ -9,7 +9,6 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_constellation_field.dart';
 import 'package:tentura_server/api/controllers/websocket_controller.dart';
-import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
@@ -17,10 +16,13 @@ import 'package:tentura_server/data/service/task_worker.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/gated_constellation_field_repository.dart';
+import '../../support/mocks/user_trust_edge_repository_mock.dart';
+import '../../support/test_di.dart';
 import 'websocket/websocket_realtime_protocol_test.mocks.dart';
 
 const _viewer = 'Uaaaaaaaaaaaa';
@@ -68,7 +70,7 @@ void main() {
         );
       await getIt.getAsync<TaskWorker>();
       notifications = await getIt.getAsync<PgNotificationService>();
-      await configureDependencies(env);
+      await configureTestDependencies(env);
       await getIt.allReady(ignorePendingAsyncCreation: true);
       sockets = await getIt.getAsync<WebSocketController>();
       query = QueryConstellationField();
@@ -90,6 +92,16 @@ void main() {
       await getIt.reset();
       getIt.skipDoubleRegistration = false;
     });
+
+    test(
+      'the refresh graph resolves the test-support trust-edge repository',
+      () {
+        expect(
+          getIt<UserTrustEdgeRepositoryPort>(),
+          isA<UserTrustEdgeRepositoryMock>(),
+        );
+      },
+    );
 
     Future<void> publishMarker() async {
       final received = notifications.entityChangeNotifications.first;

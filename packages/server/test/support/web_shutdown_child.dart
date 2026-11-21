@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:shelf_plus/shelf_plus.dart';
 import 'package:tentura_server/api/root_router.dart';
-import 'package:tentura_server/app/app.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 
@@ -54,7 +53,7 @@ Future<void> _run(List<String> args) async {
     await entrypoint.main([]);
     return;
   }
-  await App().runWithTestEnv();
+  await entrypoint.runTestServer();
   // Probe before process exit can close the socket for us.
   try {
     final socket = await Socket.connect(

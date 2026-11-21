@@ -4,7 +4,6 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
-import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -13,11 +12,11 @@ import 'package:tentura_server/domain/use_case/closure_finalize_case.dart';
 import 'package:tentura_server/domain/use_case/stale_request_reminder_sweep_case.dart';
 
 import '../support/smoke_env.dart';
+import '../support/test_di.dart';
+import '../support/test_dependency_graph_expectations.dart';
 
-/// Boots the [Environment.test] DI graph without Postgres (CI-safe) **once**
-/// and checks every non-pg smoke assertion against it. Booting the whole graph
-/// costs seconds per file, so closure ports (A11b/A14/A17) and the reminder
-/// sweeps (A17) live here instead of in separate one-test files.
+/// Boots the test DI graph without Postgres. The smoke test checks the closure
+/// ports (A11b/A14/A17) and reminder sweeps (A17) against a single graph boot.
 ///
 /// The graph's only eager Postgres connection is [PgNotificationService]'s
 /// LISTEN connection, opened by a non-lazy async singleton while the graph is
@@ -27,17 +26,8 @@ import '../support/smoke_env.dart';
 /// real service and everything that awaits it still resolve through the graph.
 void main() {
   test('DI graph resolves under test smoke env', () async {
-    addTearDown(() async {
-      await getIt.reset();
-      getIt.skipDoubleRegistration = false;
-    });
-
-    getIt
-      ..skipDoubleRegistration = true
-      ..registerSingleton<PgNotificationConnector>(
-        const _OfflinePgNotificationConnector(),
-      );
-    await configureDependencies(smokeTestEnv());
+    _useOfflinePgNotifications();
+    await configureTestDependencies(smokeTestEnv());
     await getIt.allReady(ignorePendingAsyncCreation: true);
     expect(
       await getIt.getAsync<PgNotificationService>(),
@@ -62,6 +52,24 @@ void main() {
     expect(getIt.isRegistered<ClosureDraftReminderSweepCase>(), isTrue);
     expect(getIt.isRegistered<StaleRequestReminderSweepCase>(), isTrue);
   });
+
+  test('the test graph resolves its dependencies without PostgreSQL', () async {
+    _useOfflinePgNotifications();
+    await expectTestDependencyGraph(smokeTestEnv());
+  });
+}
+
+void _useOfflinePgNotifications() {
+  addTearDown(() async {
+    await getIt.reset();
+    getIt.skipDoubleRegistration = false;
+  });
+
+  getIt
+    ..skipDoubleRegistration = true
+    ..registerSingleton<PgNotificationConnector>(
+      const _OfflinePgNotificationConnector(),
+    );
 }
 
 /// Opens LISTEN connections that never deliver anything and need no server.
