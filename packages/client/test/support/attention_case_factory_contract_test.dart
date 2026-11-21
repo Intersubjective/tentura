@@ -10,6 +10,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -115,8 +116,46 @@ void main() {
           'feedSessions',
           'logger',
           'qaLatencyMeasurementEnabled',
+          'opIds',
         ]),
       );
+    },
+  );
+
+  test(
+    'AttentionCase requires an operation ID port without UUID fallback',
+    () async {
+      final file = File('lib/domain/attention/attention_case.dart');
+      final resolved = await _resolve(file);
+      final attention = resolved.libraryElement.getClass('AttentionCase')!;
+      final constructor = attention.unnamedConstructor!;
+      final ports = constructor.formalParameters.where(
+        (parameter) =>
+            parameter.type is InterfaceType &&
+            (parameter.type as InterfaceType).element.name == 'OpIdPort',
+      );
+      final uuidReferences = _UuidReferences();
+      resolved.unit.accept(uuidReferences);
+      expect(
+        {
+          'UUID references': uuidReferences.references,
+          'legacy UUID field': attention.fields.where(
+            (field) => field.name == '_uuid',
+          ),
+          'required operation ID ports': ports.where(
+            (parameter) =>
+                parameter.isRequired &&
+                parameter.type.nullabilitySuffix == NullabilitySuffix.none &&
+                !parameter.hasDefaultValue,
+          ),
+        },
+        {
+          'UUID references': isEmpty,
+          'legacy UUID field': isEmpty,
+          'required operation ID ports': hasLength(1),
+        },
+      );
+      expect(ports, hasLength(1));
     },
   );
 
@@ -223,6 +262,26 @@ void main() {
       resolvedBody.factoryCalls.map(_declaringFile),
       contains(factory.absolute.path),
     );
+    for (final call in resolvedBody.factoryCalls.where(
+      (call) => _declaringFile(call) == factory.absolute.path,
+    )) {
+      expect(
+        call.argumentList.arguments.whereType<NamedArgument>().map(
+          (argument) => argument.name.lexeme,
+        ),
+        isNot(contains('opIds')),
+        reason: 'The My Work helper should leave ID selection to the factory',
+      );
+      final declaration = call.methodName.element! as TopLevelFunctionElement;
+      expect(
+        declaration.formalParameters.where(
+          (parameter) => parameter.name == 'opIds' && parameter.isOptionalNamed,
+        ),
+        hasLength(1),
+        reason:
+            'The shared factory should offer an omittable operation ID port',
+      );
+    }
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   test(
@@ -260,6 +319,37 @@ void main() {
     ),
     timeout: const Timeout(Duration(minutes: 4)),
   );
+}
+
+class _UuidReferences extends RecursiveAstVisitor<void> {
+  final references = <String>[];
+
+  void _record(String? uri, AstNode node) {
+    if (uri?.startsWith('package:uuid/') ?? false) {
+      references.add(node.toSource());
+    }
+  }
+
+  @override
+  void visitImportDirective(ImportDirective node) {
+    _record(node.uri.stringValue, node);
+    for (final configuration in node.configurations) {
+      _record(configuration.uri.stringValue, configuration);
+    }
+    super.visitImportDirective(node);
+  }
+
+  @override
+  void visitNamedType(NamedType node) {
+    _record(node.element?.library?.uri.toString(), node);
+    super.visitNamedType(node);
+  }
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    _record(node.element?.library?.uri.toString(), node);
+    super.visitSimpleIdentifier(node);
+  }
 }
 
 Future<void> _runFactoryProbe({

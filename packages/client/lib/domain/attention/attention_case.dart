@@ -5,12 +5,12 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:tentura/consts.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
@@ -56,7 +56,8 @@ final class AttentionCase implements AttentionReconcilePort {
     this._realtime,
     this._blockCase,
     this._feedSessions,
-    this._logger, {
+    this._logger,
+    this._opIds, {
     @ignoreParam @visibleForTesting bool? qaLatencyMeasurementEnabled,
   }) : _qaLatencyMeasurementEnabled =
            qaLatencyMeasurementEnabled ?? kQaIntegrationTestMode {
@@ -73,6 +74,7 @@ final class AttentionCase implements AttentionReconcilePort {
   final BlockCase _blockCase;
   final FeedSessionRegistry _feedSessions;
   final Logger _logger;
+  final OpIdPort _opIds;
   final bool _qaLatencyMeasurementEnabled;
   final AttentionAckStore _acks = AttentionAckStore();
   final AttentionClearStore _clears = AttentionClearStore();
@@ -82,7 +84,6 @@ final class AttentionCase implements AttentionReconcilePort {
   /// the gesture that set it.
   final Map<String, ({int token, bool committed})> _unclears = {};
   int _unclearClock = 0;
-  static const _uuid = Uuid();
   static const _maxIdsPerQuery = 500;
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
     const AttentionFeedSnapshot(),
@@ -906,7 +907,7 @@ final class AttentionCase implements AttentionReconcilePort {
     String? receiptId,
   }) async {
     final generation = _accountGeneration;
-    final operationId = _uuid.v4();
+    final operationId = _opIds.newOpId();
     _mutationSerial++;
     try {
       final snapshot = await _repository.clearSnapshot(
@@ -952,7 +953,7 @@ final class AttentionCase implements AttentionReconcilePort {
     bool includeOutcomes = true,
   }) async {
     final generation = _accountGeneration;
-    final id = operationId ?? _uuid.v4();
+    final id = operationId ?? _opIds.newOpId();
     // The client can only be optimistic about rows it has actually loaded;
     // unloaded totals stay where they are (D14).
     // Top-level rows only: a child inside a preview is not an independent

@@ -1,5 +1,6 @@
 import 'package:logging/logging.dart';
 
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -7,6 +8,7 @@ import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
@@ -22,6 +24,7 @@ AttentionCase buildAttentionCase({
   FeedSessionRegistry? feedSessions,
   Logger? logger,
   bool? qaLatencyMeasurementEnabled,
+  OpIdPort? opIds,
 }) => AttentionCase(
   repository ?? StubAttentionRepository(),
   accounts ?? _StubAttentionAccounts(),
@@ -29,6 +32,7 @@ AttentionCase buildAttentionCase({
   blockCase ?? noopBlockCase(),
   feedSessions ?? FeedSessionRegistry(),
   logger ?? Logger('my-work-test-attention'),
+  opIds ?? OpIdService(),
   qaLatencyMeasurementEnabled: qaLatencyMeasurementEnabled ?? false,
 );
 
