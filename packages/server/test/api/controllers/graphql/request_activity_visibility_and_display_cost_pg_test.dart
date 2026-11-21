@@ -2,7 +2,6 @@
 library;
 
 import 'package:graphql_server2/graphql_server2.dart' show GraphQL;
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:mockito/mockito.dart' show Fake;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -37,6 +36,7 @@ Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_REQUEST_VISIBILITY_PG_TEST_DB',
     defaultNamePrefix: 'tentura_test_request_visibility',
+    useDevBindings: true,
   );
   final skip = await pgSkipReason(target);
 
@@ -51,27 +51,21 @@ Future<void> main() async {
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = warnSetting;
     });
 
-    final db = target.databaseEnv;
     addTearDown(getIt.reset);
-    await configureDependencies(
-      Env(
-        environment: Environment.dev,
-        serverUri: Uri.parse('http://127.0.0.1:2080'),
-        publicKey: Env.kJwtPublicKey,
-        privateKey: Env.kJwtPrivateKey,
-        pgHost: db.pgHost,
-        pgPort: db.pgPort,
-        pgDatabase: db.pgDatabase,
-        pgUsername: db.pgUsername,
-        pgPassword: db.pgPassword,
-        publicOrigin: 'http://127.0.0.1:2080',
-        workersCount: 1,
-        printEnv: false,
-        isDebugModeOn: false,
-      ),
-    );
+    await configureDependencies(target.databaseEnv);
     await getIt.allReady(ignorePendingAsyncCreation: true);
   });
+
+  test(
+    'Request activity uses the disposable database pool size',
+    () {
+      expect(
+        getIt<Env>().pgPoolSettings.maxConnectionCount,
+        target.databaseEnv.pgPoolSettings.maxConnectionCount,
+      );
+    },
+    skip: skip,
+  );
 
   test(
     'activity events are visible to content readers and room members '

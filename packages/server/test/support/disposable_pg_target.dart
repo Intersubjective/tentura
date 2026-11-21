@@ -194,6 +194,7 @@ final class DisposablePgTarget {
     required String envVarName,
     required String defaultNamePrefix,
     String? databaseNameOverride,
+    bool useDevBindings = false,
   }) {
     final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
     final port =
@@ -210,8 +211,13 @@ final class DisposablePgTarget {
 
     final poolSize = testPoolSizeOverride();
 
-    Env envFor(String database) => Env(
-      environment: Environment.test,
+    Env envFor(String database, {bool dev = false}) => Env(
+      environment: dev ? Environment.dev : Environment.test,
+      serverUri: dev ? Uri.parse('http://127.0.0.1:2080') : null,
+      publicOrigin: dev ? 'http://127.0.0.1:2080' : null,
+      publicKey: dev ? Env.kJwtPublicKey : null,
+      privateKey: dev ? Env.kJwtPrivateKey : null,
+      workersCount: dev ? 1 : null,
       pgHost: host,
       pgPort: port,
       pgDatabase: database,
@@ -225,7 +231,7 @@ final class DisposablePgTarget {
 
     return DisposablePgTarget(
       adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
+      databaseEnv: envFor(databaseName, dev: useDevBindings),
       templateEnv: envFor(templateDatabaseName),
       databaseName: databaseName,
       envVarName: envVarName,
