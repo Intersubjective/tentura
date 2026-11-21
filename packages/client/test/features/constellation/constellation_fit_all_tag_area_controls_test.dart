@@ -383,6 +383,92 @@ void main() {
   }
 
   testWidgets(
+    'Show whole field fits nodes and other tag controls beside an over-wide tag',
+    (tester) async {
+      const longTag = PersonTag(
+        id: 'T-wide',
+        name: 'ШШШШШШШШШШШШШШШШШШШШШ',
+        glyph: 'Ш',
+        color: 0,
+        ord: 2,
+      );
+      const normalTags = [_qaTag, tagLensWorkshop];
+      final cubit = await _mount(tester, kPhoneSurface, [
+        ...normalTags,
+        longTag,
+      ]);
+      final insets = _buttonInsets(tester);
+      final viewport = _viewport(tester);
+      final safe = insets.deflateRect(viewport);
+
+      _place(cubit, _qaTag, Offset(safe.left - 40, safe.center.dy + 100));
+      _place(
+        cubit,
+        tagLensWorkshop,
+        Offset(safe.right + 40, safe.center.dy - 100),
+      );
+      _place(cubit, longTag, Offset(safe.center.dx, safe.top - 80));
+      await _settle(tester);
+
+      expect(_controlRect(tester, _qaTag).left, lessThan(safe.left));
+      expect(
+        _controlRect(tester, tagLensWorkshop).right,
+        greaterThan(safe.right),
+      );
+      final longBeforeFit = _controlRect(tester, longTag);
+      expect(longBeforeFit.width, greaterThan(safe.width));
+      expect(longBeforeFit.width, lessThan(viewport.width));
+      expect(longBeforeFit.top, lessThan(safe.top));
+
+      Map<String, Rect> clippedNormalControls() => _clipped(safe, {
+        for (final tag in normalTags) tag.name: _controlRect(tester, tag),
+      });
+
+      await _tapFitAll(tester);
+      final fromButton = _camera(cubit, safe);
+      expect(fromButton.scale.isFinite, isTrue);
+      expect(fromButton.scale, greaterThan(0));
+      expect(fromButton.scale, lessThanOrEqualTo(1));
+      _expectInside(safe, _nodeFootprints(cubit));
+      final buttonClipping = clippedNormalControls();
+      final longAfterFit = _controlRect(tester, longTag);
+
+      cubit.graphController.jumpToPosition(
+        fromButton.centre + const Offset(80, 100),
+      );
+      await _settle(tester);
+      expect(
+        (_camera(cubit, safe).centre - fromButton.centre).distance,
+        greaterThan(10),
+      );
+      cubit.fitWholeField(insets: insets);
+      await _settle(tester);
+      final direct = _camera(cubit, safe);
+      expect(direct.scale, closeTo(fromButton.scale, 1e-6));
+      expect((direct.centre - fromButton.centre).distance, lessThan(0.1));
+      final directClipping = clippedNormalControls();
+      expect(tester.takeException(), isNull);
+
+      expect(
+        {
+          if (buttonClipping.isNotEmpty)
+            'Clipped after tapping': buttonClipping,
+          if (directClipping.isNotEmpty)
+            'Clipped after direct fit': directClipping,
+          if (longAfterFit.top < safe.top || longAfterFit.bottom > safe.bottom)
+            'Over-wide control clipped vertically': longAfterFit,
+          if (longAfterFit.center.dx < safe.left ||
+              longAfterFit.center.dx > safe.right)
+            'Over-wide control centre outside the safe width':
+                longAfterFit.center,
+        },
+        isEmpty,
+        reason: 'The fit must respect the button-inset safe rect $safe',
+      );
+    },
+  );
+
+  testWidgets(
     'Show whole field fits tag controls on three sides and every node',
     (tester) async {
       const tags = [_qaTag, tagLensWorkshop, tagLensGarden];

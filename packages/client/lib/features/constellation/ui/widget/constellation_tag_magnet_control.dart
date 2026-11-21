@@ -51,7 +51,7 @@ class _ConstellationTagMagnetControlState
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        widget.child,
+        Flexible(child: widget.child),
         IconButton(
           tooltip: widget.actionLabel,
           icon: const Icon(Icons.more_vert),

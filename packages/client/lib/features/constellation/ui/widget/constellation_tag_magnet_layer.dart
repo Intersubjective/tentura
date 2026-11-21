@@ -91,10 +91,13 @@ class _ConstellationTagMagnetLayerState
                   child: ConstellationTagMagnetControl(
                     actionLabel: L10n.of(context)!.buttonRemove,
                     onAction: () => cubit.removeTagMagnet(tag.id),
-                    child: PersonTagChip(
-                      glyph: tag.glyph,
-                      name: tag.name,
-                      colorIndex: tag.color,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => PersonTagChip(
+                        glyph: tag.glyph,
+                        name: tag.name,
+                        colorIndex: tag.color,
+                        maxWidth: constraints.maxWidth,
+                      ),
                     ),
                   ),
                 ),

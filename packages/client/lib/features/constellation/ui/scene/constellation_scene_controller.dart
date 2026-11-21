@@ -1486,6 +1486,10 @@ class ConstellationSceneController {
   }) {
     final origin = nodes.center;
     final relativeNodes = nodes.shift(-origin);
+    // Leave room for rounding when the camera projects canvas coordinates.
+    const tolerance = 1e-6;
+    final fitWidth = usable.width - tolerance;
+    final fitHeight = usable.height - tolerance;
     Rect boundsAt(double scale) {
       var bounds = Rect.fromLTRB(
         relativeNodes.left * scale,
@@ -1494,22 +1498,19 @@ class ConstellationSceneController {
         relativeNodes.bottom * scale,
       ).inflate(math.max(_fitPadding * scale, nodeMargin));
       for (final control in controls) {
+        // Keep the centre on any axis that cannot fit the full control.
         bounds = bounds.expandToInclude(
           Rect.fromCenter(
             center: (control.centre - origin) * scale,
-            width: control.size.width,
-            height: control.size.height,
+            width: control.size.width <= fitWidth ? control.size.width : 0,
+            height: control.size.height <= fitHeight ? control.size.height : 0,
           ),
         );
       }
       return bounds;
     }
 
-    // Leave room for rounding when the camera projects canvas coordinates.
-    const tolerance = 1e-6;
-    bool fits(Rect rect) =>
-        rect.width <= usable.width - tolerance &&
-        rect.height <= usable.height - tolerance;
+    bool fits(Rect rect) => rect.width <= fitWidth && rect.height <= fitHeight;
 
     if (!fits(boundsAt(0))) return null;
     var scale = 1.0;
