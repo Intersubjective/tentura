@@ -3,15 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -27,6 +24,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/test_forward_case.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
@@ -261,10 +259,7 @@ Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
       accountId: 'ego',
     ).store,
     viewer: _ego,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationLayoutFailureRecoveryTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
   );

@@ -33,23 +33,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/data/repository/constellation_mutual_trust_repository.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
-import 'package:tentura/features/constellation/data/repository/constellation_trust_chain_repository.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_chain.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
@@ -224,16 +219,8 @@ Future<ConstellationCubit> _loadAndSelectBob(
   final cubit = ConstellationCubit(
     case_: store.store,
     viewer: _viewer,
-    mutualTrustCase: ConstellationMutualTrustCase(
-      ConstellationMutualTrustRepository(remote),
-      env: const Env(),
-      logger: Logger('test'),
-    ),
-    trustChainCase: ConstellationTrustChainCase(
-      ConstellationTrustChainRepository(remote),
-      env: const Env(),
-      logger: Logger('test'),
-    ),
+    mutualTrustCase: buildWireMutualTrustCase(remote),
+    trustChainCase: buildWireTrustChainCase(remote),
   );
   await cubit.stream
       .firstWhere((state) => state.status is StateIsSuccess)

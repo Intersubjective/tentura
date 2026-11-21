@@ -1,6 +1,5 @@
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../entity/constellation_anchor_projection.dart';
@@ -19,11 +18,8 @@ final class ConstellationAnchorsRefreshResult {
 /// Screen-scoped confirmed anchor cache and private realtime catch-up.
 @Order(2)
 @singleton
-final class ConstellationAnchorCase extends UseCaseBase {
-  ConstellationAnchorCase({
-    required super.env,
-    required super.logger,
-  });
+final class ConstellationAnchorCase {
+  ConstellationAnchorCase();
 
   String _viewerAccountId = '';
   int _loadGeneration = 0;

@@ -6,9 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_tag_magnet.dart';
@@ -156,8 +154,6 @@ void main() {
                 tagMagnetCase: ConstellationTagMagnetCase(
                   repository,
                   realtime.case_,
-                  env: const Env(),
-                  logger: Logger('neighbour overflow reload'),
                 ),
               );
               addTearDown(() async {

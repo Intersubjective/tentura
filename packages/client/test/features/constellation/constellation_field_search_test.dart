@@ -3,11 +3,8 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/domain/constellation_field_patches.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_search_result.dart';
@@ -16,7 +13,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_field_hide_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_field_search_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_targeted_read_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_hide_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
@@ -40,6 +36,7 @@ import '../../support/fake_people_tags_repository.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
@@ -138,20 +135,6 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   }) async => const [];
 }
 
-final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
-  @override
-  Future<List<ConstellationRequest>> fetchRequests(
-    Set<String> beaconIds, {
-    ConstellationFieldMembershipFilters membershipFilters =
-        ConstellationFieldMembershipFilters.defaults,
-  }) async => const [];
-
-  @override
-  Future<List<ConstellationViewerRelation>> readViewerRelations(
-    Set<String> personIds,
-  ) async => const [];
-}
-
 ConstellationField _fieldWithFilteredRequest() => ConstellationField(
   loadedAt: _loadedAt,
   context: 'ctx',
@@ -203,12 +186,9 @@ Future<ConstellationCubit> _loadCubit({
   final resolvedHide =
       hideCase ??
       (hidePortForCase != null
-          ? ConstellationFieldHideCase(
+          ? buildTestFieldHideCase(
               hidePortForCase,
               fixture.store,
-              _StubTargetedReadPort(),
-              env: const Env.fromEnvironment(),
-              logger: Logger('test'),
             )
           : null);
   final cubit = ConstellationCubit(
@@ -226,11 +206,7 @@ Future<ConstellationCubit> _loadCubit({
 }
 
 ConstellationFieldSearchCase _searchCase(ConstellationFieldSearchPort port) =>
-    ConstellationFieldSearchCase(
-      port,
-      env: const Env.fromEnvironment(),
-      logger: Logger('test'),
-    );
+    ConstellationFieldSearchCase(port);
 
 Widget _app(
   Widget child, {
@@ -1769,11 +1745,7 @@ void main() {
         );
         final cubit = await _loadCubit(
           field: _fieldWithFilteredRequest(),
-          searchCase: ConstellationFieldSearchCase(
-            port,
-            env: const Env.fromEnvironment(),
-            logger: Logger('test'),
-          ),
+          searchCase: _searchCase(port),
         );
         addTearDown(cubit.close);
 

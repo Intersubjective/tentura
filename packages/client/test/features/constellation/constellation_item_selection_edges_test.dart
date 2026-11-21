@@ -10,10 +10,8 @@
 // rendered scene (the graph topology the edge painter draws).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_member_webs_port.dart';
@@ -136,8 +134,6 @@ Future<ConstellationCubit> _load() async {
     viewer: const Profile(id: _ego, displayName: 'Ego'),
     memberWebsCase: ConstellationMemberWebsCase(
       _MemberWebsPort(),
-      env: const Env(),
-      logger: Logger('test'),
     ),
   );
   addTearDown(cubit.close);

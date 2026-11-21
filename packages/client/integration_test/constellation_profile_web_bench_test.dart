@@ -420,7 +420,7 @@ Future<({ConstellationCubit cubit, _DelayedAckAnchors anchors})> _mount(
     wakeUp: WakeUpService(),
     realtime: sync.case_,
   ).store;
-  final anchorCase = ConstellationAnchorCase(env: env, logger: logger);
+  final anchorCase = ConstellationAnchorCase();
   final placementCase = ConstellationPlacementCase(
     anchors,
     store,

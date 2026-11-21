@@ -1,15 +1,10 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../port/constellation_mutual_trust_port.dart';
 
 @lazySingleton
-final class ConstellationMutualTrustCase extends UseCaseBase {
-  ConstellationMutualTrustCase(
-    this._port, {
-    required super.env,
-    required super.logger,
-  });
+final class ConstellationMutualTrustCase {
+  ConstellationMutualTrustCase(this._port);
 
   final ConstellationMutualTrustPort _port;
 

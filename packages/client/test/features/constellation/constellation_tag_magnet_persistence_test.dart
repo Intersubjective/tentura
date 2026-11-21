@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
@@ -129,8 +127,6 @@ Future<_Rig> _open(_FakeMagnetRepository repository) async {
     tagMagnetCase: ConstellationTagMagnetCase(
       repository,
       realtime.case_,
-      env: const Env(),
-      logger: Logger('test'),
     ),
   );
   addTearDown(cubit.close);

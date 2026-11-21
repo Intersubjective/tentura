@@ -16,11 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_member_webs_repository.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -798,8 +796,6 @@ void main() {
                   loadOnCreate: false,
                   memberWebsCase: ConstellationMemberWebsCase(
                     ConstellationMemberWebsRepository(remote),
-                    env: const Env(),
-                    logger: Logger('test'),
                   ),
                 );
                 addTearDown(() async {

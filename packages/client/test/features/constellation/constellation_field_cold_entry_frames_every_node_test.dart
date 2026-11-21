@@ -35,13 +35,11 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -271,8 +269,6 @@ ConstellationCubit _taggedFieldCubit(
     tagMagnetCase: ConstellationTagMagnetCase(
       magnets,
       realtime.case_,
-      env: const Env(),
-      logger: Logger('field-cold-entry'),
     ),
     ownTagIdsOf: _tagsOf,
     peopleInTag: _peopleIn,

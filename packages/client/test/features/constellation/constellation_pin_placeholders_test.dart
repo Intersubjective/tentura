@@ -15,7 +15,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -36,6 +35,7 @@ import '../../support/fake_block_case.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 
 const _id = 'Bplaceholder';
@@ -237,10 +237,7 @@ Future<({ConstellationCubit cubit, _AnchorRepository anchors})> _load(
   final cubit = ConstellationCubit(
     case_: fixture.store,
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('PinPlaceholdersTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: placement,
     loadOnCreate: false,
   );

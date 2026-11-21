@@ -15,15 +15,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
-import 'package:tentura/features/constellation/data/repository/constellation_mutual_trust_repository.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
-import 'package:tentura/features/constellation/data/repository/constellation_trust_chain_repository.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -32,6 +26,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _viewer = Profile(id: 'Uviewer000001', displayName: 'Я');
@@ -280,16 +275,8 @@ void main() {
         final cubit = ConstellationCubit(
           case_: store.store,
           viewer: _viewer,
-          mutualTrustCase: ConstellationMutualTrustCase(
-            ConstellationMutualTrustRepository(remote),
-            env: const Env(),
-            logger: Logger('test'),
-          ),
-          trustChainCase: ConstellationTrustChainCase(
-            ConstellationTrustChainRepository(remote),
-            env: const Env(),
-            logger: Logger('test'),
-          ),
+          mutualTrustCase: buildWireMutualTrustCase(remote),
+          trustChainCase: buildWireTrustChainCase(remote),
         );
         try {
           await cubit.stream

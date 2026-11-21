@@ -37,11 +37,15 @@ void main() {
       r'gh\.\w+<_i\d+\.' + type + r'>\(\s*\(\) => _i\d+\.' + type + r'\(',
     ).firstMatch(config);
     expect(start, isNotNull, reason: '$type must be registered');
-    final end = config.indexOf(RegExp(r'\n      \),'), start!.end);
+    final argumentsStart = start!.end;
+    if (RegExp(r'\s*\)').matchAsPrefix(config, argumentsStart) != null) {
+      return [];
+    }
+    final end = config.indexOf(RegExp(r'\n      \),'), argumentsStart);
     return [
       for (final match in RegExp(
         r'gh<(?:_i\d+\.)?(\w+)>\(\)',
-      ).allMatches(config.substring(start.end, end)))
+      ).allMatches(config.substring(argumentsStart, end)))
         match.group(1)!,
     ]..sort();
   }

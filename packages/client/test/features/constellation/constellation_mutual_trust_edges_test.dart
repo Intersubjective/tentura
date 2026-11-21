@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_mutual_trust.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -105,8 +103,6 @@ Future<ConstellationCubit> _load(_ControlledPort port) async {
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
     mutualTrustCase: ConstellationMutualTrustCase(
       port,
-      env: const Env(),
-      logger: Logger('test'),
     ),
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);

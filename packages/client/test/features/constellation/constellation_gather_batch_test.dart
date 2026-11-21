@@ -6,9 +6,9 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -109,10 +109,7 @@ Future<_Gathered> _gatherForty(WidgetTester tester) async {
   );
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationGatherBatchTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: placement,
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),

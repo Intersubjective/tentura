@@ -282,8 +282,6 @@ void main() {
       tagMagnetCase: ConstellationTagMagnetCase(
         _SavedMagnetRepository(),
         realtimeCase,
-        env: const Env(),
-        logger: Logger('test'),
       ),
     );
     addTearDown(cubit.close);

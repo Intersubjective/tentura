@@ -12,7 +12,6 @@ import 'package:tentura/features/constellation/data/repository/constellation_rep
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_drag_cluster.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -24,6 +23,7 @@ import '../../support/fake_wake_up_port.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 /// The widened bound shared with the server and the database CHECK.
 const _bound = kConstellationCoordinateMaxUnits;
@@ -187,10 +187,7 @@ Future<void> _withWireField({
     ).store;
     final cubit = ConstellationCubit(
       case_: store,
-      anchorCase: ConstellationAnchorCase(
-        env: const Env.fromEnvironment(),
-        logger: Logger('WidePlacementRangeTest'),
-      ),
+      anchorCase: buildTestAnchorCase(),
       placementCase: ConstellationPlacementCase(
         ConstellationAnchorRepository(remote),
         store,

@@ -2,23 +2,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_hidden_item.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_target_kind.dart';
-import 'package:tentura/features/constellation/domain/constellation_field_patches.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_person_field_item.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_field_hide_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_person_field_items_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_targeted_read_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_field_hide_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_person_field_items_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_person_field_items_section.dart';
@@ -28,6 +23,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 11, 7, 12);
@@ -77,20 +73,6 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   Future<List<ConstellationFieldHiddenItem>> fetchHiddenItems({
     String? cursor,
   }) async => const [];
-}
-
-final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
-  @override
-  Future<List<ConstellationRequest>> fetchRequests(
-    Set<String> beaconIds, {
-    ConstellationFieldMembershipFilters membershipFilters =
-        ConstellationFieldMembershipFilters.defaults,
-  }) async => const [];
-
-  @override
-  Future<List<ConstellationViewerRelation>> readViewerRelations(
-    Set<String> personIds,
-  ) async => const [];
 }
 
 ConstellationField _fieldWithUnread({
@@ -175,17 +157,12 @@ Future<ConstellationCubit> _cubit(ConstellationField field) async {
   final cubit = ConstellationCubit(
     case_: fixture.store,
     viewer: _ego,
-    fieldHideCase: ConstellationFieldHideCase(
+    fieldHideCase: buildTestFieldHideCase(
       _RecordingHidePort(),
       fixture.store,
-      _StubTargetedReadPort(),
-      env: const Env.fromEnvironment(),
-      logger: Logger('test'),
     ),
     personFieldItemsCase: ConstellationPersonFieldItemsCase(
       _FakeItemsPort(page),
-      env: const Env.fromEnvironment(),
-      logger: Logger('test'),
     ),
   );
   await cubit.stream.firstWhere((s) => s.status is StateIsSuccess);

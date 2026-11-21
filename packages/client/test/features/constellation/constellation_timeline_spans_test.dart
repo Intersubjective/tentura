@@ -11,13 +11,13 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 import '../../support/constellation_apply_via_writes.dart';
@@ -154,10 +154,7 @@ void main() {
       final anchors = _Anchors();
       final field = _Field(anchors);
       final sync = buildTestRealtimeSync();
-      final anchorCase = ConstellationAnchorCase(
-        env: const Env.fromEnvironment(),
-        logger: Logger('TimelineSpanFixture'),
-      );
+      final anchorCase = buildTestAnchorCase();
       final store = ConstellationStoreFixture(
         field,
         accountId: 'ego',

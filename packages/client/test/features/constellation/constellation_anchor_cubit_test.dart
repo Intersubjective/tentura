@@ -27,6 +27,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -278,10 +279,7 @@ _harness({
   );
   final anchorRepo = _HarnessAnchorRepository();
   final sync = buildTestRealtimeSync();
-  final anchorCase = ConstellationAnchorCase(
-    env: const Env.fromEnvironment(),
-    logger: Logger('ConstellationAnchorCubitTest'),
-  );
+  final anchorCase = buildTestAnchorCase();
   final store = ConstellationStoreFixture(
     fieldRepo,
     accountId: 'ego',

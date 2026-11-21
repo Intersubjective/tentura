@@ -15,7 +15,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_arrangement_layout.dart';
@@ -35,6 +34,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
@@ -297,10 +297,7 @@ _harness({
         ],
   );
   final anchorRepo = _HarnessAnchorRepository();
-  final anchorCase = ConstellationAnchorCase(
-    env: const Env.fromEnvironment(),
-    logger: Logger('ConstellationRearrangeActionTest'),
-  );
+  final anchorCase = buildTestAnchorCase();
   final sync = buildTestRealtimeSync();
   final store = ConstellationStoreFixture(
     fieldRepo,

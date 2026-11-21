@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../constellation_field_patches.dart';
 import '../entity/constellation_field_hidden_item.dart';
@@ -9,14 +8,12 @@ import '../port/constellation_targeted_read_port.dart';
 import 'constellation_field_store_case.dart';
 
 @lazySingleton
-final class ConstellationFieldHideCase extends UseCaseBase {
+final class ConstellationFieldHideCase {
   ConstellationFieldHideCase(
     this._port,
     this._store,
-    this._targetedReads, {
-    required super.env,
-    required super.logger,
-  });
+    this._targetedReads,
+  );
 
   final ConstellationFieldHidePort _port;
   final ConstellationFieldStoreCase _store;

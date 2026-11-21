@@ -3,25 +3,20 @@
 // viewer's own pin, or a Request they share. The generic "no chain" text is
 // for people nothing is known about.
 
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_visibility.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_trust_chain_person.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_trust_chain_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 final _loadedAt = DateTime.utc(2026, 10, 26, 12);
@@ -115,26 +110,9 @@ ConstellationAnchorProjection _pinned(ConstellationPerson person) =>
       serverFilteredBeaconCount: 0,
     );
 
-/// Answers each person's server chain fetch with a completer the test settles.
-final class _ControlledPort implements ConstellationTrustChainPort {
-  final List<String> fetched = [];
-  final Map<String, Completer<List<ConstellationTrustChainPerson>>> pending =
-      {};
-
-  @override
-  Future<List<ConstellationTrustChainPerson>> fetchTrustChain(
-    String personId,
-  ) {
-    fetched.add(personId);
-    return (pending[personId] =
-            Completer<List<ConstellationTrustChainPerson>>())
-        .future;
-  }
-}
-
 Future<ConstellationCubit> _load(
   ConstellationField field, {
-  ConstellationTrustChainPort? port,
+  ControlledTrustChainPort? port,
 }) async {
   final cubit = ConstellationCubit(
     case_: ConstellationStoreFixture(
@@ -144,11 +122,7 @@ Future<ConstellationCubit> _load(
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
     trustChainCase: port == null
         ? null
-        : ConstellationTrustChainCase(
-            port,
-            env: const Env(),
-            logger: Logger('test'),
-          ),
+        : buildTestControlledTrustChainCase(port),
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
   addTearDown(cubit.close);
@@ -415,12 +389,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
-    Future<(_ControlledPort, ConstellationCubit)> mount(
+    Future<(ControlledTrustChainPort, ConstellationCubit)> mount(
       WidgetTester tester,
       ConstellationField field, {
       String locale = 'en',
     }) async {
-      final port = _ControlledPort();
+      final port = ControlledTrustChainPort();
       final cubit = await _load(field, port: port);
       await pumpConstellationBody(tester, cubit, locale: Locale(locale));
       return (port, cubit);

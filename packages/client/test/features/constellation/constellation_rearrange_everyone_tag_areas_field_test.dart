@@ -30,7 +30,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
@@ -67,6 +66,7 @@ import '../../support/remote_wire_harness.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
@@ -359,10 +359,7 @@ Future<_Harness> _openField(
   );
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('RearrangeEveryoneTagAreasFieldTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: placement,
     viewer: _ego,
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),

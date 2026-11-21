@@ -14,15 +14,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
-import 'package:tentura/features/constellation/domain/entity/constellation_tag_magnet.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_tag_magnet_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_tag_magnet_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
@@ -36,6 +31,7 @@ import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _owner = Profile(id: 'ego', displayName: 'Alice');
@@ -81,33 +77,6 @@ const _magnetTag = 'qa-magnet';
 
 /// Contacts carrying the magnet's tag; the magnet pulls them on the Field.
 const _magnetTagged = {'carol', 'dave', 'erin'};
-
-/// One saved magnet for [_magnetTag], as the QA account has it.
-final class _SavedMagnets implements ConstellationTagMagnetRepositoryPort {
-  @override
-  Future<List<ConstellationTagMagnet>> list() async => const [
-    ConstellationTagMagnet(
-      tagId: _magnetTag,
-      xUnits: 2.5,
-      yUnits: 1.5,
-      revision: 1,
-    ),
-  ];
-
-  @override
-  Future<ConstellationTagMagnet> upsert({
-    required String tagId,
-    required double xUnits,
-    required double yUnits,
-    required String clientOpId,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<void> remove({
-    required String tagId,
-    required String clientOpId,
-  }) => throw UnimplementedError();
-}
 
 /// The owner has 35 open Requests and nine mutual contacts; Bob has two.
 ConstellationField _field() {
@@ -221,12 +190,7 @@ Future<ConstellationCubit> _loadCubit(WidgetTester tester) async {
       viewer: _owner,
       ownTagIdsOf: (personId) =>
           _magnetTagged.contains(personId) ? const {_magnetTag} : const {},
-      tagMagnetCase: ConstellationTagMagnetCase(
-        _SavedMagnets(),
-        realtime.case_,
-        env: const Env(),
-        logger: Logger('overflow collapse screen'),
-      ),
+      tagMagnetCase: buildTestSavedTagMagnetCase(_magnetTag, realtime.case_),
       scene: ConstellationSceneController(slicer: _FrameSlices()),
     );
     await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);

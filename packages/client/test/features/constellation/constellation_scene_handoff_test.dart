@@ -12,7 +12,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
@@ -34,6 +33,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
@@ -182,10 +182,7 @@ Future<ConstellationCubit> _loadedCubitForField(
   ).store;
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationSceneHandoffTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: ConstellationPlacementCase(
       _HarnessAnchorRepository(),
       store,

@@ -14,23 +14,20 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_trust_chain_person.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_member_webs_port.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_mutual_trust_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_trust_chain_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_member_webs_case.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 const _ego = 'ego';
 final _loadedAt = DateTime.utc(2026, 11, 8, 12);
@@ -46,16 +43,6 @@ final class _StubRepository implements ConstellationRepositoryPort {
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
   }) async => field;
-}
-
-final class _MutualPort implements ConstellationMutualTrustPort {
-  _MutualPort(this.answers);
-
-  final Map<String, Set<String>> answers;
-
-  @override
-  Future<Set<String>> fetchMutualTrust(String personId) async =>
-      answers[personId] ?? const {};
 }
 
 /// The server's trust chain per person, answered only when the test
@@ -115,22 +102,14 @@ Future<ConstellationCubit> _load(
   final cubit = ConstellationCubit(
     case_: store,
     viewer: const Profile(id: _ego, displayName: 'Ego'),
-    mutualTrustCase: ConstellationMutualTrustCase(
-      _MutualPort(mutualAnswers),
-      env: const Env(),
-      logger: Logger('test'),
-    ),
+    mutualTrustCase: buildTestMutualTrustCase(mutualAnswers),
     trustChainCase: chainPort == null
         ? null
         : ConstellationTrustChainCase(
             chainPort,
-            env: const Env(),
-            logger: Logger('test'),
           ),
     memberWebsCase: ConstellationMemberWebsCase(
       _MemberWebsPort(requestWebs),
-      env: const Env(),
-      logger: Logger('test'),
     ),
   );
   addTearDown(cubit.close);

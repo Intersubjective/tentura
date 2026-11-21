@@ -11,7 +11,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -25,6 +24,7 @@ import '../../support/fake_wake_up_port.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 layout_domain.ConstellationLayout _placed(layout_domain.ConstellationPlacedLayoutInput i) =>
     layout_domain.computeConstellationPlacedLayout(input: i);
@@ -242,10 +242,7 @@ _harness() async {
   );
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('RearrangeTagPinsTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: placement,
     viewer: _ego,
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),

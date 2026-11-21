@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:logging/logging.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_tag_magnet.dart';
@@ -129,8 +127,6 @@ Future<ConstellationCubit> _open(_SavedMagnets repository, Size size) async {
     tagMagnetCase: ConstellationTagMagnetCase(
       repository,
       realtime.case_,
-      env: const Env(),
-      logger: Logger('restored magnet clearance'),
     ),
   );
   addTearDown(cubit.close);

@@ -27,6 +27,23 @@ import 'package:tentura/features/closure/data/repository/closure_repository.dart
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/complaint/domain/use_case/complaint_case.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_field_hide_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_field_search_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_member_webs_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_mutual_trust_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_person_field_items_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_tag_magnet_repository_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_targeted_read_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_trust_chain_port.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_hide_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_member_webs_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_person_field_items_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_tag_magnet_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_trust_chain_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/credentials/domain/use_case/credentials_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -68,6 +85,7 @@ import '../features/credentials/credentials_case_test.dart'
 import '../features/inbox/inbox_case_test.dart' show buildTestBeaconThreadsCase;
 import '../features/my_work/my_work_test_support.dart' as my_work;
 import '../features/realtime/read_cursor_server_frames.dart';
+import '../support/constellation_store_fixture.dart';
 import '../support/fake_block_case.dart';
 import '../support/remote_wire_harness.dart';
 import '../support/test_realtime_sync.dart';
@@ -157,7 +175,113 @@ class _FakeForwardCandidateContextRepository extends Fake
 class _FakeSharedBeaconsRepository extends Fake
     implements ProfileSharedBeaconsRepository {}
 
+class _FakeConstellationMutualTrustPort extends Fake
+    implements ConstellationMutualTrustPort {}
+
+class _FakeConstellationMemberWebsPort extends Fake
+    implements ConstellationMemberWebsPort {}
+
+class _FakeConstellationPersonFieldItemsPort extends Fake
+    implements ConstellationPersonFieldItemsPort {}
+
+class _FakeConstellationFieldSearchPort extends Fake
+    implements ConstellationFieldSearchPort {}
+
+class _FakeConstellationTagMagnetRepository extends Fake
+    implements ConstellationTagMagnetRepositoryPort {}
+
+class _FakeConstellationFieldHidePort extends Fake
+    implements ConstellationFieldHidePort {}
+
+class _FakeConstellationRepository extends Fake
+    implements ConstellationRepositoryPort {}
+
+class _FakeConstellationTargetedReadPort extends Fake
+    implements ConstellationTargetedReadPort {}
+
+class _FakeConstellationTrustChainPort extends Fake
+    implements ConstellationTrustChainPort {}
+
 void main() {
+  group('Constellation cases construct without environment or logger', () {
+    test('ConstellationMutualTrustCase only needs its mutual trust port', () {
+      _expectFeatureDependenciesOnly<ConstellationMutualTrustCase>(
+        ConstellationMutualTrustCase.new,
+        [_FakeConstellationMutualTrustPort()],
+      );
+    });
+
+    test('ConstellationMemberWebsCase only needs its member webs port', () {
+      _expectFeatureDependenciesOnly<ConstellationMemberWebsCase>(
+        ConstellationMemberWebsCase.new,
+        [_FakeConstellationMemberWebsPort()],
+      );
+    });
+
+    test(
+      'ConstellationPersonFieldItemsCase only needs its person field items port',
+      () {
+        _expectFeatureDependenciesOnly<ConstellationPersonFieldItemsCase>(
+          ConstellationPersonFieldItemsCase.new,
+          [_FakeConstellationPersonFieldItemsPort()],
+        );
+      },
+    );
+
+    test('ConstellationFieldSearchCase only needs its field search port', () {
+      _expectFeatureDependenciesOnly<ConstellationFieldSearchCase>(
+        ConstellationFieldSearchCase.new,
+        [_FakeConstellationFieldSearchPort()],
+      );
+    });
+
+    test(
+      'ConstellationTagMagnetCase only needs its repository and realtime sync',
+      () {
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.port.dispose);
+
+        _expectFeatureDependenciesOnly<ConstellationTagMagnetCase>(
+          ConstellationTagMagnetCase.new,
+          [_FakeConstellationTagMagnetRepository(), realtime.case_],
+        );
+      },
+    );
+
+    test('ConstellationAnchorCase needs no constructor dependencies', () {
+      _expectFeatureDependenciesOnly<ConstellationAnchorCase>(
+        ConstellationAnchorCase.new,
+        [],
+      );
+    });
+
+    test(
+      'ConstellationFieldHideCase only needs its hide port, store, and targeted reads',
+      () {
+        final fixture = ConstellationStoreFixture(
+          _FakeConstellationRepository(),
+          accountId: 'viewer',
+        );
+
+        _expectFeatureDependenciesOnly<ConstellationFieldHideCase>(
+          ConstellationFieldHideCase.new,
+          [
+            _FakeConstellationFieldHidePort(),
+            fixture.store,
+            _FakeConstellationTargetedReadPort(),
+          ],
+        );
+      },
+    );
+
+    test('ConstellationTrustChainCase only needs its trust chain port', () {
+      _expectFeatureDependenciesOnly<ConstellationTrustChainCase>(
+        ConstellationTrustChainCase.new,
+        [_FakeConstellationTrustChainPort()],
+      );
+    });
+  });
+
   group('Use cases construct without environment or logger', () {
     test('AuthorInviteCase only needs its author invitation port', () {
       _expectFeatureDependenciesOnly<AuthorInviteCase>(AuthorInviteCase.new, [

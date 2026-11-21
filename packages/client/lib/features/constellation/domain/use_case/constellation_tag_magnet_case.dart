@@ -3,7 +3,6 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../entity/constellation_tag_magnet.dart';
 import '../port/constellation_tag_magnet_repository_port.dart';
@@ -11,13 +10,11 @@ import '../port/constellation_tag_magnet_repository_port.dart';
 /// Keeps the viewer's tag magnets on the server, so they survive a reload and
 /// follow the viewer to other devices.
 @lazySingleton
-final class ConstellationTagMagnetCase extends UseCaseBase {
+final class ConstellationTagMagnetCase {
   ConstellationTagMagnetCase(
     this._repository,
-    this._realtime, {
-    required super.env,
-    required super.logger,
-  });
+    this._realtime,
+  );
 
   final ConstellationTagMagnetRepositoryPort _repository;
   final RealtimeSyncCase _realtime;

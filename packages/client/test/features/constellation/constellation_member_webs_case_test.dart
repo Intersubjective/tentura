@@ -1,6 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_member_webs_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_member_webs_case.dart';
@@ -26,8 +24,6 @@ void main() {
       port = _MemberWebsPort();
       memberWebsCase = ConstellationMemberWebsCase(
         port,
-        env: const Env(),
-        logger: Logger('test'),
       );
     });
 

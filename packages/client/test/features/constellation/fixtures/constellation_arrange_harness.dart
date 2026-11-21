@@ -9,7 +9,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
@@ -30,6 +29,7 @@ import '../../../support/test_forward_case.dart';
 import '../../../support/test_realtime_sync.dart';
 import '../../../ui/effect/fake_ui_effect_port.dart';
 import 'constellation_field_test_harness.dart';
+import 'constellation_case_builders.dart';
 
 /// A Field whose server side (anchors, layout snapshots) is modelled by
 /// [ArrangeAnchorRepository], for the Arrange menu, undoable reset and undo
@@ -277,10 +277,7 @@ Future<ArrangeHarness> arrangeHarness({
   );
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationArrangeHarness'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: placement,
     viewer: const Profile(id: 'ego', displayName: 'Ego'),
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),

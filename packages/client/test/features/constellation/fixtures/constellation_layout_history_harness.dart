@@ -12,7 +12,6 @@ import 'package:tentura/features/constellation/data/repository/constellation_anc
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -22,6 +21,7 @@ import '../../../support/fake_clock_port.dart';
 import '../../../support/fake_wake_up_port.dart';
 import '../../../support/test_realtime_sync.dart';
 import 'constellation_arrange_harness.dart';
+import 'constellation_case_builders.dart';
 
 /// Test server state shared by independently opened Field sessions. Only the
 /// GraphQL boundary is faked; snapshots and favourite actions must be requested
@@ -360,10 +360,7 @@ Future<LayoutHistoryHarness> layoutHistoryHarness(LayoutHistoryServer server) =>
       final cubit = ConstellationCubit(
         case_: store,
         viewer: const Profile(id: 'ego', displayName: 'Ego'),
-        anchorCase: ConstellationAnchorCase(
-          env: const Env.fromEnvironment(),
-          logger: Logger('LayoutHistoryTest'),
-        ),
+        anchorCase: buildTestAnchorCase(),
         placementCase: placement,
         loadOnCreate: false,
       );

@@ -1,22 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
-import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 
-import '../../support/constellation_apply_via_writes.dart';
 import '../../support/test_realtime_sync.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_case_builders.dart';
 
 const _viewer = 'ego';
 
@@ -83,103 +80,9 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _FakeAnchorRepository implements ConstellationWriteFake {
-  @override
-  Future<String> saveLayoutSnapshot({
-    required String reason,
-    required String clientOpId,
-  }) => throw UnimplementedError('snapshots are not used by this test');
-
-  @override
-  Future<String> restoreLayoutSnapshot({
-    required String snapshotId,
-    required String clientOpId,
-  }) => throw UnimplementedError('restore is not used by this test');
-
-  @override
-  Future<ConstellationAnchorResetResult> reset({
-    required String clientOpId,
-    bool saveHistory = false,
-  }) => throw UnimplementedError('reset is not used by this test');
-
-  Completer<void> upsertGate = Completer<void>()..complete();
-  Completer<void> deleteGate = Completer<void>()..complete();
-  int upsertCount = 0;
-  int deleteCount = 0;
-  Object? upsertError;
-  Object? deleteError;
-  ConstellationAnchorUpsertResult? upsertResult;
-  ConstellationAnchorDeleteResult? deleteResult;
-  int? failOnUpsertIndex;
-  Set<ConstellationAnchorTarget> failTargets = {};
-  final List<ConstellationAnchorTarget> upsertTargets = [];
-
-  @override
-  Future<ConstellationAnchorApplyResult> apply({
-    required List<ConstellationAnchorApplyOp> ops,
-    required ConstellationFieldMembershipFilters params,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<ConstellationAnchorUpsertResult> upsert({
-    required ConstellationAnchorTarget target,
-    required ConstellationAnchorPosition position,
-  }) async {
-    upsertCount++;
-    upsertTargets.add(target);
-    await upsertGate.future;
-    if (failOnUpsertIndex != null && upsertCount == failOnUpsertIndex) {
-      throw upsertError ?? StateError('failed at $upsertCount');
-    }
-    if (failTargets.contains(target)) {
-      throw upsertError ?? StateError('failed for ${target.id}');
-    }
-    if (upsertError != null &&
-        failOnUpsertIndex == null &&
-        failTargets.isEmpty) {
-      throw upsertError!;
-    }
-    return upsertResult ??
-        ConstellationAnchorUpsertResult(
-          anchor: ConstellationAnchor(
-            target: target,
-            position: position,
-            revision: ConstellationAnchorRevision(BigInt.from(upsertCount + 1)),
-            placedAt: DateTime.utc(2026, 9, 11, 1),
-          ),
-          revision: ConstellationAnchorRevision(BigInt.from(upsertCount + 1)),
-        );
-  }
-
-  @override
-  Future<ConstellationAnchorDeleteResult> delete({
-    required ConstellationAnchorTarget target,
-  }) async {
-    deleteCount++;
-    await deleteGate.future;
-    if (deleteError != null) {
-      throw deleteError!;
-    }
-    return deleteResult ??
-        ConstellationAnchorDeleteResult(
-          target: target,
-          revision: ConstellationAnchorRevision(BigInt.from(3)),
-        );
-  }
-}
-
-ConstellationAnchorCase _case({
-  required _FakeFieldRepository fieldRepo,
-  required _FakeAnchorRepository anchorRepo,
-}) => ConstellationAnchorCase(
-  env: const Env.fromEnvironment(),
-  logger: Logger('ConstellationAnchorCaseTest'),
-);
-
 void main() {
   group('constellation anchor reads', () {
     late _FakeFieldRepository fieldRepo;
-    late _FakeAnchorRepository anchorRepo;
     late TestRealtimeSyncPort port;
     late RealtimeSyncCase realtime;
     late ConstellationAnchorCase case_;
@@ -215,14 +118,10 @@ void main() {
           anchors: [_anchor(personId: 'p1', revision: BigInt.two)],
         ),
       ]);
-      anchorRepo = _FakeAnchorRepository();
       final sync = buildTestRealtimeSync();
       port = sync.port;
       realtime = sync.case_;
-      case_ = _case(
-        fieldRepo: fieldRepo,
-        anchorRepo: anchorRepo,
-      );
+      case_ = buildTestAnchorCase();
       case_.activate(viewerAccountId: _viewer);
       case_.adoptConfirmedProjection(_projection(revision: BigInt.one));
     });

@@ -9,7 +9,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
@@ -30,6 +29,7 @@ import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_case_builders.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 
 /// «Rearrange everyone, including pinned»: a preview that writes nothing and
@@ -292,10 +292,7 @@ _harness({RearrangePreviewScheduler? rearrangePreviewScheduler}) async {
       sched is _SingleStepRearrangePreviewScheduler ? sched : null;
   final cubit = ConstellationCubit(
     case_: store,
-    anchorCase: ConstellationAnchorCase(
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationRearrangeEveryoneTest'),
-    ),
+    anchorCase: buildTestAnchorCase(),
     placementCase: ConstellationPlacementCase(
       server,
       store,
