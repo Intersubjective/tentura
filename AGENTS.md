@@ -161,6 +161,14 @@ dispatch runs everything. Pull requests into `main` get the same selection minus
 build, server image, deploy and pg shards — add the `ci:full` label for the pg shards and
 every package's full suite — and must pass the required `PR checks` status to merge.
 
+## Workflow gotchas (learned the hard way)
+
+- After a migration that touches a Hasura-visible column, run `bash scripts/hasura_apply_metadata.sh` on the local stack; a missing metadata update looks like a code bug.
+- A migration number is never reused or edited in place. When a rebase onto `origin/main` collides on a number, renumber your own migration (file, `Migration('NNNN')`, registry entry, and any test or doc that names the version) and keep the order.
+- Hand-landing a bead: read the log of EVERY test chunk (`run_tests.sh` prints one block per chunk), not only the last; a red pg shard in an early chunk is easy to miss.
+- `bd create`: put long text in a file and pass `--body-file`; a double quote inside `-d` breaks the command. Every new bead needs `alloy_complexity`, `alloy_recipe` and `alloy_test_cmd`. There is no `simple` recipe: use `tdd-loop-medium-no-context` or `tdd-loop-complex-no-context`.
+- `git cherry origin/main HEAD` separates local commits already on `origin` (`-`) from unpushed ones (`+`). Never `git reset --hard origin/main` over `+` commits; rebase with `--onto` instead.
+
 ## Cursor Cloud specific instructions
 
 Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the non-obvious cloud caveats are below. Flutter 3.44 lives at `/opt/flutter/bin` (on `PATH` via `~/.bashrc`). Docker, Caddy, and `jq` are pre-installed in the snapshot. The startup update script only runs `flutter pub get`; everything else (Docker daemon, infra, servers) must be started manually.
