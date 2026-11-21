@@ -155,6 +155,133 @@ if [[ "${1:-}" == --sigterm-only ]]; then
   exit "$((fail != 0))"
 fi
 
+check_web_tmpfs_sweep() {
+  local old_compiler="$TMPDIR/flutter_tools.abandoned-compiler-$$"
+  local old_chrome="$TMPDIR/flutter_tools.abandoned-chrome-$$"
+  local old_mixed="$TMPDIR/flutter_tools.abandoned-mixed-$$"
+  local fresh_compiler="$TMPDIR/flutter_tools.fresh-compiler-$$"
+  local fresh_chrome="$TMPDIR/flutter_tools.fresh-chrome-$$"
+  local recent_write="$TMPDIR/flutter_tools.recent-write-$$"
+  local kernel="$TMPDIR/dart_test.kernel.unreferenced-$$"
+  local compiler_dirs chrome_dirs
+  mkdir -p "$old_compiler/flutter_tool.build" "$old_chrome/flutter_test.output" \
+    "$old_mixed/flutter_tool.build" "$old_mixed/flutter_test.output" \
+    "$fresh_compiler/flutter_tool.build" "$fresh_chrome/flutter_test.output" \
+    "$recent_write/flutter_tool.build" "$recent_write/flutter_test.output" "$kernel"
+  printf '%s\n' 'compiled kernel' >"$old_compiler/flutter_tool.build/app.dill"
+  printf '%s\n' 'Chrome output' >"$old_chrome/flutter_test.output/test.js"
+  printf '%s\n' 'compiled kernel' >"$old_mixed/flutter_tool.build/app.dill"
+  printf '%s\n' 'Chrome output' >"$old_mixed/flutter_test.output/test.js"
+  printf '%s\n' 'Chrome output' >"$recent_write/flutter_test.output/test.js"
+  find "$old_compiler" "$old_chrome" "$old_mixed" "$recent_write" -exec touch -d '1 day ago' {} +
+  printf '%s\n' 'recent compilation' >"$recent_write/flutter_tool.build/app.dill"
+  touch -d '1 day ago' "$recent_write" "$recent_write/flutter_tool.build"
+
+  if [[ ! -f "$old_compiler/flutter_tool.build/app.dill" ||
+        ! -f "$old_chrome/flutter_test.output/test.js" ||
+        ! -f "$old_mixed/flutter_tool.build/app.dill" ||
+        ! -f "$old_mixed/flutter_test.output/test.js" ]]; then
+    bad "abandoned web fixtures are missing nested artifacts before the sweep"
+    return
+  fi
+  # Record both directories so deletion followed by recreation fails as well.
+  compiler_dirs="$(stat -c '%d:%i:%w' "$fresh_compiler" "$fresh_compiler/flutter_tool.build")"
+  chrome_dirs="$(stat -c '%d:%i:%w' "$fresh_chrome" "$fresh_chrome/flutter_test.output")"
+
+  if ! TENTURA_TEST_CLEANUP_SYSTEM_TMP="$TMPDIR" "$WRAP" --sweep-only; then
+    bad "web directory sweep did not exit 0"
+  elif [[ -e "$kernel" ]]; then
+    bad "web directory sweep did not remove the unreferenced Dart kernel"
+  else
+    if [[ ! -e "$old_compiler" && ! -e "$old_compiler/flutter_tool.build" &&
+          ! -e "$old_compiler/flutter_tool.build/app.dill" ]]; then
+      ok "abandoned compiler dir removed"
+    else
+      bad "abandoned compiler dir survived"
+    fi
+    if [[ ! -e "$old_chrome" && ! -e "$old_chrome/flutter_test.output" &&
+          ! -e "$old_chrome/flutter_test.output/test.js" ]]; then
+      ok "abandoned flutter_test dir removed"
+    else
+      bad "abandoned flutter_test dir survived"
+    fi
+    if [[ ! -e "$old_mixed" && ! -e "$old_mixed/flutter_tool.build" &&
+          ! -e "$old_mixed/flutter_tool.build/app.dill" &&
+          ! -e "$old_mixed/flutter_test.output" &&
+          ! -e "$old_mixed/flutter_test.output/test.js" ]]; then
+      ok "abandoned compiler and Chrome output removed from the same tree"
+    else
+      bad "abandoned mixed web directory or nested output survived"
+    fi
+    if [[ -d "$fresh_compiler" && -d "$fresh_compiler/flutter_tool.build" ]] &&
+      [[ "$(stat -c '%d:%i:%w' "$fresh_compiler" "$fresh_compiler/flutter_tool.build")" == "$compiler_dirs" ]]; then
+      ok "fresh compiler dir kept"
+    else
+      bad "fresh compiler tree or nested dir deleted or replaced before app.dill was written"
+    fi
+    if [[ -d "$fresh_chrome" && -d "$fresh_chrome/flutter_test.output" ]] &&
+      [[ "$(stat -c '%d:%i:%w' "$fresh_chrome" "$fresh_chrome/flutter_test.output")" == "$chrome_dirs" ]]; then
+      ok "fresh flutter_test dir kept"
+    else
+      bad "fresh Chrome tree or nested dir deleted or replaced"
+    fi
+    if cmp -s "$recent_write/flutter_tool.build/app.dill" <(printf '%s\n' 'recent compilation') &&
+      cmp -s "$recent_write/flutter_test.output/test.js" <(printf '%s\n' 'Chrome output'); then
+      ok "deep recent write kept"
+    else
+      bad "recently written app.dill or its older Chrome sibling deleted or changed"
+    fi
+  fi
+}
+
+check_referenced_web_tmpfs_sweep() {
+  local referenced="$TMPDIR/flutter_tools.referenced-compiler-$$"
+  local app_dill="$referenced/flutter_tool.build/app.dill"
+  local chrome_output="$referenced/flutter_test.output/test.js"
+  local kernel="$TMPDIR/dart_test.kernel.live-owner-control-$$"
+  local ready owner_pid
+  mkdir -p "$(dirname "$app_dill")" "$(dirname "$chrome_output")" "$kernel"
+  printf '%s\n' 'compiled kernel' >"$app_dill"
+  printf '%s\n' 'Chrome output' >"$chrome_output"
+  find "$referenced" -exec touch -d '1 day ago' {} +
+
+  coproc WEB_TMPFS_OWNER {
+    exec python3 -u -c 'import time; print("ready"); time.sleep(30)' "$referenced"
+  }
+  owner_pid="$WEB_TMPFS_OWNER_PID"
+  if ! IFS= read -r -t 5 -u "${WEB_TMPFS_OWNER[0]}" ready || [[ "$ready" != ready ]] ||
+     ! grep -Fxzq -- "$referenced" "/proc/$owner_pid/cmdline"; then
+    bad "live compiler fixture did not expose its directory in argv"
+  elif ! TENTURA_TEST_CLEANUP_SYSTEM_TMP="$TMPDIR" "$WRAP" --sweep-only; then
+    bad "sweep with a live compiler reference did not exit 0"
+  elif [[ -e "$kernel" ]]; then
+    bad "sweep with a live compiler reference did not remove the unrelated Dart kernel"
+  elif still_alive "$owner_pid" &&
+    cmp -s "$app_dill" <(printf '%s\n' 'compiled kernel') &&
+    cmp -s "$chrome_output" <(printf '%s\n' 'Chrome output'); then
+    ok "referenced old dir kept"
+  else
+    bad "sweep deleted or changed referenced web output or stopped its live owner"
+  fi
+  kill "$owner_pid" 2>/dev/null || true
+  wait "$owner_pid" 2>/dev/null || true
+
+  # Sweep the same tree again with identical mtimes and no live reference.
+  if ! TENTURA_TEST_CLEANUP_SYSTEM_TMP="$TMPDIR" "$WRAP" --sweep-only; then
+    bad "sweep after the compiler reference exited did not exit 0"
+  elif [[ ! -e "$referenced" && ! -e "$app_dill" && ! -e "$chrome_output" ]]; then
+    ok "old compiler dir removed after its live reference exited"
+  else
+    bad "old compiler dir survived after its live reference exited"
+  fi
+}
+
+if [[ "${1:-}" == --web-tmpfs-only ]]; then
+  check_web_tmpfs_sweep
+  check_referenced_web_tmpfs_sweep
+  exit "$((fail != 0))"
+fi
+
 check_marker_lookup
 if [[ "${1:-}" == --marker-lookup-only ]]; then
   exit "$((fail != 0))"
@@ -176,6 +303,9 @@ sleep 0.2
 if [[ -d "$KEEP_DIR" ]]; then ok "referenced flutter_tools dir kept"; else bad "referenced flutter_tools dir deleted"; fi
 if [[ ! -d "$GONE_DIR" ]]; then ok "unreferenced flutter_tools dir removed"; else bad "unreferenced flutter_tools dir survived"; fi
 if [[ ! -d "$KERNEL_GONE" ]]; then ok "unreferenced dart_test.kernel dir removed"; else bad "unreferenced dart_test.kernel dir survived"; fi
+
+check_web_tmpfs_sweep
+check_referenced_web_tmpfs_sweep
 
 # --- 2. PID-1 flutter_tester stand-in is killed; dartdevc compiler is not ---
 TESTER_MARK="selftest_flutter_tester_$$"

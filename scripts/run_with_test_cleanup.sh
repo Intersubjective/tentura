@@ -256,7 +256,7 @@ PY
 
 sweep_tmpfs() {
   python3 - <<'PY'
-import os, pathlib, shutil
+import os, pathlib, shutil, stat, time
 
 def live_cmdlines() -> bytes:
     blobs = []
@@ -269,7 +269,19 @@ def live_cmdlines() -> bytes:
             pass
     return b"\n".join(blobs)
 
+def tree_is_stale(root: pathlib.Path, cutoff: float) -> bool:
+    pending = [root]
+    while pending:
+        path = pending.pop()
+        info = path.lstat()
+        if info.st_mtime >= cutoff:
+            return False
+        if stat.S_ISDIR(info.st_mode):
+            pending.extend(path.iterdir())
+    return True
+
 live = live_cmdlines()
+web_cutoff = time.time() - 12 * 60 * 60
 # TENTURA_TEST_CLEANUP_SYSTEM_TMP stands in for /tmp in sandboxed tests: their
 # restricted /proc view hides the real test runner, whose kernels sit in /tmp
 # on CI (no TMPDIR there), so sweeping the real /tmp would delete them.
@@ -284,14 +296,14 @@ for root in roots:
         token = d.name.encode()
         if token in live:
             continue
-        # The filesystem may be shared with another PID namespace. Leave
-        # Flutter's resident compiler and Chrome test output trees to Flutter,
-        # even before the compiler creates app.dill or the test bundle.
-        if pat == "flutter_tools.*" and (
-            any(d.glob("flutter_tool.*")) or any(d.glob("flutter_test.*"))
-        ):
-            continue
         try:
+            # A web compiler in another PID namespace may be invisible here.
+            # Give fresh trees time to publish output, and count writes to any
+            # descendant as activity even when the parent mtime is unchanged.
+            if pat == "flutter_tools.*" and (
+                any(d.glob("flutter_tool.*")) or any(d.glob("flutter_test.*"))
+            ) and not tree_is_stale(d, web_cutoff):
+                continue
             if d.is_dir():
                 shutil.rmtree(d, ignore_errors=True)
             else:

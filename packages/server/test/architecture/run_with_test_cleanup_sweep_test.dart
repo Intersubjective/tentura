@@ -149,9 +149,17 @@ void main() {
       expect(outcome.flutterCache, isNull, reason: outcome.diagnostics);
     });
 
-    test(
-      'cleanup preserves app.dill from a Flutter web compiler outside its PID view',
-      () async {
+    for (final (description, abandoned) in [
+      (
+        'cleanup preserves app.dill from a Flutter web compiler outside its PID view',
+        false,
+      ),
+      (
+        'cleanup removes stale artifacts after a Flutter web compiler exits',
+        true,
+      ),
+    ]) {
+      test(description, () async {
         final scratch = await Directory.systemTemp.createTemp('web-compiler-');
         addTearDown(() => scratch.delete(recursive: true));
         final sharedTmp = await Directory('${scratch.path}/shared').create();
@@ -168,8 +176,8 @@ void main() {
         );
 
         // Use Flutter's resident DDC compiler and app.dill output layout.
-        // Keep the compiler running after it publishes the kernel, then sweep
-        // before the build reads that kernel back from disk.
+        // Compile before simulating either a build about to read the kernel
+        // back from disk or a killed compiler that left its artifacts behind.
         final sdkBin = File(Platform.resolvedExecutable).parent;
         final webSdk = Directory(
           '${sdkBin.parent.parent.path}/flutter_web_sdk',
@@ -209,8 +217,9 @@ void main() {
           ],
           environment: {'TMPDIR': sharedTmp.path},
         );
+        var compilerExited = false;
         addTearDown(() async {
-          compiler.kill();
+          if (!compilerExited) compiler.kill();
           await compiler.exitCode.timeout(const Duration(seconds: 5));
         });
         compiler.stderr.drain<void>().ignore();
@@ -224,6 +233,26 @@ void main() {
         expect(await compilation, endsWith(' ${appDill.path} 0'));
         final kernel = await appDill.readAsBytes();
         expect(kernel, isNotEmpty);
+        if (abandoned) {
+          expect(compiler.kill(ProcessSignal.sigkill), isTrue);
+          final exitCode = await compiler.exitCode.timeout(
+            const Duration(seconds: 5),
+          );
+          compilerExited = true;
+          expect(exitCode, -ProcessSignal.sigkill.signalNumber);
+          final age = DateTime.now().subtract(const Duration(days: 1));
+          final backdate = await Process.run('find', [
+            flutterTmp.path,
+            '-exec',
+            'touch',
+            '-m',
+            '-d',
+            age.toIso8601String(),
+            '{}',
+            '+',
+          ]);
+          expect(backdate.exitCode, 0, reason: '${backdate.stderr}');
+        }
 
         // Isolate the wrapper's checkout-relative cache and database cleanup.
         final scripts = await Directory('${scratch.path}/scripts').create();
@@ -236,6 +265,8 @@ void main() {
         );
         final chmod = await Process.run('chmod', ['+x', docker.path]);
         expect(chmod.exitCode, 0, reason: '${chmod.stderr}');
+        // With no live compiler, allow signals only to an impossible PID.
+        final signalTarget = abandoned ? 2147483647 : compiler.pid;
         final result = await Process.run(
           'timeout',
           [
@@ -243,7 +274,7 @@ void main() {
             executable.path,
             '--sandbox',
             '0',
-            '${compiler.pid}',
+            '$signalTarget',
             'bash',
             wrapper.path,
             '--sweep-only',
@@ -262,15 +293,19 @@ void main() {
         expect(result.exitCode, 0, reason: diagnostics);
         expect(staleKernel.existsSync(), isFalse, reason: diagnostics);
 
-        expect(
-          appDill.existsSync(),
-          isTrue,
-          reason:
-              'The build must be able to reopen ${appDill.path}.\n$diagnostics',
-        );
-        expect(await appDill.readAsBytes(), kernel);
-      },
-    );
+        if (abandoned) {
+          expect(flutterTmp.existsSync(), isFalse, reason: diagnostics);
+        } else {
+          expect(
+            appDill.existsSync(),
+            isTrue,
+            reason:
+                'The build must be able to reopen ${appDill.path}.\n$diagnostics',
+          );
+          expect(await appDill.readAsBytes(), kernel);
+        }
+      });
+    }
   });
 
   group('fixture publication through the sweep runner', () {
