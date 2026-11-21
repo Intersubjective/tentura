@@ -8,7 +8,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -21,7 +20,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -45,6 +43,7 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/posts_case_test_support.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
@@ -267,7 +266,7 @@ Future<_Session> _openPostFromConversations(
     ..registerSingleton<PostsRepositoryPort>(postsRepository)
     ..registerSingleton<RoomReadWatermarkStore>(watermarks);
 
-  final postsCase = _makePostsCase(postsRepository, sync.case_);
+  final postsCase = buildTestPostsCase(postsRepository, sync.case_);
   final list = PostsCubit(
     postsCase: postsCase,
     clock: () => _createdAt.add(const Duration(hours: 1)),
@@ -367,16 +366,6 @@ Future<_Session> _openPostFromConversations(
   expect(find.byType(BeaconRoomBody), findsOneWidget);
   return (room: room, postsCase: postsCase, list: list);
 }
-
-PostsCase _makePostsCase(
-  PostsRepositoryPort repository,
-  RealtimeSyncCase realtimeSync,
-) => PostsCase(
-  repository,
-  realtimeSync,
-  env: const Env(),
-  logger: Logger('post-read-state-test'),
-);
 
 /// The unread count the «Разговоры» list shows for the Post under test.
 int _listUnread(PostsCubit list) => list.state.active

@@ -14,6 +14,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
@@ -45,7 +46,6 @@ import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -298,8 +298,6 @@ Future<FakeUiEffectPort> _pumpConversations(
       PostsCase(
         _NoPosts(),
         GetIt.I<RealtimeSyncCase>(),
-        env: const Env(),
-        logger: Logger('post-create-entry-wiring'),
       ),
     );
   final homeAttention = HomeAttentionCubit(

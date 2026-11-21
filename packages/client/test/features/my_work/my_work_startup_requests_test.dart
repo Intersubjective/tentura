@@ -13,7 +13,6 @@ import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
@@ -200,8 +199,6 @@ void main() {
               PostsCase(
                 PostsRepository(remote),
                 realtime.case_,
-                env: const Env(),
-                logger: Logger('root-startup-posts'),
               ),
             );
           final router = _HomeStartupRouter();

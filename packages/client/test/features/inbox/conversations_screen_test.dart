@@ -19,7 +19,6 @@ import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
@@ -229,8 +228,6 @@ Future<void> _pumpInbox(
   final postsCase = PostsCase(
     _postsRepository,
     sync.case_,
-    env: const Env(),
-    logger: Logger('inbox-conversations-tab-test'),
   );
 
   if (GetIt.I.isRegistered<AttentionCase>()) {

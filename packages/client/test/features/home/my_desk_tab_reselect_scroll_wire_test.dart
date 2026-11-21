@@ -358,8 +358,6 @@ Future<void> _pumpHome(WidgetTester tester, MyWorkCase deskCase) async {
       PostsCase(
         _EmptyPostsRepository(),
         realtime,
-        env: const Env(),
-        logger: Logger('home-posts'),
       ),
     )
     ..registerSingleton<ScreenCubit>(screen)

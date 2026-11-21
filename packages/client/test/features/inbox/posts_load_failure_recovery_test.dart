@@ -21,7 +21,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -147,8 +146,6 @@ void main() {
             postsCase: PostsCase(
               PostsRepository(remote),
               realtime.case_,
-              env: const Env(),
-              logger: Logger('posts-load-recovery'),
             ),
             clock: () => DateTime.utc(2026, 11, 9, 9),
           );

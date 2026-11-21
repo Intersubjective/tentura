@@ -33,7 +33,6 @@ import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/data/repository/posts_repository.dart';
@@ -427,8 +426,6 @@ Future<void> withPostsTab(
       PostsRepository(remote),
       sync.case_,
       beaconRepository: beacons,
-      env: const Env(),
-      logger: logger,
     );
     final effects = FakeUiEffectPort();
     final navigator = _ComposerNavigator();

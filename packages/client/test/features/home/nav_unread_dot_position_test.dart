@@ -16,7 +16,6 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/conversations_navbar_item.dart';
 import 'package:tentura/features/home/ui/widget/inbox_navbar_item.dart';
@@ -208,8 +207,6 @@ void main() {
       final postsCase = PostsCase(
         repo,
         sync.case_,
-        env: const Env(),
-        logger: Logger('nav-unread-dot-position-test'),
       );
       GetIt.I.registerSingleton<PostsCase>(postsCase);
       addTearDown(() async {

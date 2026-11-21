@@ -9,21 +9,19 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
-import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/inbox/ui/widget/post_conversation_row.dart';
 import 'package:tentura/features/inbox/ui/widget/posts_tab_view.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/posts_case_test_support.dart';
 import '../../support/test_realtime_sync.dart';
 
 final _start = DateTime.utc(2026, 10, 26, 12);
@@ -94,11 +92,9 @@ void main() {
 
     PostsCubit buildCubit(FakeAsync async) {
       final cubit = PostsCubit(
-        postsCase: PostsCase(
+        postsCase: buildTestPostsCase(
           repository,
           sync.case_,
-          env: const Env(),
-          logger: Logger('posts-archive-test'),
         ),
         clock: () => _start.add(async.elapsed),
       );
@@ -383,11 +379,9 @@ void main() {
       addTearDown(sync.port.dispose);
       var now = _start;
       final cubit = PostsCubit(
-        postsCase: PostsCase(
+        postsCase: buildTestPostsCase(
           repository,
           sync.case_,
-          env: const Env(),
-          logger: Logger('posts-archive-test'),
         ),
         clock: () => now,
       );
@@ -540,11 +534,9 @@ void main() {
       addTearDown(sync.port.dispose);
       final cubit = (await tester.runAsync(() async {
         final c = PostsCubit(
-          postsCase: PostsCase(
+          postsCase: buildTestPostsCase(
             repository,
             sync.case_,
-            env: const Env(),
-            logger: Logger('posts-archive-test'),
           ),
           clock: () => _start,
         );
@@ -601,11 +593,9 @@ void main() {
       // Built in the test's own fake-async zone so the cubit's expiry timer
       // runs on the pumped time.
       final cubit = PostsCubit(
-        postsCase: PostsCase(
+        postsCase: buildTestPostsCase(
           repository,
           sync.case_,
-          env: const Env(),
-          logger: Logger('posts-archive-test'),
         ),
         clock: () => now,
       );

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/ui/bloc/reload_when_online.dart';
@@ -105,7 +106,7 @@ class PostsCubit extends Cubit<PostsState> {
       });
       emit(_arrange(posts, _clock()).copyWith(loadError: null));
     } on Object catch (e) {
-      _postsCase.logger.warning('myPosts failed: $e');
+      Logger.root.warning('myPosts failed: $e');
       // Keep the list that was already shown.
       if (isClosed || generation != _generation) return;
       _lastFetchFailed = true;

@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
@@ -53,7 +54,6 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
@@ -314,8 +314,6 @@ Future<({RootRouter router, _RoomRepository room})> _landOnHome(
       PostsCase(
         _PostsRepository(),
         sync.case_,
-        env: const Env(),
-        logger: Logger('post-join-posts'),
       ),
     )
     ..registerSingleton<BeaconRepository>(posts)

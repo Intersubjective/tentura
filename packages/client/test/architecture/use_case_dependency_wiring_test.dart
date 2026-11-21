@@ -13,10 +13,11 @@ const _casePaths = {
   'FriendsCase': 'lib/features/friends/domain/use_case/friends_case.dart',
   'InboxCase': 'lib/features/inbox/domain/use_case/inbox_case.dart',
   'MyWorkCase': 'lib/features/my_work/domain/use_case/my_work_case.dart',
+  'PostsCase': 'lib/features/inbox/domain/use_case/posts_case.dart',
 };
 
 const _ambientDependencies = {'env', 'logger'};
-final _myWorkAmbientNames = RegExp(r'\b(?:env|logger|UseCaseBase)\b');
+final _ambientNames = RegExp(r'\b(?:env|logger|UseCaseBase)\b');
 
 void main() {
   group('Use case wiring only supplies feature dependencies', () {
@@ -37,11 +38,11 @@ void main() {
         final declaration = unit.declarations
             .whereType<ClassDeclaration>()
             .singleWhere((node) => node.namePart.typeName.lexeme == name);
-        if (name == 'MyWorkCase') {
+        if (name == 'MyWorkCase' || name == 'PostsCase') {
           if (declaration.finalKeyword == null) {
-            violations.add('$path must declare final class MyWorkCase');
+            violations.add('$path must declare final class $name');
           }
-          for (final match in _myWorkAmbientNames.allMatches(source)) {
+          for (final match in _ambientNames.allMatches(source)) {
             final line = unit.lineInfo.getLocation(match.start).lineNumber;
             violations.add('$path:$line mentions ${match.group(0)}');
           }
@@ -89,6 +90,14 @@ void main() {
             expect(calls, isNotEmpty, reason: 'DI must construct ${entry.key}');
             for (final call in calls) {
               violations.addAll(_ambientArguments(path, parsed, call));
+              if (call.name == 'PostsCase' &&
+                  (registration.methodName.name != 'singleton' ||
+                      !_hasPostsFactoryDependencies(call))) {
+                violations.add(
+                  '$path must register PostsCase as a singleton using '
+                  'withBeaconRepository and its three feature lookups',
+                );
+              }
               if (call.name == 'MyWorkCase') {
                 final arguments = call.arguments.arguments;
                 if (arguments.length != 12 ||
@@ -122,9 +131,14 @@ void main() {
         final parsed = parseString(content: source, path: file.path);
         final constructors = _ConstructorCalls();
         parsed.unit.accept(constructors);
+        var postsCalls = 0;
         for (final call in constructors.calls) {
           if (call.name == 'MyWorkCase') myWorkCalls++;
+          if (call.name == 'PostsCase') postsCalls++;
           violations.addAll(_ambientArguments(file.path, parsed, call));
+        }
+        if (postsCalls > 1) {
+          violations.add('$file should reuse one PostsCase builder');
         }
       }
       expect(violations, isEmpty);
@@ -137,15 +151,39 @@ void main() {
   });
 }
 
-typedef _ConstructorCall = ({String name, ArgumentList arguments});
+typedef _ConstructorCall = ({
+  String name,
+  String? constructorName,
+  ArgumentList arguments,
+});
 
-bool _isPositionalDependencyLookup(Argument argument) {
+bool _hasPostsFactoryDependencies(_ConstructorCall call) {
+  if (call.arguments.arguments case [
+    final repository,
+    final realtime,
+    final NamedArgument beacon,
+  ]) {
+    return call.constructorName == 'withBeaconRepository' &&
+        _isPositionalDependencyLookup(repository, 'PostsRepositoryPort') &&
+        _isPositionalDependencyLookup(realtime, 'RealtimeSyncCase') &&
+        beacon.name.lexeme == 'beaconRepository' &&
+        _isDependencyLookup(beacon, 'BeaconRepository');
+  }
+  return false;
+}
+
+bool _isPositionalDependencyLookup(Argument argument, [String? typeName]) =>
+    argument is! NamedArgument && _isDependencyLookup(argument, typeName);
+
+bool _isDependencyLookup(Argument argument, String? typeName) {
   final expression = argument.argumentExpression;
-  return argument is! NamedArgument &&
-      expression is MethodInvocation &&
+  return expression is MethodInvocation &&
       expression.target == null &&
       expression.methodName.name == 'gh' &&
       expression.typeArguments?.arguments.length == 1 &&
+      (typeName == null ||
+          expression.typeArguments!.arguments.single.endToken.lexeme ==
+              typeName) &&
       expression.argumentList.arguments.isEmpty;
 }
 
@@ -181,15 +219,23 @@ class _CaseRegistrations extends RecursiveAstVisitor<void> {
 class _ConstructorCalls extends RecursiveAstVisitor<void> {
   final calls = <_ConstructorCall>[];
 
-  void _record(String name, ArgumentList arguments) {
+  void _record(String name, ArgumentList arguments, [String? constructorName]) {
     if (_casePaths.containsKey(name)) {
-      calls.add((name: name, arguments: arguments));
+      calls.add((
+        name: name,
+        constructorName: constructorName,
+        arguments: arguments,
+      ));
     }
   }
 
   @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    _record(node.constructorName.type.name.lexeme, node.argumentList);
+    _record(
+      node.constructorName.type.name.lexeme,
+      node.argumentList,
+      node.constructorName.name?.name,
+    );
     super.visitInstanceCreationExpression(node);
   }
 
@@ -197,10 +243,12 @@ class _ConstructorCalls extends RecursiveAstVisitor<void> {
   void visitMethodInvocation(MethodInvocation node) {
     // Implicit constructors can parse as method calls before name resolution.
     final name = node.methodName.name;
-    _record(
-      name == 'new' ? node.target?.endToken.lexeme ?? name : name,
-      node.argumentList,
-    );
+    final targetName = node.target?.endToken.lexeme;
+    if (targetName != null && _casePaths.containsKey(targetName)) {
+      _record(targetName, node.argumentList, name);
+    } else {
+      _record(name, node.argumentList);
+    }
     super.visitMethodInvocation(node);
   }
 }

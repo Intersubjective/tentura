@@ -6,10 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/home/ui/widget/conversations_navbar_item.dart';
@@ -66,8 +64,6 @@ void main() {
     postsCase = PostsCase(
       repository,
       sync.case_,
-      env: const Env(),
-      logger: Logger('posts-dot-test'),
     );
   });
 

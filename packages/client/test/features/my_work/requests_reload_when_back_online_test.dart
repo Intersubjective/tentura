@@ -327,8 +327,6 @@ Future<void> _pumpHome(
       PostsCase(
         _EmptyPostsRepository(),
         realtime,
-        env: const Env(),
-        logger: Logger('home-posts'),
       ),
     )
     ..registerSingleton<ScreenCubit>(screen)

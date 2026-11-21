@@ -22,7 +22,9 @@ import 'package:tentura/features/forward_candidate_context/domain/use_case/load_
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
+import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
@@ -59,6 +61,8 @@ class _FakeFriendsRepository extends Fake implements FriendsRemoteRepository {}
 class _FakePresenceRepository extends Fake implements PresenceRepository {}
 
 class _FakeInboxRepository extends Fake implements InboxRepository {}
+
+class _FakePostsRepository extends Fake implements PostsRepositoryPort {}
 
 class _FakeForwardRepository extends Fake implements ForwardRepository {}
 
@@ -130,6 +134,34 @@ void main() {
         bookkeepingRefresh,
         FakeBlockCase(),
       ]);
+    });
+
+    test('PostsCase only needs its feature dependencies', () {
+      final realtime = buildTestRealtimeSync();
+      addTearDown(realtime.port.dispose);
+      final dependencies = [_FakePostsRepository(), realtime.case_];
+      final beaconRepository = my_work.FakeBeaconRepository();
+
+      _expectFeatureDependenciesOnly<PostsCase>(PostsCase.new, dependencies);
+      final posts =
+          Function.apply(PostsCase.new, dependencies, {
+                #beaconRepository: beaconRepository,
+              })
+              as PostsCase;
+      expect(posts.beaconRepository, same(beaconRepository));
+    });
+
+    test('PostsCase factory accepts only its feature dependencies', () {
+      final realtime = buildTestRealtimeSync();
+      addTearDown(realtime.port.dispose);
+      final beaconRepository = my_work.FakeBeaconRepository();
+
+      final posts = _expectFeatureDependenciesOnly<PostsCase>(
+        PostsCase.withBeaconRepository,
+        [_FakePostsRepository(), realtime.case_],
+        namedDependencies: {#beaconRepository: beaconRepository},
+      );
+      expect(posts.beaconRepository, same(beaconRepository));
     });
 
     test('MyWorkCase only needs its feature dependencies', () {
@@ -210,15 +242,17 @@ void main() {
   });
 }
 
-void _expectFeatureDependenciesOnly<T>(
+T _expectFeatureDependenciesOnly<T>(
   Function constructor,
-  List<Object> dependencies,
-) {
+  List<Object> dependencies, {
+  Map<Symbol, Object> namedDependencies = const {},
+}) {
   // Invoke the real constructor with the desired arguments while keeping the
   // test compilable with the old signature.
   late final Object instance;
   expect(
-    () => instance = Function.apply(constructor, dependencies) as Object,
+    () => instance =
+        Function.apply(constructor, dependencies, namedDependencies) as Object,
     returnsNormally,
     reason: '$T must be constructible without env or logger',
   );
@@ -227,13 +261,20 @@ void _expectFeatureDependenciesOnly<T>(
 
   // Supplying either argument must also fail if it was left behind as optional.
   expect(
-    () => Function.apply(constructor, dependencies, {#env: const Env()}),
+    () => Function.apply(constructor, dependencies, {
+      ...namedDependencies,
+      #env: const Env(),
+    }),
     throwsNoSuchMethodError,
     reason: '$T must not accept env',
   );
   expect(
-    () => Function.apply(constructor, dependencies, {#logger: Logger('test')}),
+    () => Function.apply(constructor, dependencies, {
+      ...namedDependencies,
+      #logger: Logger('test'),
+    }),
     throwsNoSuchMethodError,
     reason: '$T must not accept logger',
   );
+  return instance as T;
 }
