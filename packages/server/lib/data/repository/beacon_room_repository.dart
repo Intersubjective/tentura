@@ -35,6 +35,7 @@ import '../database/sql/request_unread_sql.dart'
         discussionUnreadMessageSql,
         requestDiscussionUnreadCountSql,
         requestQuestionsUnreadCountSql;
+import 'beacon_access_repository.dart';
 import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
 import '../mapper/coordination_row_mappers.dart';
@@ -2622,6 +2623,15 @@ ORDER BY seen.last_seen_at DESC
     );
   });
 
+  Future<bool> canReadContent({
+    required String beaconId,
+    required String viewerId,
+  }) => BeaconAccessRepository(_db).canReadContent(
+    beaconId: beaconId,
+    viewerId: viewerId,
+  );
+
+  @override
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     int limit = 200,

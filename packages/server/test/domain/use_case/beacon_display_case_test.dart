@@ -21,7 +21,6 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
-import '../../support/fake_beacon_access_guard.dart';
 import '../../support/noop_commitment_query_case.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/room_viewer_facts_from_stubs.dart';
@@ -48,7 +47,6 @@ void main() {
   late _FakeClosureRepository closureRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
   late _FakePairBlocks blocks;
-  late FakeBeaconAccessGuard guard;
   late BeaconDisplayCase case_;
   late CommitmentQueryCase commitmentQueryCase;
 
@@ -93,7 +91,6 @@ void main() {
     closureRepo = _FakeClosureRepository();
     roomRepo = MockBeaconRoomRepositoryPort();
     blocks = _FakePairBlocks();
-    guard = FakeBeaconAccessGuard();
     commitmentQueryCase = noopCommitmentQueryCase(
       logger: Logger('BeaconDisplayCaseTest'),
     );
@@ -103,7 +100,6 @@ void main() {
       coordinationRepo,
       closureRepo,
       roomRepo,
-      guard,
       commitmentQueryCase,
       blocks,
       env: Env(environment: Environment.test),
@@ -346,8 +342,10 @@ void main() {
       verifyNever(beaconRepo.getBeaconById(beaconId: anyNamed('beaconId')));
     });
 
-    test('skips beacon when guard denies read', () async {
-      guard.contentAllowed = false;
+    test('skips a beacon whose content the viewer cannot read', () async {
+      when(
+        roomRepo.roomViewerFacts([beaconId], viewerUserId: authorId),
+      ).thenAnswer((_) async => {});
 
       final result = await case_.displayStatuses(
         beaconIds: [beaconId],
@@ -586,7 +584,6 @@ void main() {
                 coordinationRepo,
                 closureRepo,
                 roomRepo,
-                guard,
                 queryCase,
                 blocks,
                 env: Env(environment: Environment.test),
@@ -654,7 +651,6 @@ void main() {
           coordinationRepo,
           closureRepo,
           roomRepo,
-          guard,
           commitmentQueryCaseFromEvents([
             CommitmentEvent(
               id: 'CE-1',

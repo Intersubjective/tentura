@@ -779,7 +779,6 @@ final class _Harness {
         coordinationRepository,
         closureRepository,
         roomRepository,
-        access,
         commitmentQuery,
         PairBlockQueryRepository(db),
         env: env,

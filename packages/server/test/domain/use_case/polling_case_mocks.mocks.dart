@@ -636,6 +636,20 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<DateTime?>);
 
   @override
+  _i3.Future<bool> canReadContent({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#canReadContent, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
   _i3.Future<List<Map<String, Object?>>> listActivityEvents({
     required String? beaconId,
     int? limit = 200,

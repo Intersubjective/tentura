@@ -66,6 +66,12 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
       participant;
 
   @override
+  Future<bool> canReadContent({
+    required String beaconId,
+    required String viewerId,
+  }) async => true;
+
+  @override
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     int limit = 200,

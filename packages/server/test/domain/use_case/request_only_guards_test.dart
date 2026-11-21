@@ -902,7 +902,6 @@ void main() {
         coordinationRepo,
         _EvaluatingClosureRepo(),
         roomRepo,
-        FakeBeaconAccessGuard(),
         noopCommitmentQueryCase(logger: Logger('RequestOnlyGuardsTest')),
         PairBlockQueryRepositoryMock(),
         env: env,

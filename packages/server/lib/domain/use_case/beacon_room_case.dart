@@ -1541,6 +1541,9 @@ class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) async {
+    if (!await _room.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      return const [];
+    }
     final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
     final rows = await _room.listActivityEvents(beaconId: beaconId);
     if (allowed) return rows;

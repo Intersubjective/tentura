@@ -196,6 +196,11 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId);
 
+  Future<bool> canReadContent({
+    required String beaconId,
+    required String viewerId,
+  });
+
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     int limit = 200,

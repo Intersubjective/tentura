@@ -7,7 +7,6 @@ import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
-import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -24,7 +23,6 @@ final class BeaconDisplayCase extends UseCaseBase {
     this._coordinationRepository,
     this._closureRepository,
     this._beaconRoomRepository,
-    this._guard,
     this._commitmentQueryCase,
     this._blocks, {
     required super.env,
@@ -35,7 +33,6 @@ final class BeaconDisplayCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final ClosureRepositoryPort _closureRepository;
   final BeaconRoomRepositoryPort _beaconRoomRepository;
-  final BeaconAccessGuard _guard;
   final CommitmentQueryCase _commitmentQueryCase;
   final PairBlockQueryPort _blocks;
 
@@ -47,19 +44,14 @@ final class BeaconDisplayCase extends UseCaseBase {
 
     // #747 — every per-Request fact is one batched read for the whole list,
     // never a read per card.
-    final readable = await _guard.readableContentIds(
-      beaconIds: beaconIds,
-      viewerId: viewerId,
-    );
     final facts = await _beaconRoomRepository.roomViewerFacts(
-      readable,
+      beaconIds,
       viewerUserId: viewerId,
     );
     final requests = [
       for (final beaconId in beaconIds)
         if (facts[beaconId] case final request?
-            when readable.contains(beaconId) &&
-                request.kind == BeaconKind.request)
+            when request.kind == BeaconKind.request)
           request,
     ];
     if (requests.isEmpty) return const [];

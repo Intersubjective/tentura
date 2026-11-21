@@ -137,11 +137,26 @@ DELETE FROM public.beacon_image_stage WHERE beacon_id = ANY(
       beaconIds: beaconIds,
       ownerId: ownerId,
     );
+    final parameters = [
+      jsonEncode(beaconIds),
+      ownerId,
+      BeaconStatus.draft.smallintValue,
+    ];
+    const ownedDrafts = r'''
+id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))
+AND user_id = $2 AND status = $3
+''';
+    // Capture draft recipients before the parent and its grants cascade away.
     await _database.customStatement(
-      r'''
-DELETE FROM public.beacon WHERE id = ANY(
-        ARRAY(SELECT jsonb_array_elements_text($1::jsonb))) AND user_id = $2''',
-      [jsonEncode(beaconIds), ownerId],
+      '''
+SELECT public.notify_erased_request_dependents(id, user_id, true)
+FROM public.beacon WHERE kind = 0 AND $ownedDrafts
+''',
+      parameters,
+    );
+    await _database.customStatement(
+      'DELETE FROM public.beacon WHERE $ownedDrafts',
+      parameters,
     );
     if (imageIds.isNotEmpty) {
       await _deleteImageRows(imageIds: imageIds, authorId: ownerId);

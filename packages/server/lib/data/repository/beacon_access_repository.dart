@@ -7,7 +7,7 @@ import '../database/tentura_db.dart';
 
 @LazySingleton(as: BeaconAccessGuard)
 class BeaconAccessRepository implements BeaconAccessGuard {
-  BeaconAccessRepository(this._db);
+  const BeaconAccessRepository(this._db);
 
   final TenturaDb _db;
 

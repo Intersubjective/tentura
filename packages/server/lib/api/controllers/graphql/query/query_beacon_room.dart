@@ -1,7 +1,6 @@
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
-import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
@@ -100,17 +99,10 @@ final class QueryBeaconRoom extends GqlNodeBase {
         arguments: [
           _beaconIdStr.field,
         ],
-        resolve: (_, args) async {
-          final beaconId = _beaconIdStr.fromArgsNonNullable(args);
-          final userId = getCredentials(args).sub;
-          if (!await GetIt.I<BeaconAccessGuard>().canReadContent(
-            beaconId: beaconId,
-            viewerId: userId,
-          )) {
-            return const <Map<String, Object?>>[];
-          }
-          return _case.listActivityEvents(beaconId: beaconId, userId: userId);
-        },
+        resolve: (_, args) => _case.listActivityEvents(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get inboxRoomContextBatch =>
