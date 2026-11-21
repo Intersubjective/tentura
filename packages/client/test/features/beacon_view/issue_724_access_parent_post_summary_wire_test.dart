@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_ban
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
+import 'interactive_descendants.dart';
 
 void main() {
   const requestId = 'Bea026c489fab';
@@ -53,7 +54,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('из которого он вырос'), findsNothing);
-      expect(find.byKey(RequestAccessReasonBanner.openParentKey), findsNothing);
+      expect(
+        findInteractiveDescendants(find.byType(RequestAccessReasonBanner)),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -87,7 +91,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('из которого он вырос'), findsNothing);
-      expect(find.byKey(RequestAccessReasonBanner.openParentKey), findsNothing);
+      expect(
+        findInteractiveDescendants(find.byType(RequestAccessReasonBanner)),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     },
   );

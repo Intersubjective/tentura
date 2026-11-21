@@ -24,6 +24,7 @@ import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_screen_harness.dart';
+import 'interactive_descendants.dart';
 
 const _requestId = 'Brequest00001';
 const _postId = 'Bparentpost01';
@@ -225,10 +226,9 @@ void main() {
         [
           reads,
           find.text(_relatedText).evaluate().length,
-          find
-              .byKey(const Key('request-access-reason-open-parent'))
-              .evaluate()
-              .length,
+          findInteractiveDescendants(
+            find.byType(RequestAccessReasonBanner),
+          ).evaluate().length,
         ],
         [
           [('BeaconFetchById', _requestId)],

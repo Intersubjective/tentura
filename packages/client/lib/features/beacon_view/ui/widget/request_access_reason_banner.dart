@@ -15,8 +15,6 @@ class RequestAccessReasonBanner extends StatelessWidget {
 
   final Beacon beacon;
 
-  static const openParentKey = Key('request-access-reason-open-parent');
-
   @visibleForTesting
   static const bodyTextKey = Key('request-access-reason-body');
 

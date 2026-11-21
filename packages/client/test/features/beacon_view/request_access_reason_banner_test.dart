@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +14,7 @@ import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_ban
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
+import 'interactive_descendants.dart';
 
 const _bannerText =
     'You can see this request because you take part in a related request.';
@@ -86,7 +91,81 @@ Future<void> _pumpBanner(
   await tester.pumpAndSettle();
 }
 
+bool _hasTapAction(SemanticsNode node) {
+  if (node.getSemanticsData().hasAction(SemanticsAction.tap)) return true;
+  var descendantHasTap = false;
+  node.visitChildren((child) {
+    descendantHasTap = _hasTapAction(child);
+    return !descendantHasTap;
+  });
+  return descendantHasTap;
+}
+
+Future<void> _expectInformationalBanner(WidgetTester tester) async {
+  final banner = find.byType(RequestAccessReasonBanner);
+  expect(banner, findsOneWidget);
+  expect(findInteractiveDescendants(banner), findsNothing);
+
+  final handle = tester.ensureSemantics();
+  try {
+    await tester.pump();
+    expect(_hasTapAction(tester.getSemantics(banner)), isFalse);
+  } finally {
+    handle.dispose();
+  }
+}
+
+bool _declaresParentActionKey() {
+  const path =
+      'lib/features/beacon_view/ui/widget/'
+      'request_access_reason_banner.dart';
+  final unit = parseString(
+    content: File(path).readAsStringSync(),
+    path: path,
+  ).unit;
+  final banner = unit.declarations.whereType<ClassDeclaration>().single;
+  return banner.body.members.whereType<FieldDeclaration>().any(
+    (member) => member.fields.variables.any(
+      (field) => field.name.lexeme == 'openParentKey',
+    ),
+  );
+}
+
 void main() {
+  testWidgets('detects an action alongside the explanation text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: TenturaResponsiveScope(
+          child: Scaffold(
+            body: TenturaTechCard(
+              child: Column(
+                children: [
+                  const Text(_bannerText),
+                  TextButton(onPressed: () {}, child: const Text('Open')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final card = find.byType(TenturaTechCard);
+    final actions = findInteractiveDescendants(card);
+    expect(find.text(_bannerText), findsOneWidget);
+    expect(actions, findsOneWidget);
+    expect(tester.widget(actions), isA<TextButton>());
+    final handle = tester.ensureSemantics();
+    try {
+      await tester.pump();
+      expect(_hasTapAction(tester.getSemantics(card)), isTrue);
+    } finally {
+      handle.dispose();
+    }
+  });
+
   testWidgets('shown for context-child observer', (tester) async {
     await _pumpBanner(
       tester,
@@ -158,10 +237,7 @@ void main() {
       await _pumpBanner(tester, budded);
       expect(find.text(_bannerText), findsOneWidget);
       expect(find.textContaining('it grew from'), findsNothing);
-      expect(
-        find.byKey(RequestAccessReasonBanner.openParentKey),
-        findsNothing,
-      );
+      await _expectInformationalBanner(tester);
     });
 
     testWidgets(
@@ -199,10 +275,7 @@ void main() {
         );
         expect(find.text(_bannerText), findsOneWidget);
         expect(find.textContaining('it grew from'), findsNothing);
-        expect(
-          find.byKey(RequestAccessReasonBanner.openParentKey),
-          findsNothing,
-        );
+        await _expectInformationalBanner(tester);
       },
     );
 
@@ -217,6 +290,7 @@ void main() {
         );
         expect(find.text(_bannerText), findsOneWidget);
         expect(find.textContaining('it grew from'), findsNothing);
+        await _expectInformationalBanner(tester);
       },
     );
 
@@ -228,7 +302,19 @@ void main() {
         budded,
       );
       expect(find.text(_bannerText), findsOneWidget);
-      expect(find.byKey(RequestAccessReasonBanner.openParentKey), findsNothing);
+      await _expectInformationalBanner(tester);
+      if (_declaresParentActionKey()) {
+        expect(
+          find.descendant(
+            of: find.byType(RequestAccessReasonBanner),
+            matching: find.byKey(
+              const Key('request-access-reason-open-parent'),
+            ),
+          ),
+          findsOneWidget,
+          reason: 'If the banner keeps openParentKey, it must bind the key.',
+        );
+      }
     });
 
     testWidgets(
@@ -238,6 +324,7 @@ void main() {
       ) async {
         await _pumpBanner(tester, budded);
         expect(find.text(_bannerText), findsOneWidget);
+        await _expectInformationalBanner(tester);
       },
     );
 
@@ -268,6 +355,7 @@ void main() {
       expect(plain, _relatedRussian);
       expect(plain, isNot(contains('GQ1024')));
       expect(plain, isNot(contains('…')));
+      await _expectInformationalBanner(tester);
     });
 
     testWidgets(
@@ -285,10 +373,7 @@ void main() {
         final plain = paragraph.text.toPlainText();
         expect(plain, _bannerText);
         expect(plain, isNot(contains('GQ1024')));
-        expect(
-          find.byKey(RequestAccessReasonBanner.openParentKey),
-          findsNothing,
-        );
+        await _expectInformationalBanner(tester);
       },
     );
 
@@ -307,6 +392,7 @@ void main() {
         final plain = paragraph.text.toPlainText();
         expect(plain, _relatedRussian);
         expect(plain, isNot(contains('GQ1024')));
+        await _expectInformationalBanner(tester);
       },
     );
 
@@ -322,6 +408,7 @@ void main() {
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);
         expect(paragraph.text.toPlainText(), _bannerText);
+        await _expectInformationalBanner(tester);
       },
     );
   });

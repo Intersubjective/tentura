@@ -11,13 +11,13 @@ import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_ban
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
+import 'interactive_descendants.dart';
 
 const _english =
     'You can see this request because you take part in a related request.';
 const _russian =
     'Вы видите этот запрос, потому что участвуете в связанном запросе.';
 const _excerpt = 'Garden volunteers';
-const _openParent = Key('request-access-reason-open-parent');
 const _child = BeaconAccessReason.contextChild;
 const _ancestor = BeaconAccessReason.contextAncestor;
 const _observer = BeaconAccessLevel.observer;
@@ -99,12 +99,12 @@ void _expectRelatedBannerWithoutPostCopy(
     {
       'related Request explanation': related.evaluate().length,
       'Post-specific copy': retired.evaluate().length,
-      'open Post action': find.byKey(_openParent).evaluate().length,
+      'banner actions': findInteractiveDescendants(banner).evaluate().length,
     },
     {
       'related Request explanation': 1,
       'Post-specific copy': 0,
-      'open Post action': 0,
+      'banner actions': 0,
     },
   );
 }
