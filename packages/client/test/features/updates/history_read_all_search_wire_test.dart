@@ -31,6 +31,8 @@ const _activity = AttentionFeedDestinationId.activityStream;
 const _viewer = 'Uviewer000001';
 const _readId = 'Nread00000001';
 const _newId = 'Nnew000000001';
+const _deskId = 'Ndesk00000001';
+const _deskBeaconId = 'Bdesk00000001';
 const _readTitle = 'Earlier message';
 const _newTitle = 'New reply';
 const _noMatch = 'zzz';
@@ -38,6 +40,106 @@ const _timestamp = '2026-11-01T08:00:00Z';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final (name, view, beaconId, includeActivity) in [
+    (
+      'clears My Desk by Request from Unread',
+      AttentionView.unread,
+      _deskBeaconId,
+      false,
+    ),
+    (
+      'clears My Desk by receipt from Unread',
+      AttentionView.unread,
+      null,
+      false,
+    ),
+    (
+      'clears My Desk and Activity from All',
+      AttentionView.all,
+      _deskBeaconId,
+      true,
+    ),
+  ]) {
+    test(
+      'History Read all with an empty search result $name',
+      () => _withFeed((feed) async {
+        feed.server.desk = _DeskReceipt(beaconId);
+        feed.server.delivered = includeActivity;
+        final history = feed.open(_history);
+        await history.setView(view);
+        await feed.search(history, _history, _noMatch);
+        expect(history.state.view, view);
+        expect(history.state.items, isEmpty);
+
+        final before = await feed.repository.fetch(view: AttentionView.unread);
+        expect(
+          before.page.items.map((row) => row.id),
+          unorderedEquals([_deskId, if (includeActivity) _newId]),
+        );
+        final desk = before.page.items.singleWhere((row) => row.id == _deskId);
+        expect(desk.surface, AttentionSurface.myWork);
+        expect(desk.beaconId, beaconId);
+        expect(desk.isSeen, isFalse);
+        expect(desk.isCleared, isFalse);
+        expect(desk.requiresAction, isFalse);
+
+        final beforeAction = feed.sent.length;
+        expect(await history.markAllSeen(), isTrue);
+        final requests = feed.sent.skip(beforeAction).toList();
+        final sweep = requests.indexWhere(
+          (request) => request.operationName == 'AttentionDismissAll',
+        );
+        expect(sweep, greaterThanOrEqualTo(0));
+        final capture = requests.singleWhere(
+          (request) => request.operationName == 'AttentionClearSnapshot',
+        );
+        expect(capture.variables['beaconId'], beaconId);
+        expect(
+          capture.variables['receiptId'],
+          beaconId == null ? _deskId : null,
+        );
+        final readbacks = requests
+            .skip(sweep + 1)
+            .takeWhile((request) => request != capture)
+            .where(
+              (request) =>
+                  request.operationName == 'AttentionFeed' &&
+                  request.variables['view'] == 'unread',
+            )
+            // The open Unread tab also refreshes its own filtered head.
+            .where(
+              (request) =>
+                  view != AttentionView.unread ||
+                  request.variables['search'] != _noMatch,
+            );
+        expect(readbacks, isNotEmpty);
+        expect(
+          readbacks.map((request) => request.variables['search']),
+          everyElement(isNull),
+        );
+
+        final deskUnread = await feed.repository.fetch(
+          view: AttentionView.unread,
+          surface: AttentionSurface.myWork,
+        );
+        expect(deskUnread.page.items, isEmpty);
+        expect(deskUnread.summary.unreadTotal, 0);
+        final historyUnread = await feed.repository.fetch(
+          view: AttentionView.unread,
+        );
+        expect(historyUnread.page.items, isEmpty);
+        final all = await feed.repository.fetch(view: AttentionView.all);
+        final cleared = all.page.items.singleWhere((row) => row.id == _deskId);
+        expect(cleared.isSeen, isTrue);
+        expect(cleared.isCleared, isTrue);
+        await feed.waitForSummary(0);
+        expect(history.state.searchText, _noMatch);
+        expect(history.state.items, isEmpty);
+        expect(history.state.actionError, isNull);
+      }),
+    );
+  }
 
   test(
     'History Read all follows new receipts outside an empty search through the sweep',
@@ -444,13 +546,23 @@ class _HistoryRouter extends Mock implements StackRouter {
   }) => false;
 }
 
-// HTTP fixture for one already-read, cleared row and a later sweepable row.
+final class _DeskReceipt {
+  _DeskReceipt(this.beaconId);
+
+  final String? beaconId;
+  bool seen = false;
+  bool cleared = false;
+}
+
+// HTTP fixture for an already-cleared row, an optional Activity row taken by
+// the sweep, and an optional My Desk row that requires a separate clear.
 // The feed summary counts unread rows by surface independently of search.
 // The server searches presentation payload fields and the actor name. These
 // rows have no actor, so the fixture matches plain words against the payload.
 // The Activity surface rejects non-blank search.
 final class _ReceiptServer {
   bool delivered = false;
+  _DeskReceipt? desk;
   bool _seen = false;
   bool _cleared = false;
 
@@ -467,6 +579,8 @@ final class _ReceiptServer {
       (request.variables['search'] as String? ?? '').trim();
 
   Future<Map<String, dynamic>> respond(WireSent request) async {
+    final desk = this.desk;
+    final deskUnread = desk != null && !desk.cleared;
     switch (request.operationName) {
       case 'AttentionSurfaceSummary':
         final eligible = delivered && !_cleared;
@@ -474,12 +588,12 @@ final class _ReceiptServer {
           '__typename': 'query_root',
           'attentionSurfaceSummary': {
             '__typename': 'v2_AttentionSurfaceSummary',
-            'myDeskDot': false,
-            'myDeskCount': 0,
+            'myDeskDot': deskUnread,
+            'myDeskCount': deskUnread ? 1 : 0,
             'forYouDot': eligible,
             'forYouSweepEligible': eligible,
             'forYouReceiptSweepEligible': eligible,
-            'unreadTotal': eligible ? 1 : 0,
+            'unreadTotal': (eligible ? 1 : 0) + (deskUnread ? 1 : 0),
             'needsYouTotal': 0,
           },
         };
@@ -487,6 +601,8 @@ final class _ReceiptServer {
         final surface = request.variables['surface'];
         final onRequestedSurface =
             surface == null || surface == AttentionSurface.activityWire;
+        final onDeskSurface =
+            surface == null || surface == AttentionSurface.myWorkWire;
         final unread = onRequestedSurface && delivered && !_cleared;
         final all = request.variables['view'] == 'all';
         final search = _searchText(request);
@@ -504,7 +620,8 @@ final class _ReceiptServer {
             '__typename': 'v2_AttentionFeed',
             'summary': {
               '__typename': 'v2_AttentionSummary',
-              'unreadTotal': unread ? 1 : 0,
+              'unreadTotal':
+                  (unread ? 1 : 0) + (onDeskSurface && deskUnread ? 1 : 0),
               'needsYouTotal': 0,
             },
             'page': {
@@ -518,6 +635,16 @@ final class _ReceiptServer {
                     searchWords: searchWords,
                     seen: _seen,
                     cleared: _cleared,
+                  ),
+                if (onDeskSurface && desk != null && (deskUnread || all))
+                  _matchingReceipt(
+                    _deskId,
+                    'My Desk reply',
+                    searchWords: searchWords,
+                    seen: desk.seen,
+                    cleared: desk.cleared,
+                    surface: AttentionSurface.myWorkWire,
+                    beaconId: desk.beaconId,
                   ),
                 if (onRequestedSurface && all)
                   _matchingReceipt(
@@ -533,9 +660,12 @@ final class _ReceiptServer {
         };
       case 'AttentionMarkAllSeen':
         expect(request.variables['surface'], isNull);
-        expect(delivered, isTrue);
         _seen = true;
-        return {'__typename': 'mutation_root', 'attentionMarkAllSeen': 1};
+        desk?.seen = true;
+        return {
+          '__typename': 'mutation_root',
+          'attentionMarkAllSeen': (delivered ? 1 : 0) + (deskUnread ? 1 : 0),
+        };
       case 'AttentionDismissAll':
         expect(request.variables['includeOutcomes'], isFalse);
         expect(_seen, isTrue);
@@ -546,14 +676,45 @@ final class _ReceiptServer {
             '__typename': 'v2_AttentionDismissAllResult',
             'operationId': request.variables['operationId'],
             'status': 'complete',
-            'appliedReceiptIds': [_newId],
+            'appliedReceiptIds': [if (delivered) _newId],
             'appliedOutcomeBeaconIds': <String>[],
-            'appliedCount': 1,
+            'appliedCount': delivered ? 1 : 0,
             'skipped': <Object>[],
             'failed': <Object>[],
             'pendingCount': 0,
             'undoToken': null,
             'undoDeadline': null,
+          },
+        };
+      case 'AttentionClearSnapshot':
+        final matched =
+            deskUnread &&
+            (desk.beaconId == null
+                ? request.variables['receiptId'] == _deskId
+                : request.variables['beaconId'] == desk.beaconId);
+        return {
+          '__typename': 'query_root',
+          'attentionClearSnapshot': {
+            '__typename': 'v2_AttentionClearSnapshot',
+            'snapshotToken': matched ? 'desk-snapshot' : 'empty-snapshot',
+            'receiptIds': [if (matched) _deskId],
+            'outcomeGeneration': 0,
+            'decisionRevision': 0,
+          },
+        };
+      case 'AttentionClear':
+        final applied =
+            deskUnread && request.variables['snapshotToken'] == 'desk-snapshot';
+        if (applied) desk.cleared = true;
+        return {
+          '__typename': 'mutation_root',
+          'attentionClear': {
+            '__typename': 'v2_AttentionClearResult',
+            'operationId': request.variables['operationId'],
+            'status': 'complete',
+            'appliedReceiptIds': [if (applied) _deskId],
+            'skippedReceiptIds': <String>[],
+            'deniedReceiptIds': <String>[],
           },
         };
       default:
@@ -568,10 +729,12 @@ Map<String, dynamic>? _matchingReceipt(
   required Iterable<String>? searchWords,
   required bool seen,
   required bool cleared,
+  String surface = AttentionSurface.activityWire,
+  String? beaconId = 'Bbeacon000001',
 }) {
   final payload = {
     'eventType': 'roomMessagePosted',
-    'beaconId': 'Bbeacon000001',
+    if (beaconId != null) 'beaconId': beaconId,
     'coordinationItemId': 'Icoord0000001',
     'targetEntityId': 'Ntarget000001',
     'messageId': id,
@@ -592,6 +755,7 @@ Map<String, dynamic>? _matchingReceipt(
     'body': 'Message preview',
     'actionUrl': '/#/',
     'createdAt': _timestamp,
+    'beaconId': surface == AttentionSurface.myWorkWire ? beaconId : null,
     'seenAt': seen ? _timestamp : null,
     'collapsedCount': 1,
     'sourceEventKey': id,
@@ -599,7 +763,7 @@ Map<String, dynamic>? _matchingReceipt(
     'requiresAction': false,
     'clearedAt': cleared ? _timestamp : null,
     'clearReason': cleared ? 'manual' : null,
-    'surface': AttentionSurface.activityWire,
+    'surface': surface,
     'itemKind': 'receipt',
     'eventsPreview': <Object?>[],
   };
