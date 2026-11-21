@@ -330,8 +330,6 @@ void main() {
           _ProfileRepository(),
           contactsCase,
           noopBlockCase(),
-          env: const Env(),
-          logger: Logger('test'),
         ),
       );
     final router = _Router();

@@ -37,8 +37,6 @@ ForwardCase buildTestForwardCase(ForwardRepository repository) {
     _UnusedProfiles(),
     contacts,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
 }
 

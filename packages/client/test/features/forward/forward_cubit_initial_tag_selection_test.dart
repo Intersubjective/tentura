@@ -145,8 +145,6 @@ Future<ForwardCase> _forwardCase() async {
     _Profiles(),
     contacts,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
 }
 

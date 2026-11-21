@@ -366,8 +366,6 @@ final class BudForward {
       contactsCase,
       noopBlockCase(),
       postBudPort: h.port,
-      env: const Env(),
-      logger: Logger('post-bud-forward'),
     );
     return BudForward._(forwardCase, authLocal, () async {
       await contactsCase.dispose();

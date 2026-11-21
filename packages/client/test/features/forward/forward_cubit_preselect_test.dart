@@ -150,8 +150,6 @@ _buildHarness({
     _PreselectProfileRepository(profiles),
     contactsCase,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
   return (
     forwardCase: forwardCase,

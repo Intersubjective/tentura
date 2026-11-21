@@ -132,8 +132,6 @@ void main() {
         _FakeProfileRepository(),
         contactsCase,
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('test'),
       );
 
       var fetchMineCalls = 0;

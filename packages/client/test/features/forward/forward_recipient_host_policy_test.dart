@@ -1125,8 +1125,6 @@ _buildForwardCaseHarness({
     _ProfileRepoForBand(),
     contactsCase,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
     clock: () => _todayUtc,
   );
   return (forwardCase: forwardCase, store: store);

@@ -336,8 +336,6 @@ Future<_Pumped> _pumpInviteStep(
       contactsCase,
       noopBlockCase(),
       postBudPort: PostBudRepository(remote),
-      env: const Env(),
-      logger: Logger('PostBudInvitePickerTest'),
     ),
   );
 

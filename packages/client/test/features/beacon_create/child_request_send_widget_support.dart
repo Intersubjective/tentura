@@ -178,8 +178,6 @@ Future<ContextCubit> registerChildSendCollaborators() async {
         _ProfileRepository(),
         contacts,
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('ChildSendWidget'),
       ),
     );
   addTearDown(() async {

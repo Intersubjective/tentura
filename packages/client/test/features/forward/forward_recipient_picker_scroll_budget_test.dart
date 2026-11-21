@@ -194,8 +194,6 @@ Future<void> _withPicker(
               _Profiles(),
               contacts,
               noopBlockCase(),
-              env: const Env(),
-              logger: Logger('ForwardScrollBudget'),
             ),
             effects: FakeUiEffectPort(),
           );

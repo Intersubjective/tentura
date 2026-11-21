@@ -231,8 +231,6 @@ Future<_RecordingPostPublishPort> _setUpCollaborators(
         _ProfileRepository(),
         contactsCase,
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('test'),
       ),
     );
 

@@ -168,8 +168,6 @@ _buildForwardCaseHarness() async {
     _FakeProfileRepository(),
     contactsCase,
     blockCase,
-    env: const Env(),
-    logger: Logger('test'),
   );
   contactsRepo.fetchMineHandler = () async => {'u-bob': 'Gym Bob'};
   final syncReady = contactsRepo.nextSync();

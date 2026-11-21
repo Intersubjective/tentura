@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/port/post_bud_port.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
@@ -30,7 +29,7 @@ import '../entity/lineage_suggestion_group.dart';
 import '../exception.dart';
 
 @singleton
-final class ForwardCase extends UseCaseBase {
+final class ForwardCase {
   ForwardCase(
     this._forwardRepository,
     this._authLocalRepository,
@@ -38,8 +37,6 @@ final class ForwardCase extends UseCaseBase {
     this._profileRepository,
     this._contactsCase,
     this._blockCase, {
-    required super.env,
-    required super.logger,
     @ignoreParam DateTime Function()? clock,
     @ignoreParam PostBudPort? postBudPort,
   }) : _clock = clock ?? DateTime.now,

@@ -137,8 +137,6 @@ ForwardCase _buildForwardCase(ContactNameStore store) {
     _FakeProfileRepository(),
     contactsCase,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
 }
 

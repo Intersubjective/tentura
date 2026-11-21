@@ -385,8 +385,6 @@ void main() {
         _FakeProfileRepository(),
         contactsCase,
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('test'),
       );
       authLocal.emit(viewerId);
       await Future<void>.delayed(Duration.zero);

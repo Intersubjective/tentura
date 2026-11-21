@@ -230,8 +230,6 @@ void main() {
             contactsCase,
             noopBlockCase(),
             postBudPort: PostBudRepository(remote),
-            env: const Env(),
-            logger: Logger('invite-candidates-test'),
           );
           load = await sut
               .loadPostBudInviteCandidates('post-1')

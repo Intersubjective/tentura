@@ -185,8 +185,6 @@ _buildHarness({
     _ProfileRepo(profiles),
     contactsCase,
     noopBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
   return (
     forwardCase: forwardCase,

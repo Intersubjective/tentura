@@ -162,8 +162,6 @@ _buildHarness({BeaconKind beaconKind = BeaconKind.request}) async {
     _FakeProfileRepository(),
     contactsCase,
     ControllableBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
   contactsRepo.fetchMineHandler = () async => {};
   final syncReady = contactsRepo.nextSync();

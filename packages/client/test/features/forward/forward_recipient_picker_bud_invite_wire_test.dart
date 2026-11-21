@@ -155,8 +155,6 @@ Future<ForwardCubit> _loadInviteCubit({required bool empty}) async {
         contactsCase,
         noopBlockCase(),
         postBudPort: PostBudRepository(remote),
-        env: const Env(),
-        logger: Logger('BudInvitePickerWireTest'),
       );
       cubit = ForwardCubit(
         beaconId: '',

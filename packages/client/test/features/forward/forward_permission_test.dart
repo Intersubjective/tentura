@@ -382,8 +382,6 @@ Future<void> _pumpForwardRoutes(
             CountingProfileRepository(),
             contacts,
             noopBlockCase(),
-            env: const Env(),
-            logger: Logger('test'),
           ),
         )
         ..registerSingleton<UiEffectPort>(FakeUiEffectPort());

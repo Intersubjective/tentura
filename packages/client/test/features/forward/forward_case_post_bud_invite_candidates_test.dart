@@ -152,8 +152,6 @@ _harness({
     contactsCase,
     ControllableBlockCase(),
     postBudPort: postBud,
-    env: const Env(),
-    logger: Logger('test'),
   );
   contactsRepo.fetchMineHandler = () async => {};
   final syncReady = contactsRepo.nextSync();

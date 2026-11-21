@@ -12,6 +12,7 @@ const _casePaths = {
       'lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart',
   'CredentialsCase':
       'lib/features/credentials/domain/use_case/credentials_case.dart',
+  'ForwardCase': 'lib/features/forward/domain/use_case/forward_case.dart',
   'FriendsCase': 'lib/features/friends/domain/use_case/friends_case.dart',
   'InboxCase': 'lib/features/inbox/domain/use_case/inbox_case.dart',
   'MyWorkCase': 'lib/features/my_work/domain/use_case/my_work_case.dart',
@@ -20,12 +21,34 @@ const _casePaths = {
 
 const _ambientDependencies = {'env', 'logger'};
 final _ambientNames = RegExp(r'\b(?:env|logger|UseCaseBase)\b');
+final _forwardAmbientNames = RegExp(
+  r'\b(?:env|logger|Env|Logger|UseCaseBase)\b',
+);
+final _generatedDart = RegExp(r'\.(?:config|freezed|g|gr|schema)\.dart$');
+const _forwardDependencyTypes = [
+  'ForwardRepository',
+  'AuthLocalRepositoryPort',
+  'BeaconFactCardRepository',
+  'ProfileRepositoryPort',
+  'ContactsCase',
+  'BlockCase',
+];
 
 void main() {
-  group('Use case wiring only supplies feature dependencies', () {
+  _testWiring('Use case wiring only supplies feature dependencies', {
+    for (final entry in _casePaths.entries)
+      if (entry.key != 'ForwardCase') entry.key: entry.value,
+  });
+  _testWiring('ForwardCase wiring only supplies feature dependencies', {
+    'ForwardCase': _casePaths['ForwardCase']!,
+  });
+}
+
+void _testWiring(String description, Map<String, String> casePaths) {
+  group(description, () {
     test('case sources omit the shared base and its unused imports', () {
       final violations = <String>[];
-      for (final MapEntry(key: name, value: path) in _casePaths.entries) {
+      for (final MapEntry(key: name, value: path) in casePaths.entries) {
         final source = File(path).readAsStringSync();
         final unit = parseString(content: source, path: path).unit;
         for (final directive in unit.directives.whereType<ImportDirective>()) {
@@ -40,17 +63,18 @@ void main() {
         final declaration = unit.declarations
             .whereType<ClassDeclaration>()
             .singleWhere((node) => node.namePart.typeName.lexeme == name);
-        if (name == 'MyWorkCase' || name == 'PostsCase') {
+        if (const {'ForwardCase', 'MyWorkCase', 'PostsCase'}.contains(name)) {
           if (declaration.finalKeyword == null) {
             violations.add('$path must declare final class $name');
           }
         }
-        if (const {
-          'BeaconThreadsCase',
-          'MyWorkCase',
-          'PostsCase',
-        }.contains(name)) {
-          for (final match in _ambientNames.allMatches(source)) {
+        final ambientPattern = switch (name) {
+          'ForwardCase' => _forwardAmbientNames,
+          'BeaconThreadsCase' || 'MyWorkCase' || 'PostsCase' => _ambientNames,
+          _ => null,
+        };
+        if (ambientPattern != null) {
+          for (final match in ambientPattern.allMatches(source)) {
             final line = unit.lineInfo.getLocation(match.start).lineNumber;
             violations.add('$path:$line mentions ${match.group(0)}');
           }
@@ -62,6 +86,14 @@ void main() {
         if (declaration.body case BlockClassBody(:final members)) {
           for (final constructor
               in members.whereType<ConstructorDeclaration>()) {
+            if (name == 'ForwardCase') {
+              if (!_hasForwardConstructorParameters(constructor, members)) {
+                violations.add(
+                  '$path must take ${_forwardDependencyTypes.join(', ')} in order '
+                  'and only the optional @ignoreParam overrides clock and postBudPort',
+                );
+              }
+            }
             for (final parameter
                 in constructor.parameters.parameters
                     .whereType<SuperFormalParameter>()) {
@@ -83,14 +115,17 @@ void main() {
           content: File(path).readAsStringSync(),
           path: path,
         );
-        final registrations = _CaseRegistrations();
+        final registrations = _CaseRegistrations(casePaths.keys);
         parsed.unit.accept(registrations);
-        expect(registrations.calls.keys, unorderedEquals(_casePaths.keys));
+        expect(registrations.calls.keys, unorderedEquals(casePaths.keys));
 
         final violations = <String>[];
         for (final entry in registrations.calls.entries) {
+          if (entry.key == 'ForwardCase') {
+            expect(entry.value, hasLength(1));
+          }
           for (final registration in entry.value) {
-            final constructors = _ConstructorCalls();
+            final constructors = _ConstructorCalls(casePaths.keys);
             registration.argumentList.accept(constructors);
             final calls = constructors.calls.where(
               (call) => call.name == entry.key,
@@ -104,6 +139,17 @@ void main() {
                 violations.add(
                   '$path must register BeaconThreadsCase as a singleton '
                   'with six positional feature dependency lookups',
+                );
+              }
+              if (call.name == 'ForwardCase' &&
+                  (registration.methodName.name != 'singleton' ||
+                      !_hasOrderedDependencyLookups(
+                        call,
+                        _forwardDependencyTypes,
+                      ))) {
+                violations.add(
+                  '$path must register ForwardCase as a singleton with its '
+                  'six positional feature dependency lookups in order',
                 );
               }
               if (call.name == 'PostsCase' &&
@@ -131,23 +177,46 @@ void main() {
       },
     );
 
-    test('client test callers and builders omit env and logger', () {
+    final checksForward = casePaths.containsKey('ForwardCase');
+    final callerDescription = checksForward
+        ? 'library and test callers omit ambient arguments and tests reuse builders'
+        : 'client test callers and builders omit env and logger';
+    test(callerDescription, () {
       final files =
-          Directory('test')
-              .listSync(recursive: true, followLinks: false)
+          ['test', if (checksForward) 'lib']
+              .expand(
+                (root) => Directory(root).listSync(
+                  recursive: true,
+                  followLinks: false,
+                ),
+              )
               .whereType<File>()
               .where((file) => file.path.endsWith('.dart'))
+              .where(
+                (file) =>
+                    file.path.startsWith('test/') ||
+                    (!_generatedDart.hasMatch(file.path) &&
+                        !file.path.contains('/_g/')),
+              )
               .toList()
             ..sort((left, right) => left.path.compareTo(right.path));
       final violations = <String>[];
       var myWorkCalls = 0;
       for (final file in files) {
         final source = file.readAsStringSync();
-        if (!_casePaths.keys.any(source.contains)) continue;
+        if (!casePaths.keys.any(source.contains)) continue;
         final parsed = parseString(content: source, path: file.path);
-        final constructors = _ConstructorCalls();
+        final constructors = _ConstructorCalls(casePaths.keys);
         parsed.unit.accept(constructors);
+        for (final call in constructors.calls) {
+          violations.addAll(_ambientArguments(file.path, parsed, call));
+        }
+        // The constructor argument rule also covers library callers. Builder
+        // reuse applies only to test files.
+        if (!file.path.startsWith('test/')) continue;
+
         var beaconThreadsCalls = 0;
+        var forwardCalls = 0;
         var postsCalls = 0;
         for (final call in constructors.calls) {
           if (call.name == 'MyWorkCase') myWorkCalls++;
@@ -155,12 +224,15 @@ void main() {
           if (call.name == 'BeaconThreadsCase' && !call.isSuper) {
             beaconThreadsCalls++;
           }
-          violations.addAll(_ambientArguments(file.path, parsed, call));
+          if (call.name == 'ForwardCase' && !call.isSuper) forwardCalls++;
         }
         if (beaconThreadsCalls > 1) {
           violations.add(
             '${file.path} should reuse one BeaconThreadsCase builder',
           );
+        }
+        if (forwardCalls > 1) {
+          violations.add('${file.path} should reuse one ForwardCase builder');
         }
         if (postsCalls > 1) {
           violations.add('$file should reuse one PostsCase builder');
@@ -183,16 +255,57 @@ typedef _ConstructorCall = ({
   bool isSuper,
 });
 
-bool _hasBeaconThreadsDependencies(_ConstructorCall call) {
+bool _hasForwardConstructorParameters(
+  ConstructorDeclaration constructor,
+  Iterable<ClassMember> members,
+) {
+  final parameters = constructor.parameters.parameters;
+  final positional = parameters
+      .where((parameter) => parameter.isPositional)
+      .toList();
+  final named = parameters.where((parameter) => parameter.isNamed);
+  final fieldTypes = {
+    for (final member in members.whereType<FieldDeclaration>())
+      for (final field in member.fields.variables)
+        field.name.lexeme: member.fields.type?.toSource(),
+  };
+  return positional.length == _forwardDependencyTypes.length &&
+      positional.indexed.every((entry) {
+        final (index, parameter) = entry;
+        final type =
+            parameter.type?.toSource() ??
+            (parameter is FieldFormalParameter
+                ? fieldTypes[parameter.name.lexeme]
+                : null);
+        return parameter.isRequiredPositional &&
+            type == _forwardDependencyTypes[index];
+      }) &&
+      named.length == 2 &&
+      named.map((parameter) => parameter.name?.lexeme).toSet().containsAll({
+        'clock',
+        'postBudPort',
+      }) &&
+      named.every(
+        (parameter) =>
+            parameter.isOptionalNamed &&
+            parameter.metadata.any(
+              (annotation) => annotation.name.name == 'ignoreParam',
+            ),
+      );
+}
+
+bool _hasBeaconThreadsDependencies(_ConstructorCall call) =>
+    _hasOrderedDependencyLookups(call, const [
+      'BeaconThreadsRepository',
+      'BeaconFactCardRepository',
+      'PollingRepository',
+      'BeaconRoomHintsRepository',
+      'RoomReadWatermarkStore',
+      'RealtimeSyncCase',
+    ]);
+
+bool _hasOrderedDependencyLookups(_ConstructorCall call, List<String> types) {
   final arguments = call.arguments.arguments;
-  const types = [
-    'BeaconThreadsRepository',
-    'BeaconFactCardRepository',
-    'PollingRepository',
-    'BeaconRoomHintsRepository',
-    'RoomReadWatermarkStore',
-    'RealtimeSyncCase',
-  ];
   return call.constructorName == null &&
       arguments.length == types.length &&
       arguments.indexed.every(
@@ -245,6 +358,9 @@ Iterable<String> _ambientArguments(
 }
 
 class _CaseRegistrations extends RecursiveAstVisitor<void> {
+  _CaseRegistrations(this.caseNames);
+
+  final Iterable<String> caseNames;
   final calls = <String, List<MethodInvocation>>{};
 
   @override
@@ -252,7 +368,7 @@ class _CaseRegistrations extends RecursiveAstVisitor<void> {
     final type = node.typeArguments?.arguments.singleOrNull;
     if (node.target case SimpleIdentifier(
       name: 'gh',
-    ) when type is NamedType && _casePaths.containsKey(type.name.lexeme)) {
+    ) when type is NamedType && caseNames.contains(type.name.lexeme)) {
       (calls[type.name.lexeme] ??= []).add(node);
     }
     super.visitMethodInvocation(node);
@@ -260,6 +376,9 @@ class _CaseRegistrations extends RecursiveAstVisitor<void> {
 }
 
 class _ConstructorCalls extends RecursiveAstVisitor<void> {
+  _ConstructorCalls(this.caseNames);
+
+  final Iterable<String> caseNames;
   final calls = <_ConstructorCall>[];
 
   void _record(
@@ -268,7 +387,7 @@ class _ConstructorCalls extends RecursiveAstVisitor<void> {
     String? constructorName,
     bool isSuper = false,
   }) {
-    if (_casePaths.containsKey(name)) {
+    if (caseNames.contains(name)) {
       calls.add((
         name: name,
         constructorName: constructorName,
@@ -309,7 +428,11 @@ class _ConstructorCalls extends RecursiveAstVisitor<void> {
     // Implicit constructors can parse as method calls before name resolution.
     final name = node.methodName.name;
     final targetName = node.target?.endToken.lexeme;
-    if (targetName != null && _casePaths.containsKey(targetName)) {
+    if (targetName == 'ForwardCase') {
+      // ForwardCase has only an unnamed constructor. Its other members are
+      // static methods, such as computeInvolvement.
+      if (name == 'new') _record('ForwardCase', node.argumentList);
+    } else if (targetName != null && caseNames.contains(targetName)) {
       _record(targetName, node.argumentList, constructorName: name);
     } else {
       _record(name, node.argumentList);

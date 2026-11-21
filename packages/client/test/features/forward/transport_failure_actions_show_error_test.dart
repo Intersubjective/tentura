@@ -390,8 +390,6 @@ void main() {
               _FakeProfileRepository(),
               contactsCase,
               noopBlockCase(),
-              env: const Env(),
-              logger: Logger('transport-failure-actions'),
             ),
             effects: effects,
           );

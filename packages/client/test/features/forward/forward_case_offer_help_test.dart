@@ -90,8 +90,6 @@ void main() {
         _UnusedProfiles(),
         contactsCase,
         noopBlockCase(),
-        env: const Env(),
-        logger: Logger('test'),
       );
     });
 

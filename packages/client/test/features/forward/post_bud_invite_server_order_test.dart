@@ -189,8 +189,6 @@ Future<ForwardCubit> _loadInviteCubit({
         contactsCase,
         noopBlockCase(),
         postBudPort: PostBudRepository(remote),
-        env: const Env(),
-        logger: Logger('BudInvitePickerWireTest'),
       );
       if (checkForwardOrder) {
         for (final profile in [

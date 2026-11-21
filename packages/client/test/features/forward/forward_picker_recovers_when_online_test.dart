@@ -248,8 +248,6 @@ Future<void> _withForwardPage(
       _FakeProfileRepository(),
       contactsCase,
       noopBlockCase(),
-      env: const Env(),
-      logger: Logger('forward-picker-recovery'),
     ),
     effects: GetIt.I<UiEffectPort>(),
   );

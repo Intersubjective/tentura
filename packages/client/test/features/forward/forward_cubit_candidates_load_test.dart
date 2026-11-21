@@ -122,8 +122,6 @@ _buildHarness({
     _FakeProfileRepository(),
     contactsCase,
     ControllableBlockCase(),
-    env: const Env(),
-    logger: Logger('test'),
   );
   contactsRepo.fetchMineHandler = () async => {};
   final syncReady = contactsRepo.nextSync();

@@ -195,8 +195,6 @@ void main() {
             _FakeProfileRepository(),
             contactsCase,
             noopBlockCase(),
-            env: const Env(),
-            logger: Logger('ForwardMutualSinceWireTest'),
           );
           load = await forwardCase.loadForwardCandidates(beaconId: '');
         },

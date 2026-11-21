@@ -181,8 +181,6 @@ Future<List<WireSent>> _withInviteCubit(
         contactsCase,
         noopBlockCase(),
         postBudPort: PostBudRepository(remote),
-        env: const Env(),
-        logger: Logger('PostBudInviteForwardTest'),
       );
       final cubit = ForwardCubit(
         beaconId: '',

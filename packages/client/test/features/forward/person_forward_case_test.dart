@@ -463,8 +463,6 @@ void main() {
           _FakeProfileRepository(const {}),
           contactsCase,
           noopBlockCase(),
-          env: const Env(),
-          logger: Logger('test'),
         );
 
         final load = await forwardCase.loadForwardCandidates(
