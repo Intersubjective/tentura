@@ -599,7 +599,7 @@ legacy callbacks adapt back to payloads.
 
 **Files:**
 
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
 - `packages/client/lib/features/graph/domain/entity/node_details.dart`
 - `packages/client/lib/features/graph/domain/entity/edge_details.dart`
 - `packages/client/lib/features/graph/ui/widget/graph_body.dart`
@@ -630,7 +630,7 @@ three production surfaces into one late commit.
 - `packages/client/lib/features/constellation/domain/constellation_layout.dart`
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
 - Constellation layout, cubit, interaction, and widget tests
 
 **Work:**
@@ -1076,7 +1076,7 @@ Add these exact files to M04/M05/M07 ownership packets when touched:
 `src/edge_painter/{edge_painter,line_edge_painter,animated_dash_edge_painter}.dart`,
 `src/model/graph_canvas_size.dart`, `src/util/extensions.dart`,
 `src/widget/inherited_configuration.dart` (relative to the graph package lib);
-client `features/graph/ui/utils/animated_highlighted_edge_painter.dart` and
+client `features/graph/ui/util/animated_highlighted_edge_painter.dart` and
 `features/graph/ui/widget/graph_legend_edge_swatch.dart`. Final builders receive
 `GraphSceneNode<N>` so node size is scene geometry; edge painters receive
 `GraphSceneEdge<E>` and resolved endpoints, with no `NodeBase`/`EdgeBase` bound.

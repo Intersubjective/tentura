@@ -875,7 +875,7 @@ TESTS: `cd packages/client && dart run build_runner build -d` — exit 0;
 FILES: packages/client/lib/features/graph/domain/entity/graph_mode.dart,
   packages/client/lib/features/graph/ui/widget/graph_legend_mode.dart,
   packages/client/lib/features/graph/domain/entity/node_details.dart,
-  packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart,
+  packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart,
   packages/client/lib/features/graph/ui/widget/graph_legend_content.dart,
   packages/client/lib/features/graph/ui/widget/graph_app_bar_actions.dart,
   packages/client/lib/features/graph/ui/widget/graph_node_widget.dart,

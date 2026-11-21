@@ -17,7 +17,7 @@ import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../../domain/entity/graph_edge_colors.dart';
 import '../bloc/graph_cubit.dart';
-import '../utils/graph_edge_style.dart';
+import '../util/graph_edge_style.dart';
 import 'graph_legend_edge_swatch.dart';
 import 'graph_legend_mode.dart';
 

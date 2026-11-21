@@ -87,7 +87,7 @@ P2 can run in parallel with P1, because it only touches the server.
 ### U02 Domain geometry, layout purity (ARCH §4.1, §8)
 - **New:** `features/constellation/domain/layout/layout_geometry.dart`, containing records `LPoint = ({double x, double y})`, `LSize`, `LRect` plus helpers.
 - Swap `dart:ui` `Offset`/`Size` in `domain/constellation_layout.dart` and `features/graph/domain/layout/radial_hop_positions.dart`.
-- Add UI adapters (`ui/scene/geometry_adapters.dart`) at every call site in `ui/` and `features/graph/ui/utils/tentura_layout_algorithms.dart`.
+- Add UI adapters (`ui/scene/geometry_adapters.dart`) at every call site in `ui/` and `features/graph/ui/util/tentura_layout_algorithms.dart`.
 - **Tests:** the existing `constellation_layout_test.dart`, `constellation_p06_composition_layout_test.dart` and graph layout tests are the oracle, unchanged except for type adaptation in their fixtures.
 - **Acceptance:**
   - `rg "dart:ui|package:flutter" packages/client/lib/features/constellation/domain packages/client/lib/features/graph/domain/layout` is empty;

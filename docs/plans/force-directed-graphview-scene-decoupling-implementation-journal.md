@@ -507,8 +507,8 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - `packages/force_directed_graphview/lib/src/layout_algorithm/bound_scene_layout_algorithm.dart` (new)
 - `packages/force_directed_graphview/lib/force_directed_graphview.dart`
 - `packages/force_directed_graphview/lib/src/controller.dart`
-- `packages/client/lib/features/graph/ui/utils/graph_scene_ids.dart` (new)
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/util/graph_scene_ids.dart` (new)
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
 - `packages/client/lib/features/graph/ui/bloc/graph_cubit.dart`
 - `packages/client/lib/features/graph/ui/widget/graph_body.dart`
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart` (resolvers only)
@@ -571,7 +571,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 ### Changed paths (M06)
 
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
 - `packages/client/lib/features/constellation/ui/utils/constellation_graph_scene.dart` (new)
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
@@ -740,7 +740,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
 - `docs/plans/constellation-pinning-plan.md` (C6 cross-reference)
 - `docs/plans/constellation-pinning-implementation-journal.md` (M08 evidence)
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart` (EOF whitespace only)
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart` (EOF whitespace only)
 
 ### Commit
 

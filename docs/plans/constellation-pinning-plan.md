@@ -713,7 +713,7 @@ Use operation names `ConstellationFieldFetch`, `ConstellationAnchorsFetch`, `Con
 
 ### P06 — Pure composition, budgets and layout
 
-**Files:** `F/domain/constellation_cap_policy.dart`, `constellation_density.dart`, `constellation_layout.dart`, `constellation_consts.dart`, `constellation_filters.dart`, `domain/use_case/constellation_field_case.dart`; new `F/domain/constellation_anchor_composition.dart`, `F/domain/constellation_pin_position.dart`; `C/features/graph/ui/utils/tentura_layout_algorithms.dart`.
+**Files:** `F/domain/constellation_cap_policy.dart`, `constellation_density.dart`, `constellation_layout.dart`, `constellation_consts.dart`, `constellation_filters.dart`, `domain/use_case/constellation_field_case.dart`; new `F/domain/constellation_anchor_composition.dart`, `F/domain/constellation_pin_position.dart`; `C/features/graph/ui/util/tentura_layout_algorithms.dart`.
 
 Implement C5/C6 and a typed presentation result reused by both views. Store full automatic snapshot separately from anchor/support overlay. Layout input contains prior hints explicitly; never upload them. Density reserves nothing for pins; automatic selection continues to its own full budget. Hidden support is recomputed without pruning automatic copies.
 

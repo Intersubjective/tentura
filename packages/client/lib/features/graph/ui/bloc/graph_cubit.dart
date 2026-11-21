@@ -38,8 +38,8 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/forwards_recipient_marker.dart';
 import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/entity/node_details.dart';
-import '../utils/graph_edge_style.dart';
-import '../utils/graph_scene_ids.dart';
+import '../util/graph_edge_style.dart';
+import '../util/graph_scene_ids.dart';
 import 'graph_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';

@@ -4,7 +4,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
-import '../../../graph/ui/utils/graph_scene_ids.dart';
+import '../../../graph/ui/util/graph_scene_ids.dart';
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_layout.dart';

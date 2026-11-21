@@ -8,7 +8,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/domain/constellation_drag_cluster.dart';
 import 'package:tentura/features/constellation/domain/layout/constellation_magnet_layout.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 
 /// Magnets bias free members after normal layout. Clean priors keep repeated
 /// layout passes from compounding the attraction or moving unrelated people.

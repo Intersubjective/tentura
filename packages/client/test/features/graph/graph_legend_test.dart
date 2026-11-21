@@ -11,7 +11,7 @@ import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_edge_style.dart';
+import 'package:tentura/features/graph/ui/util/graph_edge_style.dart';
 
 import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';

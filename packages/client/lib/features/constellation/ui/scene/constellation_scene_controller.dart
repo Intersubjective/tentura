@@ -20,8 +20,8 @@ import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/features/forward/domain/entity/forward_recipient_offer_status.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
-import '../../../graph/ui/utils/graph_scene_ids.dart';
-import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
+import '../../../graph/ui/util/graph_scene_ids.dart';
+import '../../../graph/ui/util/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
 

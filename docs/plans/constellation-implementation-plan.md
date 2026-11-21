@@ -687,7 +687,7 @@ existing enums in `features/graph/domain/entity/graph_mode.dart` and
 `FieldPersonNode` / `FieldRequestNode` are added to
 `features/graph/domain/entity/node_details.dart`; the layout algorithm
 `ConstellationLayoutAlgorithm` is added to
-`features/graph/ui/utils/tentura_layout_algorithms.dart`.
+`features/graph/ui/util/tentura_layout_algorithms.dart`.
 
 **[resolves 14.2/8] The reused widgets need a provider-neutral seam first.**
 The reuse below does **not** work as-is: `GraphNodeWidget`
@@ -2061,7 +2061,7 @@ Implements **U8 / D1a / §4.2**.
 packages/client/lib/features/graph/domain/entity/graph_mode.dart          edit (+constellation)
 packages/client/lib/features/graph/ui/widget/graph_legend_mode.dart       edit (+constellation)
 packages/client/lib/features/graph/domain/entity/node_details.dart        edit (+FieldPersonNode, FieldRequestNode)
-packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart edit (+ConstellationLayoutAlgorithm)
+packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart edit (+ConstellationLayoutAlgorithm)
 packages/client/lib/features/graph/ui/widget/graph_legend_content.dart    edit
 packages/client/lib/features/graph/ui/widget/graph_app_bar_actions.dart   edit (exhaustive switch at :159)
 packages/client/lib/features/graph/ui/widget/graph_node_widget.dart       edit (provider seam, step 0)

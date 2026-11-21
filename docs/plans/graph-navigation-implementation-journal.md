@@ -12,7 +12,7 @@
 The following was present before orchestration and must not be reset, overwritten, or
 committed as part of this plan: modified `packages/client/l10n/app_en.arb`,
 `packages/client/l10n/app_ru.arb`,
-`packages/client/lib/features/graph/ui/utils/animated_highlighted_edge_painter.dart`,
+`packages/client/lib/features/graph/ui/util/animated_highlighted_edge_painter.dart`,
 `packages/client/lib/features/graph/ui/widget/graph_body.dart`,
 `packages/client/lib/features/graph/ui/widget/graph_legend_content.dart`,
 `packages/client/pubspec.yaml`,

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
-import 'package:tentura/features/graph/ui/utils/graph_edge_style.dart';
+import 'package:tentura/features/graph/ui/util/graph_edge_style.dart';
 
 const _colors = GraphEdgeColors(
   negative: Colors.red,

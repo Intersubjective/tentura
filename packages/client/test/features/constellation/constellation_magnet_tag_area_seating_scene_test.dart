@@ -8,8 +8,8 @@ import 'package:tentura/features/constellation/domain/layout/constellation_magne
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_magnet_layout.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/tentura_layout_algorithms.dart';
 
 import '../graph/scene_layout_test_support.dart';
 

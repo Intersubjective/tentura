@@ -12,7 +12,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_graph_scen
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 
 import '../../support/constellation_store_fixture.dart';
 

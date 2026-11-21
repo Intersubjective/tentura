@@ -278,7 +278,7 @@ flutter test
 - `packages/client/lib/features/constellation/domain/constellation_layout.dart`
 - `packages/client/lib/features/constellation/domain/constellation_pin_position.dart`
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
-- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/util/tentura_layout_algorithms.dart`
 - `packages/client/test/features/constellation/constellation_layout_test.dart`
 - `packages/client/test/features/constellation/constellation_p06_composition_layout_test.dart`
 - `docs/plans/constellation-ui-remediation-journal.md`

@@ -8,8 +8,8 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/tentura_layout_algorithms.dart';
 
 import '../graph/scene_layout_test_support.dart';
 
