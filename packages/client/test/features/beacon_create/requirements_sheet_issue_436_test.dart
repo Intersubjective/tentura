@@ -11,8 +11,8 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 // #436 (QA 7.50.6), the Requirements sheet:
 // 1. On desktop at 150% zoom the group list overflows and the last group
@@ -53,7 +53,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     await tester.pumpWidget(

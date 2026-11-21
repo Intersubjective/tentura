@@ -9,8 +9,8 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 import 'fork_beacon_ports.dart';
 
 final _source = Beacon.empty.copyWith(
@@ -31,7 +31,7 @@ Future<BeaconCreateCubit> _openCopy(
   List<PlanStepTime>? planStepTimes,
 }) async {
   final cubit = BeaconCreateCubit(
-    beaconCreateCase: fakeBeaconCreateCase(write: write),
+    beaconCreateCase: buildBeaconCreateCase(beacons: write),
     effects: FakeUiEffectPort(),
     forkSourceIdToLoad: write.source.id,
     forkPlanStepTimes: planStepTimes,

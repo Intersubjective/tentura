@@ -25,7 +25,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
@@ -48,8 +47,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
-import '../beacon_create/fake_beacon_ports.dart' show FakeBeaconImagePort;
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart' show WireSent;
 import '../../support/test_realtime_sync.dart';
@@ -476,9 +475,8 @@ Future<void> withPostsTab(
                     create: (_) => BeaconCreateCubit(
                       kind: BeaconKind.post,
                       draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
-                      beaconCreateCase: BeaconCreateCase(
-                        beacons,
-                        FakeBeaconImagePort(),
+                      beaconCreateCase: buildBeaconCreateCase(
+                        beacons: beacons,
                       ),
                       effects: effects,
                     ),

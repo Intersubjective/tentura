@@ -33,13 +33,13 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../ui/snack_bar_clearance_support.dart';
-import 'fake_beacon_ports.dart';
 
 // #406: on the new-Request Recipients step the red «Image is not attached…»
 // error bar and the «Invite saved» notice were drawn across the embedded
@@ -210,7 +210,7 @@ void main() {
     addTearDown(tester.view.reset);
     createCubit =
         BeaconCreateCubit(
-            beaconCreateCase: fakeBeaconCreateCase(),
+            beaconCreateCase: buildBeaconCreateCase(),
             effects: FakeUiEffectPort(),
           )
           ..setTitle('Need a piano moved')

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -21,7 +22,10 @@ void main() {
       final write = FakeBeaconWritePort()..stageIds.add('srv-1');
       final images = FakeBeaconImagePort(picked: [_picked('a.jpg')]);
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write, images: images),
+        beaconCreateCase: buildBeaconCreateCase(
+          beacons: write,
+          images: images,
+        ),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);

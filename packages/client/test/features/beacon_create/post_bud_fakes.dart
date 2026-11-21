@@ -45,6 +45,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -219,7 +220,7 @@ final class BudHarness {
   final port = FakePostBudPort();
 
   BeaconCreateCase get createCase =>
-      BeaconCreateCase(write, FakeBeaconImagePort());
+      buildBeaconCreateCase(beacons: write);
 
   PostBudCase get postBudCase => PostBudCase(
     port,

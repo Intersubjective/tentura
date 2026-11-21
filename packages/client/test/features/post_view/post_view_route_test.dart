@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
@@ -39,6 +38,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../support/attention_case_factory.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -241,7 +241,10 @@ Future<RootStackRouter> _pumpRoute(
             canCreateChild: false,
           ),
         ),
-        createCase: BeaconCreateCase(_NoopWritePort(), ImageRepository()),
+        createCase: buildBeaconCreateCase(
+          beacons: _NoopWritePort(),
+          images: ImageRepository(),
+        ),
         beacons: _NoopWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
       ),

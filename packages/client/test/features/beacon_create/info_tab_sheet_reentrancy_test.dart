@@ -16,6 +16,7 @@ import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -102,7 +103,7 @@ void main() {
 
   BeaconCreateCubit buildCubit({FakeBeaconWritePort? write}) =>
       cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
 

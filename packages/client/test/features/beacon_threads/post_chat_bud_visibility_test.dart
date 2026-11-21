@@ -13,7 +13,6 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -26,6 +25,7 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -155,7 +155,7 @@ void main() {
       ..registerSingleton<BeaconHierarchyCase>(
         buildBeaconHierarchyCaseForTest(
           hierarchy,
-          createCase: BeaconCreateCase(beacons, FakeBeaconImagePort()),
+          createCase: buildBeaconCreateCase(beacons: beacons),
           beacons: beacons,
           commandStore: InMemoryBeaconChildCommandStore(),
         ),

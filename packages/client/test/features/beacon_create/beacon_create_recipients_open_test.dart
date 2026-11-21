@@ -14,6 +14,7 @@ import 'package:tentura/features/invitation/data/repository/invitation_repositor
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -140,7 +141,7 @@ void main() {
         beacon: _validDraftBeacon(),
       );
       final createCubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         draftBeaconIdToLoad: 'draft-1',
         effects: FakeUiEffectPort(),
       );
@@ -168,7 +169,7 @@ void main() {
     (tester) async {
       final write = FakeBeaconWritePort(beacon: _validDraftBeacon());
       final createCubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         draftBeaconIdToLoad: 'draft-1',
         effects: FakeUiEffectPort(),
       );
@@ -194,7 +195,7 @@ void main() {
     (tester) async {
       final write = FakeBeaconWritePort(beacon: _validDraftBeacon());
       final createCubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         draftBeaconIdToLoad: 'draft-1',
         effects: FakeUiEffectPort(),
       );
@@ -218,7 +219,7 @@ void main() {
     'new draft without required fields shows blocked tab before draft exists',
     (tester) async {
       final createCubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(createCubit.close);

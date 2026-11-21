@@ -8,6 +8,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/beacon_create/ui/widget/cover_block.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -42,7 +43,7 @@ void main() {
   setUp(() {
     images = FakeBeaconImagePort();
     cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(images: images),
+      beaconCreateCase: buildBeaconCreateCase(images: images),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);

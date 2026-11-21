@@ -14,6 +14,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -101,7 +102,7 @@ void main() {
   testWidgets('new request defaults discoverability on', (tester) async {
     final write = FakeBeaconWritePort();
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
@@ -137,7 +138,7 @@ void main() {
       ),
     );
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
       editBeaconIdToLoad: 'B-edit',
     );
@@ -211,7 +212,7 @@ void main() {
     (tester) async {
       final write = FakeBeaconWritePort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);

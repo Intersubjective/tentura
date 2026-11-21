@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import 'fake_beacon_ports.dart';
 
 ImageEntity _local(String key) => ImageEntity(
@@ -44,7 +45,7 @@ void main() {
   group('field command selection', () {
     test('create only calls create and forwards the draft flag', () async {
       final write = FakeBeaconWritePort();
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(_command(draft: true));
 
@@ -56,7 +57,7 @@ void main() {
 
     test('saveDraft only calls updateDraft', () async {
       final write = FakeBeaconWritePort();
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveDraft(_command(id: 'b-1'));
 
@@ -67,7 +68,7 @@ void main() {
 
     test('saveEdit only calls update', () async {
       final write = FakeBeaconWritePort();
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(_command(id: 'b-1'));
 
@@ -88,7 +89,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       final result = await sut.saveEdit(_command(id: 'b-1'));
 
@@ -106,7 +107,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       final result = await sut.saveEdit(
         _command(id: 'b-1', images: const [_server], coverKey: 'srv-1'),
@@ -126,7 +127,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(
         _command(id: 'b-1', images: const [_server, second], coverKey: 'srv-2'),
@@ -147,7 +148,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(_command(id: 'b-1'));
 
@@ -167,7 +168,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(
         _command(
@@ -192,7 +193,7 @@ void main() {
           coverSource: BeaconCoverSource.photo,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(
         _command(id: 'b-1', images: const [_server], coverKey: 'srv-1'),
@@ -210,7 +211,7 @@ void main() {
           coverSource: BeaconCoverSource.symbol,
         ),
       );
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       // The command's fields carry BeaconCoverSource.photo.
       await sut.saveEdit(
@@ -224,7 +225,7 @@ void main() {
   group('media reconciliation', () {
     test('every local image is staged; none rides along with create', () async {
       final write = FakeBeaconWritePort()..stageIds.addAll(['s1', 's2']);
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       final result = await sut.create(
         _command(images: [_local('k1'), _local('k2')], coverKey: 'k1'),
@@ -236,7 +237,7 @@ void main() {
 
     test('reconciles exactly once and sends the staged ids in order', () async {
       final write = FakeBeaconWritePort()..stageIds.addAll(['s1', 's2']);
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(
         _command(images: [_local('k1'), _local('k2')], coverKey: 'k2'),
@@ -252,7 +253,7 @@ void main() {
 
     test('stages cover thumb separately and sends its id in setMedia', () async {
       final write = FakeBeaconWritePort()..stageIds.addAll(['s1', 'thumb-1']);
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(
         _command(
@@ -268,7 +269,7 @@ void main() {
 
     test('an already staged image is not staged again', () async {
       final write = FakeBeaconWritePort()..stageIds.add('s2');
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.saveEdit(
         _command(id: 'b-1', images: [_server, _local('k2')], coverKey: 'srv-1'),
@@ -281,7 +282,7 @@ void main() {
 
     test('a stale cover selection falls back to the first image', () async {
       final write = FakeBeaconWritePort()..stageIds.add('s1');
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(_command(images: [_local('k1')], coverKey: 'gone'));
 
@@ -290,7 +291,7 @@ void main() {
 
     test('no images means no cover id and an empty list', () async {
       final write = FakeBeaconWritePort();
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(_command());
 
@@ -300,7 +301,7 @@ void main() {
 
     test('symbol preference still publishes the photo selection', () async {
       final write = FakeBeaconWritePort()..stageIds.add('s1');
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await sut.create(
         BeaconSaveCommand(
@@ -318,7 +319,7 @@ void main() {
   group('failure carries progress forward', () {
     test('a failed field command reports the fields phase', () async {
       final write = FakeBeaconWritePort()..createError = Exception('boom');
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await expectLater(
         sut.create(_command(images: [_local('k1')], coverKey: 'k1')),
@@ -336,7 +337,7 @@ void main() {
       final write = FakeBeaconWritePort()
         ..stageIds.add('s1')
         ..failStageAtCall = 1;
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       BeaconSaveFailure? failure;
       try {
@@ -359,7 +360,7 @@ void main() {
       final write = FakeBeaconWritePort()
         ..stageIds.addAll(['s1', 's2'])
         ..failStageAtCall = 1;
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       BeaconSaveFailure? failure;
       try {
@@ -391,7 +392,7 @@ void main() {
       final write = FakeBeaconWritePort()
         ..stageIds.addAll(['s1', 's2', 's3', 's4'])
         ..failSetMediaAtCall = 0;
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       final result = await sut.create(
         _command(images: [_local('k1'), _local('k2')], coverKey: 'k1'),
@@ -406,7 +407,7 @@ void main() {
 
     test('recovery is not attempted without local bytes to re-send', () async {
       final write = FakeBeaconWritePort()..failSetMediaAtCall = 0;
-      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+      final sut = buildBeaconCreateCase(beacons: write);
 
       await expectLater(
         sut.saveEdit(
@@ -431,7 +432,7 @@ void main() {
           _picked('b.jpg'),
         ],
       );
-      final sut = BeaconCreateCase(FakeBeaconWritePort(), images);
+      final sut = buildBeaconCreateCase(images: images);
 
       final picked = await sut.pickImages();
 
@@ -444,7 +445,7 @@ void main() {
     test('cover crop uses held bytes and never fetches', () async {
       final images = FakeBeaconImagePort();
       final cropUi = FakeImageCropUi(result: _picked('cropped.jpg'));
-      final sut = BeaconCreateCase(FakeBeaconWritePort(), images);
+      final sut = buildBeaconCreateCase(images: images);
 
       final replacement = await sut.adjustCoverCrop(
         image: _local('k1'),
@@ -461,7 +462,7 @@ void main() {
     test('cover crop fetches server bytes when none are held', () async {
       final images = FakeBeaconImagePort();
       final cropUi = FakeImageCropUi(result: _picked('cropped.jpg'));
-      final sut = BeaconCreateCase(FakeBeaconWritePort(), images);
+      final sut = buildBeaconCreateCase(images: images);
 
       await sut.adjustCoverCrop(
         image: _server,
@@ -473,10 +474,7 @@ void main() {
     });
 
     test('a cancelled crop returns null', () async {
-      final sut = BeaconCreateCase(
-        FakeBeaconWritePort(),
-        FakeBeaconImagePort(),
-      );
+      final sut = buildBeaconCreateCase();
 
       final replacement = await sut.adjustCoverCrop(
         image: _local('k1'),
@@ -490,7 +488,7 @@ void main() {
     test('a failed byte fetch propagates instead of cropping', () async {
       final images = FakeBeaconImagePort()..fetchError = Exception('offline');
       final cropUi = FakeImageCropUi(result: _picked('cropped.jpg'));
-      final sut = BeaconCreateCase(FakeBeaconWritePort(), images);
+      final sut = buildBeaconCreateCase(images: images);
 
       await expectLater(
         sut.adjustCoverCrop(

@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.d
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 
 class _MutableChildrenPort extends FakeBeaconHierarchyRepositoryPort {
@@ -78,10 +79,7 @@ void main() {
   BeaconHierarchyCase buildHierarchyCase(_MutableChildrenPort port) =>
       buildBeaconHierarchyCaseForTest(
         port,
-        createCase: BeaconCreateCase(
-          FakeBeaconWritePort(),
-          FakeBeaconImagePort(),
-        ),
+        createCase: buildBeaconCreateCase(),
         beacons: FakeBeaconWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
         realtimeSyncCase: realtimeCase,
@@ -155,7 +153,7 @@ void main() {
         final port = _MutableChildrenPort();
         final hierarchyCase = buildBeaconHierarchyCaseForTest(
           port,
-          createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+          createCase: buildBeaconCreateCase(beacons: write),
           beacons: write,
           commandStore: InMemoryBeaconChildCommandStore(),
           realtimeSyncCase: realtimeCase,

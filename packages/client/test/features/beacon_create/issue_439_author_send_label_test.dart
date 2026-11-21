@@ -32,12 +32,12 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 // #439: on the new-Request Recipients step the author sends their own
 // Request, yet the primary button read «Forward to N», the shared-note sheet
@@ -201,7 +201,7 @@ void main() {
     addTearDown(tester.view.reset);
     createCubit =
         BeaconCreateCubit(
-            beaconCreateCase: fakeBeaconCreateCase(),
+            beaconCreateCase: buildBeaconCreateCase(),
             effects: FakeUiEffectPort(),
           )
           ..setTitle('Need a piano moved')

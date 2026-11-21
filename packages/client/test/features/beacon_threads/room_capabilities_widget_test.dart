@@ -26,7 +26,6 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -49,6 +48,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 import 'support/room_body_harness.dart';
 
@@ -329,10 +329,7 @@ void _registerHierarchyWithChildPreview() {
   GetIt.I.registerSingleton<BeaconHierarchyCase>(
     buildBeaconHierarchyCaseForTest(
       port,
-      createCase: BeaconCreateCase(
-        FakeBeaconWritePort(),
-        FakeBeaconImagePort(),
-      ),
+      createCase: buildBeaconCreateCase(),
       beacons: FakeBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),
     ),

@@ -9,7 +9,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
@@ -19,6 +18,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
 import '../../support/first_load_gate_finders.dart';
@@ -58,9 +58,9 @@ Future<BeaconHierarchyCubit> _hierarchyWithImmediateChildren(
     beaconId: beaconId,
     hierarchyCase: buildBeaconHierarchyCaseForTest(
       port,
-      createCase: BeaconCreateCase(
-        _NoopBeaconWritePort(),
-        _NoopImageRepository(),
+      createCase: buildBeaconCreateCase(
+        beacons: _NoopBeaconWritePort(),
+        images: _NoopImageRepository(),
       ),
       beacons: _NoopBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),
@@ -119,9 +119,9 @@ void main() {
           beaconId: kBeaconViewHarnessBeaconId,
           hierarchyCase: buildBeaconHierarchyCaseForTest(
             port,
-            createCase: BeaconCreateCase(
-              _NoopBeaconWritePort(),
-              _NoopImageRepository(),
+            createCase: buildBeaconCreateCase(
+              beacons: _NoopBeaconWritePort(),
+              images: _NoopImageRepository(),
             ),
             beacons: _NoopBeaconWritePort(),
             commandStore: InMemoryBeaconChildCommandStore(),
@@ -279,9 +279,9 @@ void main() {
             beaconId: kBeaconViewHarnessBeaconId,
             hierarchyCase: buildBeaconHierarchyCaseForTest(
               BeaconHierarchyRepository(remote),
-              createCase: BeaconCreateCase(
-                _NoopBeaconWritePort(),
-                _NoopImageRepository(),
+              createCase: buildBeaconCreateCase(
+                beacons: _NoopBeaconWritePort(),
+                images: _NoopImageRepository(),
               ),
               beacons: _NoopBeaconWritePort(),
               commandStore: InMemoryBeaconChildCommandStore(),

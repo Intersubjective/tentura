@@ -8,7 +8,6 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/domain/port/op_id_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/env.dart';
 
@@ -17,6 +16,7 @@ import '../../features/beacon_create/post_bud_fakes.dart';
 import '../../features/my_work/my_work_test_support.dart'
     show buildStubAttentionCase;
 import '../../support/attention_case_factory.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/remote_wire_harness.dart';
 import 'fake_beacon_hierarchy_ports.dart';
 
@@ -37,7 +37,7 @@ void main() {
         final write = FakeBeaconWritePort();
         final sut = buildBeaconHierarchyCaseForTest(
           FakeBeaconHierarchyRepositoryPort(),
-          createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+          createCase: buildBeaconCreateCase(beacons: write),
           beacons: write,
           commandStore: store,
           opIds: opIds,

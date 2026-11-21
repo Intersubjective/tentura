@@ -15,8 +15,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 // #741 (ichorid 2026-11-02): typing was still lost after the search's clear ×
 // in the Requirements sheet and in Edit labels. Inside CapabilitySearchField,
@@ -145,7 +145,7 @@ void main() {
     setUp(() {
       GetIt.I.registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'));
       cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: FakeUiEffectPort(),
       );
     });

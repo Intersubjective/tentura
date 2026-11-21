@@ -34,8 +34,8 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 const _viewer = Profile(id: 'Uviewer', displayName: 'Зоя');
 const _draft = 'Ищу, с кем пойти на концерт в субботу';
@@ -214,7 +214,7 @@ _pumpPostRecipients(
   final publishes = _RecordingPostPublishPort();
   final cubit = BeaconCreateCubit(
     kind: BeaconKind.post,
-    beaconCreateCase: fakeBeaconCreateCase(),
+    beaconCreateCase: buildBeaconCreateCase(),
     postPublishCase: PostPublishCase(publishes),
     effects: effects,
   );

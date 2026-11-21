@@ -18,9 +18,9 @@ import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../features/beacon_create/fake_beacon_ports.dart';
 import '../features/constellation/fixtures/constellation_field_test_harness.dart';
 import '../ui/effect/fake_ui_effect_port.dart';
+import 'beacon_create_case_factory.dart';
 import 'constellation_store_fixture.dart';
 import 'fake_clock_port.dart';
 import 'fake_wake_up_port.dart';
@@ -186,7 +186,7 @@ ConstellationComposerCubit buildComposerHarnessComposer({
     peopleSnapshot: peopleSnapshot,
     createCubitFactory: (kind) => BeaconCreateCubit(
       kind: kind,
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     ),
     forwardCubitFactory: (id) =>

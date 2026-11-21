@@ -19,6 +19,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -147,7 +148,7 @@ ForwardCubit _readyForwardCubit() => ForwardCubit(
 BeaconCreateCubit _liveReadyCreateCubit(FakeBeaconWritePort write) {
   final draft = _validDraftBeacon();
   final createCubit = BeaconCreateCubit(
-    beaconCreateCase: fakeBeaconCreateCase(write: write),
+    beaconCreateCase: buildBeaconCreateCase(beacons: write),
     effects: FakeUiEffectPort(),
   );
   createCubit.emit(

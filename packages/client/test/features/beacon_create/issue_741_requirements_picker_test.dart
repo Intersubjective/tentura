@@ -14,6 +14,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -99,7 +100,7 @@ void main() {
         final write = FakeBeaconWritePort()..createHold = Completer<void>();
         cubit =
             BeaconCreateCubit(
-                beaconCreateCase: fakeBeaconCreateCase(write: write),
+                beaconCreateCase: buildBeaconCreateCase(beacons: write),
                 effects: FakeUiEffectPort(),
               )
               ..setTitle('Need a piano moved')
@@ -135,7 +136,7 @@ void main() {
       testWidgets('$tag: nothing chosen, the first group opens with its '
           'chips', (tester) async {
         cubit = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(),
+          beaconCreateCase: buildBeaconCreateCase(),
           effects: FakeUiEffectPort(),
         );
         await pumpEditor(tester, locale: locale, size: size.value);
@@ -151,7 +152,7 @@ void main() {
       testWidgets('$tag: search filters the chips and opens the matching '
           'group', (tester) async {
         cubit = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(),
+          beaconCreateCase: buildBeaconCreateCase(),
           effects: FakeUiEffectPort(),
         );
         await pumpEditor(tester, locale: locale, size: size.value);

@@ -45,12 +45,12 @@ import 'package:tentura/ui/utils/ui_utils.dart' show snackbarKey;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/post_draft_wire.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 const _postId = postDraftWireDraftId;
 const _person = 'Urecipient001';
@@ -319,7 +319,7 @@ Future<void> _withComposer(
         )
         ..registerSingleton<InvitationRepository>(invitations)
         ..registerSingleton<BeaconCreateCase>(
-          BeaconCreateCase(beacons, FakeBeaconImagePort()),
+          buildBeaconCreateCase(beacons: beacons),
         )
         ..registerSingleton<PostPublishCase>(
           PostPublishCase(PostPublishRepository(remote)),
@@ -520,7 +520,7 @@ Future<void> _requestPrompt(
 ) async {
   final effects = FakeUiEffectPort();
   final create = BeaconCreateCubit(
-    beaconCreateCase: fakeBeaconCreateCase(),
+    beaconCreateCase: buildBeaconCreateCase(),
     effects: effects,
   );
   create.emit(create.state.copyWith(draftId: 'Brequest001'));

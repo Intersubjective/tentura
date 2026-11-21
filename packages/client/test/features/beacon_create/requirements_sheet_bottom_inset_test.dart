@@ -9,8 +9,8 @@ import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 // #436: the last category ("Other") of the Requirements sheet was cut off at
 // the bottom. On a phone the sheet runs under the home indicator, and the
@@ -43,7 +43,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: FakeUiEffectPort(),
       );
       await tester.pumpWidget(

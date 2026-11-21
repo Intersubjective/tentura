@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 
 import '../../features/beacon_create/fake_beacon_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import 'fake_beacon_hierarchy_ports.dart';
 
 const _parentId = 'parent-1';
@@ -66,7 +67,7 @@ BeaconHierarchyCase _sut({
   final w = write ?? FakeBeaconWritePort();
   return buildBeaconHierarchyCaseForTest(
     hierarchy ?? FakeBeaconHierarchyRepositoryPort(),
-    createCase: BeaconCreateCase(w, FakeBeaconImagePort()),
+    createCase: buildBeaconCreateCase(beacons: w),
     beacons: w,
     commandStore: store ?? InMemoryBeaconChildCommandStore(),
   );

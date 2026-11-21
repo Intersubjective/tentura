@@ -26,9 +26,9 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 const _sidePanel = Key('constellation.composer.side_panel');
 const _bottomSheet = Key('constellation.composer.sheet');
@@ -112,7 +112,7 @@ void main() {
       eligible: _positions.keys.toSet(),
       createCubitFactory: (kind) => BeaconCreateCubit(
         kind: kind,
-        beaconCreateCase: fakeBeaconCreateCase(write: FakeBeaconWritePort()),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: effects,
       ),
       forwardCubitFactory: (beaconId) {

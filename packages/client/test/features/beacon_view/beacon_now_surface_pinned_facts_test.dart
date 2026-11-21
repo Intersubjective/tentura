@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -147,9 +147,9 @@ void main() {
                       canCreateChild: false,
                     ),
                   ),
-                  createCase: BeaconCreateCase(
-                    _NoopBeaconWritePort(),
-                    _NoopImageRepo(),
+                  createCase: buildBeaconCreateCase(
+                    beacons: _NoopBeaconWritePort(),
+                    images: _NoopImageRepo(),
                   ),
                   beacons: _NoopBeaconWritePort(),
                   commandStore: InMemoryBeaconChildCommandStore(),

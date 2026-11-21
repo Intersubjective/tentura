@@ -23,6 +23,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
@@ -180,7 +181,7 @@ void main() {
         final write = FakeBeaconWritePort();
         final cubit = BeaconCreateCubit(
           kind: BeaconKind.post,
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           postPublishCase: PostPublishCase(_NoopPostPublishPort()),
           effects: FakeUiEffectPort(),
         );
@@ -224,7 +225,7 @@ void main() {
         );
         final cubit = BeaconCreateCubit(
           kind: BeaconKind.post,
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           postPublishCase: PostPublishCase(_NoopPostPublishPort()),
           effects: FakeUiEffectPort(),
           draftBeaconIdToLoad: 'server-beacon',

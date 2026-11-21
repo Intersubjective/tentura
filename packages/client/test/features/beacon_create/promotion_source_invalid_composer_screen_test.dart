@@ -22,7 +22,6 @@ import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/data/service/remote_api_client/beacon_hierarchy_error_mapper.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/port/post_bud_port.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
@@ -43,6 +42,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
@@ -298,7 +298,7 @@ void main() {
             (remote) async {
               final hierarchy = BeaconHierarchyRepository(remote);
               final write = FakeBeaconWritePort();
-              final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+              final createCase = buildBeaconCreateCase(beacons: write);
               final cubit = BeaconCreateCubit(
                 beaconCreateCase: createCase,
                 hierarchyCase: buildBeaconHierarchyCaseForTest(
@@ -413,7 +413,7 @@ void main() {
               final write = _WirePublishWritePort(
                 BeaconRepository(remote, realtime.port),
               );
-              final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+              final createCase = buildBeaconCreateCase(beacons: write);
               final cubit = BeaconCreateCubit(
                 beaconCreateCase: createCase,
                 hierarchyCase: buildBeaconHierarchyCaseForTest(
@@ -531,7 +531,7 @@ void main() {
           (remote) async {
             await watch.start(tester);
             final write = FakeBeaconWritePort();
-            final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+            final createCase = buildBeaconCreateCase(beacons: write);
             final cubit = BeaconCreateCubit(
               beaconCreateCase: createCase,
               hierarchyCase: buildBeaconHierarchyCaseForTest(

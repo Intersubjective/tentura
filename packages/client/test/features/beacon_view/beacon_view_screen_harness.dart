@@ -16,7 +16,6 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -37,6 +36,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt, unregisterEmptyAuthorInvitesGetIt;
@@ -63,9 +63,9 @@ BeaconHierarchyCubit createBeaconViewHarnessHierarchyCubit(String beaconId) {
           canCreateChild: false,
         ),
       ),
-      createCase: BeaconCreateCase(
-        _NoopBeaconWritePort(),
-        _NoopImageRepository(),
+      createCase: buildBeaconCreateCase(
+        beacons: _NoopBeaconWritePort(),
+        images: _NoopImageRepository(),
       ),
       beacons: _NoopBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),

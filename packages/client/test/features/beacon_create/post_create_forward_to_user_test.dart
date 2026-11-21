@@ -40,12 +40,12 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
-import 'fake_beacon_ports.dart';
 
 const _target = Profile(
   id: 'U-target',
@@ -221,7 +221,7 @@ Future<_RecordingPostPublishPort> _setUpCollaborators(
     ..registerSingleton<ProfileCubit>(_ProfileCubit())
     ..registerSingleton<ImageRepository>(ImageRepository())
     ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository())
-    ..registerSingleton<BeaconCreateCase>(fakeBeaconCreateCase())
+    ..registerSingleton<BeaconCreateCase>(buildBeaconCreateCase())
     ..registerSingleton<PostPublishCase>(PostPublishCase(port))
     ..registerSingleton<ForwardCase>(
       ForwardCase(

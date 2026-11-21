@@ -18,6 +18,7 @@ import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import 'fake_beacon_ports.dart';
@@ -117,7 +118,7 @@ void main() {
 
   Future<BeaconCreateCubit> _loadedEditCubit(_SlowEditWritePort write) async {
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
       editBeaconIdToLoad: 'b-edit',
     );

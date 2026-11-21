@@ -18,6 +18,7 @@ import 'package:tentura/features/geo/data/service/google_places_service.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -112,7 +113,7 @@ void main() {
 
   setUp(() {
     cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     GetIt.I.registerSingleton<Env>(
@@ -269,7 +270,7 @@ void main() {
     // Switching from deadline to event promotes single-date when no cached range.
     final single = DateTime(2026, 7, 1);
     final fresh = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(fresh.close);
@@ -293,8 +294,8 @@ void main() {
       endAt: end,
     );
     final editCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(
-        write: FakeBeaconWritePort(beacon: beacon),
+      beaconCreateCase: buildBeaconCreateCase(
+        beacons: FakeBeaconWritePort(beacon: beacon),
       ),
       effects: FakeUiEffectPort(),
     );

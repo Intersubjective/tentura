@@ -6,13 +6,13 @@ import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -27,10 +27,10 @@ BeaconCreateCubit _childCubit({
 }) {
   final commandStore = store ?? InMemoryBeaconChildCommandStore();
   return BeaconCreateCubit(
-    beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+    beaconCreateCase: buildBeaconCreateCase(beacons: write),
     hierarchyCase: buildBeaconHierarchyCaseForTest(
       hierarchy,
-      createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+      createCase: buildBeaconCreateCase(beacons: write),
       beacons: write,
       commandStore: commandStore,
     ),
@@ -43,10 +43,10 @@ BeaconCreateCubit _standaloneCubit({
   required FakeBeaconWritePort write,
   FakeUiEffectPort? effects,
 }) => BeaconCreateCubit(
-  beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+  beaconCreateCase: buildBeaconCreateCase(beacons: write),
   hierarchyCase: buildBeaconHierarchyCaseForTest(
     FakeBeaconHierarchyRepositoryPort(),
-    createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+    createCase: buildBeaconCreateCase(beacons: write),
     beacons: write,
     commandStore: InMemoryBeaconChildCommandStore(),
   ),
@@ -57,7 +57,7 @@ BeaconCreateCubit _standaloneCubit({
 Future<BeaconCreateCubit> _openFromMessage(String text) async {
   final write = FakeBeaconWritePort();
   final cubit = BeaconCreateCubit(
-    beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+    beaconCreateCase: buildBeaconCreateCase(beacons: write),
     hierarchyCase: buildBeaconHierarchyCaseForTest(
       FakeBeaconHierarchyRepositoryPort(
         promotionSource: BeaconPromotionSource(
@@ -70,7 +70,7 @@ Future<BeaconCreateCubit> _openFromMessage(String text) async {
           ),
         ),
       ),
-      createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+      createCase: buildBeaconCreateCase(beacons: write),
       beacons: write,
       commandStore: InMemoryBeaconChildCommandStore(),
     ),
@@ -184,10 +184,10 @@ void main() {
         ),
       );
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         hierarchyCase: buildBeaconHierarchyCaseForTest(
           FakeBeaconHierarchyRepositoryPort(),
-          createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+          createCase: buildBeaconCreateCase(beacons: write),
           beacons: write,
           commandStore: InMemoryBeaconChildCommandStore(),
         ),

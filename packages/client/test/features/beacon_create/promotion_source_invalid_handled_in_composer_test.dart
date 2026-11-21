@@ -10,7 +10,6 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 
 import 'package:tentura/data/service/op_id_service.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
@@ -24,6 +23,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -68,7 +68,7 @@ BeaconCreateCubit _childCubit({
   required FakeBeaconWritePort write,
   required FakeUiEffectPort effects,
 }) {
-  final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+  final createCase = buildBeaconCreateCase(beacons: write);
   return BeaconCreateCubit(
     beaconCreateCase: createCase,
     hierarchyCase: buildBeaconHierarchyCaseForTest(
@@ -155,7 +155,7 @@ void main() {
             BeaconRepository(remote, realtime.port),
           );
           final created = FakeBeaconHierarchyRepositoryPort();
-          final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+          final createCase = buildBeaconCreateCase(beacons: write);
           final cubit = BeaconCreateCubit(
             beaconCreateCase: createCase,
             hierarchyCase: buildBeaconHierarchyCaseForTest(

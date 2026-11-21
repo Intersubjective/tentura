@@ -29,9 +29,9 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 /// Same keys as the forward picker's chip row.
 ValueKey<String> _tagChip(String tagId) => ValueKey('forward-tag-chip-$tagId');
@@ -155,7 +155,7 @@ void main() {
       eligible: _positions.keys.toSet(),
       createCubitFactory: (kind) => BeaconCreateCubit(
         kind: kind,
-        beaconCreateCase: fakeBeaconCreateCase(write: FakeBeaconWritePort()),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: effects,
       ),
       forwardCubitFactory: (beaconId) {

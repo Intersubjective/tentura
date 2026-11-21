@@ -8,7 +8,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
@@ -24,6 +23,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
@@ -146,7 +146,10 @@ void main() {
             canCreateChild: false,
           ),
         ),
-        createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+        createCase: buildBeaconCreateCase(
+          beacons: _NoopBeaconWritePort(),
+          images: _NoopImageRepo(),
+        ),
         beacons: _NoopBeaconWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
       ),
@@ -210,7 +213,10 @@ void main() {
             ),
           },
         ),
-        createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+        createCase: buildBeaconCreateCase(
+          beacons: _NoopBeaconWritePort(),
+          images: _NoopImageRepo(),
+        ),
         beacons: _NoopBeaconWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
       ),

@@ -23,9 +23,9 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
-import 'fake_beacon_ports.dart';
 import 'post_bud_fakes.dart';
 
 class _ContextRepositoryFake extends Fake implements ContextRepository {
@@ -161,7 +161,7 @@ void main() {
 
   test('guard: a standalone new request has no parent to name', () async {
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: effects,
     );
     addTearDown(cubit.close);

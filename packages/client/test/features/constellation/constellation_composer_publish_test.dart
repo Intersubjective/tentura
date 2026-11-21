@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
@@ -36,7 +37,7 @@ void main() {
       eligible: _positions.keys.toSet(),
       createCubitFactory: (kind) => BeaconCreateCubit(
         kind: kind,
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: effects,
       ),
       forwardCubitFactory: (beaconId) {

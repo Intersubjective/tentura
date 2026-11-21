@@ -8,7 +8,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -17,6 +16,7 @@ import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -58,7 +58,7 @@ _registerHierarchy({
   }
   final case_ = buildBeaconHierarchyCaseForTest(
     port,
-    createCase: BeaconCreateCase(FakeBeaconWritePort(), FakeBeaconImagePort()),
+    createCase: buildBeaconCreateCase(),
     beacons: FakeBeaconWritePort(),
     commandStore: InMemoryBeaconChildCommandStore(),
   );

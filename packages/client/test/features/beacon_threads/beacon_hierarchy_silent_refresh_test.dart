@@ -11,13 +11,13 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 
 class _NoopBeaconWritePort implements BeaconWritePort {
@@ -38,7 +38,10 @@ BeaconHierarchyCubit _cubit(
     beaconId: 'parent-1',
     hierarchyCase: buildBeaconHierarchyCaseForTest(
       port,
-      createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+      createCase: buildBeaconCreateCase(
+        beacons: _NoopBeaconWritePort(),
+        images: _NoopImageRepo(),
+      ),
       beacons: _NoopBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),
       realtimeSyncCase: RealtimeSyncCase(realtime),

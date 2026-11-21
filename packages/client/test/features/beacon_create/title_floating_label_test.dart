@@ -13,15 +13,15 @@ import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 void main() {
   late BeaconCreateCubit cubit;
 
   setUp(() {
     cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     GetIt.I.registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'));

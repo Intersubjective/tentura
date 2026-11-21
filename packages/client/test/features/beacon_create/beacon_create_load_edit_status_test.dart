@@ -7,6 +7,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/beacon_create/ui/message/beacon_create_message.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -20,8 +21,8 @@ void main() {
   Future<BeaconCreateCubit> loadEdit(BeaconStatus status) async {
     effects = FakeUiEffectPort();
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(
-        write: FakeBeaconWritePort(
+      beaconCreateCase: buildBeaconCreateCase(
+        beacons: FakeBeaconWritePort(
           beacon: Beacon.empty.copyWith(
             id: 'b-edit',
             status: status,

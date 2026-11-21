@@ -14,8 +14,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -121,7 +121,7 @@ void main() {
     tester,
   ) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);
@@ -156,7 +156,7 @@ void main() {
     tester,
   ) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);
@@ -190,7 +190,7 @@ void main() {
     tester,
   ) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);
@@ -223,7 +223,7 @@ void main() {
     tester,
   ) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);
@@ -259,7 +259,7 @@ void main() {
     tester,
   ) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);
@@ -295,7 +295,7 @@ void main() {
   testWidgets('a Request hidden from the Field keeps the nobody-sees-it '
       'banner (#440)', (tester) async {
     final createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(createCubit.close);

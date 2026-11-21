@@ -38,6 +38,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -201,7 +202,7 @@ Future<_Harness> _pumpPostCreate(
   final port = _RecordingPostPublishPort();
   final cubit = BeaconCreateCubit(
     kind: BeaconKind.post,
-    beaconCreateCase: fakeBeaconCreateCase(write: write),
+    beaconCreateCase: buildBeaconCreateCase(beacons: write),
     postPublishCase: PostPublishCase(port),
     effects: effects,
   );

@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -150,7 +151,7 @@ void main() {
     effects = FakeUiEffectPort();
     cubit = BeaconCreateCubit(
       kind: BeaconKind.post,
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       postPublishCase: PostPublishCase(port),
       effects: effects,
     );
@@ -209,7 +210,7 @@ void main() {
       'a Request cubit still creates a Request with the draft title',
       () async {
         final requestCubit = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           effects: effects,
         );
         addTearDown(requestCubit.close);

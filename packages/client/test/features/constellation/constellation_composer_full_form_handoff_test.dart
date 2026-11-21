@@ -46,6 +46,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -202,7 +203,7 @@ void main() {
       eligible: _positions.keys.toSet(),
       createCubitFactory: (kind) => BeaconCreateCubit(
         kind: kind,
-        beaconCreateCase: fakeBeaconCreateCase(write: FakeBeaconWritePort()),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: effects,
       ),
       forwardCubitFactory: (beaconId) {
@@ -319,7 +320,7 @@ void main() {
       ..registerSingleton<ImageRepository>(ImageRepository())
       ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository())
       ..registerSingleton<BeaconCreateCase>(
-        fakeBeaconCreateCase(write: FakeBeaconWritePort(beacon: draft)),
+        buildBeaconCreateCase(beacons: FakeBeaconWritePort(beacon: draft)),
       )
       ..registerSingleton<ForwardCase>(
         ForwardCase(

@@ -26,9 +26,9 @@ import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 import 'fork_beacon_ports.dart';
 
 final _source = Beacon.empty.copyWith(
@@ -324,6 +324,6 @@ void _registerCollaborators() {
     )
     ..registerSingleton<ContextRepository>(_ContextRepositoryFake())
     ..registerSingleton<BeaconCreateCase>(
-      fakeBeaconCreateCase(write: _write),
+      buildBeaconCreateCase(beacons: _write),
     );
 }

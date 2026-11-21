@@ -24,6 +24,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -164,7 +165,7 @@ void main() {
 
         final write = FakeBeaconWritePort();
         final cubit = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           effects: FakeUiEffectPort(),
         );
         addTearDown(cubit.close);
@@ -205,7 +206,7 @@ void main() {
       (tester) async {
         final write = FakeBeaconWritePort(beacon: _draftBeacon());
         final cubit = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           draftBeaconIdToLoad: 'draft-reload-1',
           effects: FakeUiEffectPort(),
         );
@@ -253,7 +254,7 @@ void main() {
     testWidgets('hidden lifecycle flushes autosave', (tester) async {
       final write = FakeBeaconWritePort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);

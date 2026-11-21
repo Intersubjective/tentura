@@ -8,7 +8,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -18,6 +17,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 
 class _NoopBeaconWritePort implements BeaconWritePort {
   @override
@@ -152,7 +152,10 @@ void main() {
         beaconId: 'parent-1',
         hierarchyCase: buildBeaconHierarchyCaseForTest(
           FakeBeaconHierarchyRepositoryPort(),
-          createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+          createCase: buildBeaconCreateCase(
+            beacons: _NoopBeaconWritePort(),
+            images: _NoopImageRepo(),
+          ),
           beacons: _NoopBeaconWritePort(),
           commandStore: InMemoryBeaconChildCommandStore(),
         ),
@@ -234,7 +237,10 @@ void main() {
       beaconId: 'parent-1',
       hierarchyCase: buildBeaconHierarchyCaseForTest(
         FakeBeaconHierarchyRepositoryPort(),
-        createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+        createCase: buildBeaconCreateCase(
+          beacons: _NoopBeaconWritePort(),
+          images: _NoopImageRepo(),
+        ),
         beacons: _NoopBeaconWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
       ),

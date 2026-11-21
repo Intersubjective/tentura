@@ -24,7 +24,6 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/data/repository/post_publish_repository.dart';
@@ -41,12 +40,13 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/post_draft_wire.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart' show FakeBeaconImagePort, kTinyPng;
+import 'fake_beacon_ports.dart' show kTinyPng;
 
 const _draftId = 'Bpostdraft001';
 const _attachmentId = 'Adraftphoto01';
@@ -222,7 +222,7 @@ Future<void> _withComposer(
         );
         final cubit = BeaconCreateCubit(
           kind: BeaconKind.post,
-          beaconCreateCase: BeaconCreateCase(beacons, FakeBeaconImagePort()),
+          beaconCreateCase: buildBeaconCreateCase(beacons: beacons),
           postPublishCase: PostPublishCase(PostPublishRepository(remote)),
           effects: effects,
         );

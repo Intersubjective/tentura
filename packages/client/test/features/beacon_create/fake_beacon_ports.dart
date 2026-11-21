@@ -9,7 +9,6 @@ import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// 1×1 opaque PNG, so widgets under test decode a real image.
@@ -334,11 +333,3 @@ class FakeImageCropUi implements ImageCropUiPort {
     return result;
   }
 }
-
-BeaconCreateCase fakeBeaconCreateCase({
-  FakeBeaconWritePort? write,
-  FakeBeaconImagePort? images,
-}) => BeaconCreateCase(
-  write ?? FakeBeaconWritePort(),
-  images ?? FakeBeaconImagePort(),
-);

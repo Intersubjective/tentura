@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/util/burst_coalescer.dart';
@@ -37,6 +36,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
@@ -238,7 +238,7 @@ void main() {
     }
     final hierarchy = buildBeaconHierarchyCaseForTest(
       hierarchyPort,
-      createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+      createCase: buildBeaconCreateCase(beacons: write),
       beacons: write,
       commandStore: InMemoryBeaconChildCommandStore(),
     );

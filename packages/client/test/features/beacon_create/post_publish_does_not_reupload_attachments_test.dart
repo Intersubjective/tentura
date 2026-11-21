@@ -20,8 +20,8 @@ import 'package:tentura/features/beacon/data/repository/post_publish_repository.
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 void main() {
   test(
@@ -38,7 +38,7 @@ void main() {
           final effects = FakeUiEffectPort();
           final cubit = BeaconCreateCubit(
             kind: BeaconKind.post,
-            beaconCreateCase: fakeBeaconCreateCase(),
+            beaconCreateCase: buildBeaconCreateCase(),
             postPublishCase: PostPublishCase(PostPublishRepository(remote)),
             effects: effects,
           );

@@ -33,6 +33,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -194,7 +195,7 @@ class _HeldDraftSavePort extends FakeBeaconWritePort {
 }
 
 BeaconCreateCubit _cubit(FakeBeaconWritePort write) => BeaconCreateCubit(
-  beaconCreateCase: fakeBeaconCreateCase(write: write),
+  beaconCreateCase: buildBeaconCreateCase(beacons: write),
   effects: FakeUiEffectPort(),
 );
 

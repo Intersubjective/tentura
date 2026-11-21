@@ -23,7 +23,6 @@ import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
@@ -50,6 +49,7 @@ import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 import '../beacon_lobby/fake_lobby_port.dart' show FakeLobbyPort;
@@ -325,7 +325,7 @@ class OpenRequestObserverHarness {
       beaconId: _beaconId,
       hierarchyCase: buildBeaconHierarchyCaseForTest(
         hierarchyRepo,
-        createCase: BeaconCreateCase(beacons, FakeBeaconImagePort()),
+        createCase: buildBeaconCreateCase(beacons: beacons),
         beacons: beacons,
         commandStore: InMemoryBeaconChildCommandStore(),
         realtimeSyncCase: realtime,

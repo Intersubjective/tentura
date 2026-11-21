@@ -29,8 +29,8 @@ import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.da
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -108,7 +108,7 @@ ConstellationComposerCubit _buildComposerCubit({
   eligible: eligible,
   createCubitFactory: (kind) => BeaconCreateCubit(
     kind: kind,
-    beaconCreateCase: fakeBeaconCreateCase(),
+    beaconCreateCase: buildBeaconCreateCase(),
     effects: FakeUiEffectPort(),
   ),
   forwardCubitFactory: (beaconId) =>

@@ -21,7 +21,6 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -30,6 +29,7 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
 import '../../support/a11y_tab_walk.dart';
+import '../../support/beacon_create_case_factory.dart';
 
 const _before = 'Control before';
 const _after = 'Control after';
@@ -132,10 +132,7 @@ void main() {
       GetIt.I.registerSingleton<BeaconHierarchyCase>(
         buildBeaconHierarchyCaseForTest(
           port,
-          createCase: BeaconCreateCase(
-            FakeBeaconWritePort(),
-            FakeBeaconImagePort(),
-          ),
+          createCase: buildBeaconCreateCase(),
           beacons: FakeBeaconWritePort(),
           commandStore: InMemoryBeaconChildCommandStore(),
         ),

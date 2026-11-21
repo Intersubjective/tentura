@@ -20,6 +20,7 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -103,7 +104,7 @@ void main() {
 
   BeaconCreateCubit _loadedCubit(FakeBeaconWritePort write) {
     return BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
       editBeaconIdToLoad: 'b-edit',
     );

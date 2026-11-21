@@ -94,7 +94,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/author_invite_repository.dart';
@@ -117,6 +116,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart'
     show InMemoryBeaconChildCommandStore;
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/graphql_round_trip_server.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -295,7 +295,7 @@ Future<_Opened> _open(
         ..registerSingleton<BeaconHierarchyCase>(
           BeaconHierarchyCase(
             BeaconHierarchyRepository(remote),
-            BeaconCreateCase(wired.beacons, images),
+            buildBeaconCreateCase(beacons: wired.beacons, images: images),
             wired.beacons,
             InMemoryBeaconChildCommandStore(),
             realtime.case_,
@@ -786,7 +786,10 @@ void main() {
               beaconId: kOpenRoundsBeaconId,
               hierarchyCase: BeaconHierarchyCase(
                 BeaconHierarchyRepository(remote),
-                BeaconCreateCase(beacons, ImageRepository()),
+                buildBeaconCreateCase(
+                  beacons: beacons,
+                  images: ImageRepository(),
+                ),
                 beacons,
                 InMemoryBeaconChildCommandStore(),
                 realtime.case_,

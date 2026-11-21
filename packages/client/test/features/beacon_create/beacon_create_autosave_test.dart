@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -17,7 +18,7 @@ void main() {
   test('quiet autosave skips short titles and edit/live', () async {
     final write = FakeBeaconWritePort();
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
@@ -43,7 +44,7 @@ void main() {
     () async {
       final write = FakeBeaconWritePort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -59,7 +60,7 @@ void main() {
     final hold = Completer<void>();
     final write = FakeBeaconWritePort()..createHold = hold;
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
@@ -88,7 +89,7 @@ void main() {
       final write = FakeBeaconWritePort();
       final effects = FakeUiEffectPort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: effects,
       );
       addTearDown(cubit.close);
@@ -110,7 +111,7 @@ void main() {
   test('a failed autosave drops the earlier "saved" time', () async {
     final write = FakeBeaconWritePort();
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
@@ -137,7 +138,7 @@ void main() {
     ) async {
       final effects = FakeUiEffectPort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: effects,
       );
       addTearDown(cubit.close);
@@ -235,7 +236,7 @@ void main() {
       final write = FakeBeaconWritePort()..createHold = hold;
       final cubit =
           BeaconCreateCubit(
-              beaconCreateCase: fakeBeaconCreateCase(write: write),
+              beaconCreateCase: buildBeaconCreateCase(beacons: write),
               effects: FakeUiEffectPort(),
             )
             ..setAutosaveContext('')
@@ -272,7 +273,7 @@ void main() {
   group('hasUnpersistedEdits (#1059)', () {
     BeaconCreateCubit build(FakeBeaconWritePort write) {
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -304,7 +305,7 @@ void main() {
         final write = FakeBeaconWritePort();
         final cubit = BeaconCreateCubit(
           kind: BeaconKind.post,
-          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          beaconCreateCase: buildBeaconCreateCase(beacons: write),
           effects: FakeUiEffectPort(),
         );
         addTearDown(cubit.close);
@@ -325,7 +326,7 @@ void main() {
           final write = FakeBeaconWritePort();
           final cubit = BeaconCreateCubit(
             kind: BeaconKind.post,
-            beaconCreateCase: fakeBeaconCreateCase(write: write),
+            beaconCreateCase: buildBeaconCreateCase(beacons: write),
             effects: FakeUiEffectPort(),
           );
           addTearDown(cubit.close);
@@ -355,7 +356,7 @@ void main() {
   group('keepsDraftOnLeave (#607)', () {
     BeaconCreateCubit build(FakeBeaconWritePort write) {
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);

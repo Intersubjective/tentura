@@ -16,7 +16,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
@@ -26,6 +25,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 
 class _TestProfileCubit extends Mock implements ProfileCubit {
@@ -120,10 +120,7 @@ void main() {
     GetIt.I.registerSingleton<BeaconHierarchyCase>(
       buildBeaconHierarchyCaseForTest(
         port,
-        createCase: BeaconCreateCase(
-          FakeBeaconWritePort(),
-          FakeBeaconImagePort(),
-        ),
+        createCase: buildBeaconCreateCase(),
         beacons: FakeBeaconWritePort(),
         commandStore: InMemoryBeaconChildCommandStore(),
       ),

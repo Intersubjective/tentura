@@ -45,6 +45,7 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fact_origin_test_support.dart'
@@ -351,7 +352,7 @@ void main() {
     String sourceTitle = 'Fix the north fence',
   }) {
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      beaconCreateCase: buildBeaconCreateCase(beacons: write),
       effects: effects,
       forkSourceIdToLoad: _sourceId,
       forkFactIds: ticked,
@@ -363,8 +364,8 @@ void main() {
 
   BeaconCreateCubit draftCubit() {
     final cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(
-        write: FakeBeaconWritePort(beacon: _existingDraft),
+      beaconCreateCase: buildBeaconCreateCase(
+        beacons: FakeBeaconWritePort(beacon: _existingDraft),
       ),
       effects: effects,
       draftBeaconIdToLoad: _draftId,

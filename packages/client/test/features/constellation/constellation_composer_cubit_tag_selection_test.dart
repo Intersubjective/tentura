@@ -11,8 +11,8 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_create/fake_beacon_ports.dart';
 
 const _positions = <String, Offset>{
   'Ua': Offset(10, 0),
@@ -36,7 +36,7 @@ void main() {
       eligible: {..._positions.keys, 'Uz'},
       createCubitFactory: (kind) => BeaconCreateCubit(
         kind: kind,
-        beaconCreateCase: fakeBeaconCreateCase(write: FakeBeaconWritePort()),
+        beaconCreateCase: buildBeaconCreateCase(),
         effects: effects,
       ),
       forwardCubitFactory: (beaconId) {

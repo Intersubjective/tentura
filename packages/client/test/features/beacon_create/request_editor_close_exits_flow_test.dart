@@ -30,6 +30,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -187,7 +188,7 @@ void main() {
       effects: FakeUiEffectPort(),
     );
     createCubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(write: store),
+      beaconCreateCase: buildBeaconCreateCase(beacons: store),
       effects: FakeUiEffectPort(),
     )..setAutosaveContext('');
   });
@@ -555,7 +556,7 @@ void main() {
       expect(savedId, isNotNull);
 
       final reopened = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: store),
+        beaconCreateCase: buildBeaconCreateCase(beacons: store),
         effects: FakeUiEffectPort(),
         draftBeaconIdToLoad: savedId,
       );
@@ -669,7 +670,7 @@ void main() {
     setUp(() {
       effects = FakeUiEffectPort();
       cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: store),
+        beaconCreateCase: buildBeaconCreateCase(beacons: store),
         effects: effects,
       )..setAutosaveContext('');
     });
@@ -789,7 +790,7 @@ void main() {
         expect(savedId, isNotNull);
 
         final reopened = BeaconCreateCubit(
-          beaconCreateCase: fakeBeaconCreateCase(write: store),
+          beaconCreateCase: buildBeaconCreateCase(beacons: store),
           effects: FakeUiEffectPort(),
           draftBeaconIdToLoad: savedId,
         );

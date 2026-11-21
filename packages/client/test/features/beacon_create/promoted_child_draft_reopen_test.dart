@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -93,7 +94,7 @@ Future<BeaconCreateCubit> _reopen(
   String title,
 ) async {
   final write = FakeBeaconWritePort();
-  final createCase = fakeBeaconCreateCase(write: write);
+  final createCase = buildBeaconCreateCase(beacons: write);
   final cubit = BeaconCreateCubit(
     beaconCreateCase: createCase,
     hierarchyCase: buildBeaconHierarchyCaseForTest(

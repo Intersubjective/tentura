@@ -27,9 +27,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 const _viewer = Profile(id: 'Uviewer', displayName: 'Олег');
 
@@ -121,7 +121,7 @@ Future<_LifetimeRecordingPort> _pumpPostCreate(WidgetTester tester) async {
   final port = _LifetimeRecordingPort();
   final cubit = BeaconCreateCubit(
     kind: BeaconKind.post,
-    beaconCreateCase: fakeBeaconCreateCase(write: FakeBeaconWritePort()),
+    beaconCreateCase: buildBeaconCreateCase(),
     postPublishCase: PostPublishCase(port),
     effects: effects,
   );

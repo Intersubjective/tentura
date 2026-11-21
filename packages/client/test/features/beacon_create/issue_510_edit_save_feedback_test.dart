@@ -16,6 +16,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -110,7 +111,7 @@ void main() {
             ..setMediaError = const RemoteApiRetryLaterException(
               Duration(milliseconds: 60),
             );
-          final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+          final sut = buildBeaconCreateCase(beacons: write);
 
           BeaconSaveResult? result;
           unawaited(sut.saveEdit(_coverChange()).then((r) => result = r));
@@ -148,7 +149,7 @@ void main() {
           ..setMediaError = const RemoteApiRetryLaterException(
             Duration(milliseconds: 1),
           );
-        final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+        final sut = buildBeaconCreateCase(beacons: write);
 
         final result = await sut.saveEdit(_addLocalPhoto());
 
@@ -181,7 +182,7 @@ void main() {
             ..setMediaError = const RemoteApiRetryLaterException(
               Duration(minutes: 10),
             );
-          final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+          final sut = buildBeaconCreateCase(beacons: write);
 
           BeaconSaveResult? result;
           Object? error;
@@ -218,7 +219,7 @@ void main() {
       'a BeaconSetMedia that stays busy is retried a bounded number of times',
       () async {
         final write = _BusyMediaWritePort(beacon: _serverBeacon());
-        final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+        final sut = buildBeaconCreateCase(beacons: write);
 
         await expectLater(
           sut.saveEdit(_coverChange()),
@@ -243,7 +244,7 @@ void main() {
         final write = FakeBeaconWritePort(beacon: _serverBeacon())
           ..failSetMediaAtCall = 0
           ..setMediaError = Exception('image not found');
-        final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+        final sut = buildBeaconCreateCase(beacons: write);
 
         await expectLater(
           sut.saveEdit(_coverChange()),
@@ -266,7 +267,7 @@ void main() {
     Future<BeaconCreateCubit> openEditor(FakeBeaconWritePort write) async {
       effects = FakeUiEffectPort();
       final cubit = BeaconCreateCubit(
-        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        beaconCreateCase: buildBeaconCreateCase(beacons: write),
         effects: effects,
       );
       await cubit.loadEdit('b-edit');

@@ -29,6 +29,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -211,7 +212,7 @@ void main() {
     write = port;
     createCubit =
         BeaconCreateCubit(
-            beaconCreateCase: fakeBeaconCreateCase(write: port),
+            beaconCreateCase: buildBeaconCreateCase(beacons: port),
             effects: FakeUiEffectPort(),
           )
           ..setTitle('Need a piano moved')

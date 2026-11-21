@@ -46,7 +46,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
@@ -61,6 +60,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/beacon_create_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/production_receipt_transport.dart';
 import '../beacon_threads/support/room_typing_wire_harness.dart';
@@ -589,7 +589,10 @@ Future<void> _pumpNowSurface(
           canCreateChild: false,
         ),
       ),
-      createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+      createCase: buildBeaconCreateCase(
+        beacons: _NoopBeaconWritePort(),
+        images: _NoopImageRepo(),
+      ),
       beacons: _NoopBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),
     ),

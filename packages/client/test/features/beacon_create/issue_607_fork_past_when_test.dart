@@ -4,8 +4,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 import 'fork_beacon_ports.dart';
 
 /// «Now» for every copy below: noon, so a day either side is unambiguous.
@@ -26,8 +26,8 @@ Future<BeaconCreateCubit> _openCopy(
   ForkingBeaconWritePort? write,
 }) async {
   final cubit = BeaconCreateCubit(
-    beaconCreateCase: fakeBeaconCreateCase(
-      write: write ?? ForkingBeaconWritePort(source: source),
+    beaconCreateCase: buildBeaconCreateCase(
+      beacons: write ?? ForkingBeaconWritePort(source: source),
     ),
     effects: FakeUiEffectPort(),
     forkSourceIdToLoad: source.id,

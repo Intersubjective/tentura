@@ -10,8 +10,8 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_beacon_ports.dart';
 
 // #607: in the When? sheet, picking a date and then closing the sheet with
 // (x) kept the picked date. Only OK confirms; (x) puts the timing back as it
@@ -46,7 +46,7 @@ void main() {
 
   setUp(() {
     cubit = BeaconCreateCubit(
-      beaconCreateCase: fakeBeaconCreateCase(),
+      beaconCreateCase: buildBeaconCreateCase(),
       effects: FakeUiEffectPort(),
     );
     GetIt.I.registerSingleton<Env>(const Env(googleMapsApiKey: 'test-key'));

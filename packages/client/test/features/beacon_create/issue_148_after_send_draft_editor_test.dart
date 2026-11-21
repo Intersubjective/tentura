@@ -15,11 +15,12 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_create_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
 BeaconCreateCubit _createCubit(FakeBeaconWritePort write) => BeaconCreateCubit(
-  beaconCreateCase: fakeBeaconCreateCase(write: write),
+  beaconCreateCase: buildBeaconCreateCase(beacons: write),
   effects: FakeUiEffectPort(),
 );
 
