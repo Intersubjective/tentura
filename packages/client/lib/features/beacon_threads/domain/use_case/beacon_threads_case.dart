@@ -15,7 +15,6 @@ import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../../data/repository/beacon_fact_card_repository.dart';
@@ -32,17 +31,15 @@ import '../room_read_watermark_store.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
 @singleton
-base class BeaconThreadsCase extends UseCaseBase {
+base class BeaconThreadsCase {
   BeaconThreadsCase(
     this._room,
     this._factCards,
     this._polling,
     this._hints,
     this._watermark,
-    this._realtimeSyncCase, {
-    required super.env,
-    required super.logger,
-  }) {
+    this._realtimeSyncCase,
+  ) {
     // The reader's own cursor, from this or another of their sessions, is a
     // scoped watermark, never a room refresh (#639). Lives as long as the
     // app-wide singleton.

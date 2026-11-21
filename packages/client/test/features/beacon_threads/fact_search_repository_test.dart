@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show GraphQLError;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_client/build_client.dart'
     show throwGraphQLErrors;
@@ -30,6 +29,18 @@ class _FakeThreadsRepository extends Fake implements BeaconThreadsRepository {}
 class _FakeHints extends Fake implements BeaconRoomHintsRepository {}
 
 class _FakePolling extends Fake implements PollingRepository {}
+
+BeaconThreadsCase _buildCase(
+  BeaconFactCardRepository repo,
+  RoomReadWatermarkStore watermark,
+) => BeaconThreadsCase(
+  _FakeThreadsRepository(),
+  repo,
+  _FakePolling(),
+  _FakeHints(),
+  watermark,
+  buildTestRealtimeSync().case_,
+);
 
 /// Records `search` calls and throws [thrown].
 class _ThrowingRepository extends Fake implements BeaconFactCardRepository {
@@ -91,16 +102,7 @@ Future<List<_Sent>> _run(
         final repo = BeaconFactCardRepository(remote);
         await body(
           repo,
-          BeaconThreadsCase(
-            _FakeThreadsRepository(),
-            repo,
-            _FakePolling(),
-            _FakeHints(),
-            watermark,
-            buildTestRealtimeSync().case_,
-            env: const Env(),
-            logger: Logger('test'),
-          ),
+          _buildCase(repo, watermark),
         );
       } finally {
         await watermark.dispose();
@@ -299,16 +301,7 @@ void main() {
       final repo = _ThrowingRepository(thrown);
       final watermark = RoomReadWatermarkStore.testing();
       try {
-        final case_ = BeaconThreadsCase(
-          _FakeThreadsRepository(),
-          repo,
-          _FakePolling(),
-          _FakeHints(),
-          watermark,
-          buildTestRealtimeSync().case_,
-          env: const Env(),
-          logger: Logger('test'),
-        );
+        final case_ = _buildCase(repo, watermark);
         try {
           await case_.searchAvailableFacts(
             query: 'meet',

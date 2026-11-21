@@ -1,10 +1,8 @@
 // tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/room_read_watermark.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -31,8 +29,6 @@ void main() {
         _FakeBeaconRoomHintsRepository(),
         watermark,
         realtime.case_,
-        env: const Env(),
-        logger: Logger('test'),
       );
 
       final expected = [

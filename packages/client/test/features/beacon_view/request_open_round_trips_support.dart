@@ -141,8 +141,6 @@ buildWiredBeaconViewCase(
     hints,
     RoomReadWatermarkStore.testing(),
     realtime.case_,
-    env: const Env(),
-    logger: Logger('request-open-rounds'),
   );
   final viewCase = BeaconViewCase(
     beacons,

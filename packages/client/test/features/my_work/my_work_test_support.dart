@@ -1,10 +1,7 @@
 import 'dart:async';
 
-import 'package:logging/logging.dart';
-
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
@@ -253,8 +250,6 @@ BeaconThreadsCase buildTestBeaconThreadsCase(
     hints,
     watermarkStore ?? RoomReadWatermarkStore.testing(),
     buildTestRealtimeSync().case_,
-    env: const Env(),
-    logger: Logger('test'),
   );
 }
 

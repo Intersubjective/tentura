@@ -18,7 +18,6 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -222,8 +221,6 @@ Future<void> _registerPostDeps(BeaconFactCardRepository facts) async {
       FakeBeaconRoomHintsRepository(),
       RoomReadWatermarkStore.testing(),
       buildTestRealtimeSync().case_,
-      env: const Env(),
-      logger: lg.Logger('test'),
     ),
   );
   await _register<BeaconKindRepository>(_KindRepository());

@@ -9,12 +9,11 @@ import 'package:ferry/ferry.dart'
         OperationType;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/env.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
@@ -192,19 +191,17 @@ class _PartnerArgRecordingRepository extends FakeBeaconThreadsRepository {
   }
 }
 
-BeaconThreadsCase _caseFor(BeaconThreadsRepository repo) {
-  final realtime = buildTestRealtimeSync();
-  return BeaconThreadsCase(
-    repo,
-    FakeBeaconFactCardRepository(),
-    FakePollingRepository(),
-    FakeBeaconRoomHintsRepository(),
-    RoomReadWatermarkStore.testing(),
-    realtime.case_,
-    env: const Env(),
-    logger: Logger('test'),
-  );
-}
+BeaconThreadsCase _caseFor(
+  BeaconThreadsRepository repo, {
+  RealtimeSyncCase? realtime,
+}) => BeaconThreadsCase(
+  repo,
+  FakeBeaconFactCardRepository(),
+  FakePollingRepository(),
+  FakeBeaconRoomHintsRepository(),
+  RoomReadWatermarkStore.testing(),
+  realtime ?? buildTestRealtimeSync().case_,
+);
 
 void main() {
   group('batonRespond mutation variables', () {
@@ -332,16 +329,7 @@ void main() {
       addTearDown(realtime.port.dispose);
       final cubit = RoomCubit(
         beaconId: kRoomCubitFakeBeaconId,
-        beaconRoomCase: BeaconThreadsCase(
-          backing,
-          FakeBeaconFactCardRepository(),
-          FakePollingRepository(),
-          FakeBeaconRoomHintsRepository(),
-          RoomReadWatermarkStore.testing(),
-          realtime.case_,
-          env: const Env(),
-          logger: Logger('test'),
-        ),
+        beaconRoomCase: _caseFor(backing, realtime: realtime.case_),
         coordinationItemRoomSync: CoordinationItemRoomSync(),
         presenceRepository: roomCubitFakePresenceRepository(),
         effects: FakeUiEffectPort(),

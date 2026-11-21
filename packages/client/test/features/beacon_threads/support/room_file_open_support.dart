@@ -150,8 +150,6 @@ BeaconThreadsCase caseOver(BeaconThreadsRepository repo) => BeaconThreadsCase(
   _FakeHints(),
   RoomReadWatermarkStore.testing(),
   buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 /// Registers the use case and app logger the way the app does

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -12,7 +11,6 @@ import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -199,8 +197,6 @@ class _Harness {
       RealtimeSyncCase(
         _RealtimePort(const Stream.empty(), const Stream.empty()),
       ),
-      env: const Env(),
-      logger: Logger('room stream lifecycle'),
     ),
     _ForwardRepository(commands.stream, forwards.stream, offers.stream),
     RealtimeSyncCase(_RealtimePort(catchUps.stream, entities.stream)),

@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
+import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/port/author_invite_port.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
@@ -35,6 +41,12 @@ import '../features/auth/auth_test_helpers.dart'
     show EmptyAuthLocal, EmptyAuthRemote, buildTestAuthCase;
 import '../features/beacon_plan/beacon_plan_test_support.dart'
     show FakeBeaconPlanRepository, planJson;
+import '../features/beacon_threads/room_cubit_fakes.dart'
+    show
+        FakeBeaconFactCardRepository,
+        FakeBeaconRoomHintsRepository,
+        FakeBeaconThreadsRepository,
+        FakePollingRepository;
 import '../features/beacon_view/beacon_view_case_test_support.dart'
     show FakeBeaconDisplayRepository;
 import '../features/complaint/recording_complaint_case.dart'
@@ -45,6 +57,7 @@ import '../features/credentials/credentials_case_test.dart'
     show FakeCredentialsRepository, TrackingAuthLocal;
 import '../features/inbox/inbox_case_test.dart' show buildTestBeaconThreadsCase;
 import '../features/my_work/my_work_test_support.dart' as my_work;
+import '../features/realtime/read_cursor_server_frames.dart';
 import '../support/fake_block_case.dart';
 import '../support/test_realtime_sync.dart';
 
@@ -83,6 +96,47 @@ void main() {
         _FakeAuthorInvitePort(),
       ]);
     });
+
+    test(
+      'BeaconThreadsCase observes server read cursors with only its feature dependencies',
+      () async {
+        const beaconId = 'Bbeacon0000001';
+        const readerId = 'Uuseraaaaaaaa01';
+        final watermark = RoomReadWatermarkStore.testing();
+        addTearDown(watermark.dispose);
+        final room = FakeBeaconThreadsRepository(userId: readerId);
+        addTearDown(room.dispose);
+        final frames = StreamController<Map<String, dynamic>>.broadcast();
+        addTearDown(frames.close);
+        final invalidations = InvalidationService.forTesting(frames.stream);
+        addTearDown(invalidations.dispose);
+
+        final threads = _expectFeatureDependenciesOnly<BeaconThreadsCase>(
+          BeaconThreadsCase.new,
+          [
+            room,
+            FakeBeaconFactCardRepository(),
+            FakePollingRepository(),
+            FakeBeaconRoomHintsRepository(),
+            watermark,
+            RealtimeSyncCase(invalidations),
+          ],
+        );
+
+        final notice = threads.readWatermarkChanges.first;
+        final seenAt = DateTime.utc(2026, 8, 14, 10);
+        frames.add(
+          roomSeenReadCursorFrame(
+            readerId: readerId,
+            beaconId: beaconId,
+            at: seenAt,
+            event: 'update',
+          ),
+        );
+        expect(await notice.timeout(const Duration(seconds: 3)), beaconId);
+        expect(watermark.syncedAt(beaconId), seenAt);
+      },
+    );
 
     test('CredentialsCase only needs credentials and local auth', () {
       _expectFeatureDependenciesOnly<CredentialsCase>(CredentialsCase.new, [

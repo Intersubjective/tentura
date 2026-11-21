@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/data/repository/presence_repository.dart';
@@ -19,7 +18,6 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_read_cursor.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -244,16 +242,15 @@ PresenceRepository _fakePresenceRepository() => PresenceRepository(
 /// Creates a [BeaconThreadsCase] backed by [fakeRoom] and minimal stubs.
 BeaconThreadsCase _makeCase(
   _FakeBeaconThreadsRepository fakeRoom, {
+  RoomReadWatermarkStore? watermark,
   RealtimeSyncCase? realtimeSyncCase,
 }) => BeaconThreadsCase(
   fakeRoom,
   _FakeBeaconFactCardRepository(),
   _FakePollingRepository(),
   _FakeBeaconRoomHintsRepository(),
-  RoomReadWatermarkStore.testing(),
+  watermark ?? RoomReadWatermarkStore.testing(),
   realtimeSyncCase ?? buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 /// Registers a stub [ProfileCubit] returning [userId] and schedules cleanup.
@@ -1135,16 +1132,7 @@ void main() {
             _msg('new', newMsgTime),
           ];
 
-        final case_ = BeaconThreadsCase(
-          fakeRoom,
-          _FakeBeaconFactCardRepository(),
-          _FakePollingRepository(),
-          _FakeBeaconRoomHintsRepository(),
-          watermark,
-          buildTestRealtimeSync().case_,
-          env: const Env(),
-          logger: Logger('test'),
-        );
+        final case_ = _makeCase(fakeRoom, watermark: watermark);
 
         final cubit = RoomCubit(
           beaconId: _kBeaconId,

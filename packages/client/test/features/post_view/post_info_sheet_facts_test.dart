@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -185,8 +184,6 @@ Future<RoomCubit> _openInfoSheet(
     FakeBeaconRoomHintsRepository(),
     RoomReadWatermarkStore.testing(),
     realtime.case_,
-    env: const Env(),
-    logger: Logger('test'),
   );
   final room = RoomCubit(
     beaconId: _postId,

@@ -12,7 +12,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
@@ -23,7 +22,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -230,8 +228,6 @@ void main() {
             FakeBeaconRoomHintsRepository(),
             RoomReadWatermarkStore.testing(),
             buildTestRealtimeSync().case_,
-            env: const Env(),
-            logger: Logger('test'),
           ),
         );
         await awaitRoomCubitLoad(c);

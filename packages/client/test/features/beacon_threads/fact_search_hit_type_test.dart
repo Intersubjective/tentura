@@ -9,7 +9,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
@@ -28,6 +27,18 @@ class _FakeHints extends Fake implements BeaconRoomHintsRepository {}
 
 class _FakePolling extends Fake implements PollingRepository {}
 
+BeaconThreadsCase _buildCase(
+  BeaconFactCardRepository repo,
+  RoomReadWatermarkStore watermark,
+) => BeaconThreadsCase(
+  _FakeThreadsRepository(),
+  repo,
+  _FakePolling(),
+  _FakeHints(),
+  watermark,
+  buildTestRealtimeSync().case_,
+);
+
 Future<void> _run(
   Future<void> Function(BeaconFactCardRepository repo, BeaconThreadsCase c)
   body,
@@ -43,16 +54,7 @@ Future<void> _run(
       final repo = BeaconFactCardRepository(remote);
       await body(
         repo,
-        BeaconThreadsCase(
-          _FakeThreadsRepository(),
-          repo,
-          _FakePolling(),
-          _FakeHints(),
-          watermark,
-          buildTestRealtimeSync().case_,
-          env: const Env(),
-          logger: Logger('test'),
-        ),
+        _buildCase(repo, watermark),
       );
     } finally {
       await watermark.dispose();
@@ -191,16 +193,7 @@ Future<void> _withCase(
   final watermark = RoomReadWatermarkStore.testing();
   try {
     await body(
-      BeaconThreadsCase(
-        _FakeThreadsRepository(),
-        repo,
-        _FakePolling(),
-        _FakeHints(),
-        watermark,
-        buildTestRealtimeSync().case_,
-        env: const Env(),
-        logger: Logger('test'),
-      ),
+      _buildCase(repo, watermark),
     );
   } finally {
     await watermark.dispose();

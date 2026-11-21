@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -14,7 +13,6 @@ import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart'
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -51,8 +49,6 @@ void main() {
       _FakeBeaconRoomHintsRepository(),
       watermark,
       realtimeSyncCase,
-      env: const Env(),
-      logger: Logger('test'),
     );
   });
 

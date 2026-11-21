@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
@@ -9,7 +8,6 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -110,8 +108,6 @@ BeaconThreadsCase _buildDeskRelevantBeaconThreadsCase({
   _DeskRelevantRoomHintsRepository(),
   RoomReadWatermarkStore.testing(),
   RealtimeSyncCase(_DeskRelevantUnusedRealtimePort()),
-  env: const Env(),
-  logger: Logger('inbox_case_desk_relevant_changes_test'),
 );
 
 class _DeskRelevantRoomRepository implements BeaconThreadsRepository {

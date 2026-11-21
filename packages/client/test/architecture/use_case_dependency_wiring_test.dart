@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _casePaths = {
   'AuthorInviteCase': 'lib/domain/use_case/author_invite_case.dart',
+  'BeaconThreadsCase':
+      'lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart',
   'CredentialsCase':
       'lib/features/credentials/domain/use_case/credentials_case.dart',
   'FriendsCase': 'lib/features/friends/domain/use_case/friends_case.dart',
@@ -42,6 +44,12 @@ void main() {
           if (declaration.finalKeyword == null) {
             violations.add('$path must declare final class $name');
           }
+        }
+        if (const {
+          'BeaconThreadsCase',
+          'MyWorkCase',
+          'PostsCase',
+        }.contains(name)) {
           for (final match in _ambientNames.allMatches(source)) {
             final line = unit.lineInfo.getLocation(match.start).lineNumber;
             violations.add('$path:$line mentions ${match.group(0)}');
@@ -90,6 +98,14 @@ void main() {
             expect(calls, isNotEmpty, reason: 'DI must construct ${entry.key}');
             for (final call in calls) {
               violations.addAll(_ambientArguments(path, parsed, call));
+              if (call.name == 'BeaconThreadsCase' &&
+                  (registration.methodName.name != 'singleton' ||
+                      !_hasBeaconThreadsDependencies(call))) {
+                violations.add(
+                  '$path must register BeaconThreadsCase as a singleton '
+                  'with six positional feature dependency lookups',
+                );
+              }
               if (call.name == 'PostsCase' &&
                   (registration.methodName.name != 'singleton' ||
                       !_hasPostsFactoryDependencies(call))) {
@@ -131,11 +147,20 @@ void main() {
         final parsed = parseString(content: source, path: file.path);
         final constructors = _ConstructorCalls();
         parsed.unit.accept(constructors);
+        var beaconThreadsCalls = 0;
         var postsCalls = 0;
         for (final call in constructors.calls) {
           if (call.name == 'MyWorkCase') myWorkCalls++;
           if (call.name == 'PostsCase') postsCalls++;
+          if (call.name == 'BeaconThreadsCase' && !call.isSuper) {
+            beaconThreadsCalls++;
+          }
           violations.addAll(_ambientArguments(file.path, parsed, call));
+        }
+        if (beaconThreadsCalls > 1) {
+          violations.add(
+            '${file.path} should reuse one BeaconThreadsCase builder',
+          );
         }
         if (postsCalls > 1) {
           violations.add('$file should reuse one PostsCase builder');
@@ -155,7 +180,25 @@ typedef _ConstructorCall = ({
   String name,
   String? constructorName,
   ArgumentList arguments,
+  bool isSuper,
 });
+
+bool _hasBeaconThreadsDependencies(_ConstructorCall call) {
+  final arguments = call.arguments.arguments;
+  const types = [
+    'BeaconThreadsRepository',
+    'BeaconFactCardRepository',
+    'PollingRepository',
+    'BeaconRoomHintsRepository',
+    'RoomReadWatermarkStore',
+    'RealtimeSyncCase',
+  ];
+  return call.constructorName == null &&
+      arguments.length == types.length &&
+      arguments.indexed.every(
+        (entry) => _isPositionalDependencyLookup(entry.$2, types[entry.$1]),
+      );
+}
 
 bool _hasPostsFactoryDependencies(_ConstructorCall call) {
   if (call.arguments.arguments case [
@@ -219,14 +262,36 @@ class _CaseRegistrations extends RecursiveAstVisitor<void> {
 class _ConstructorCalls extends RecursiveAstVisitor<void> {
   final calls = <_ConstructorCall>[];
 
-  void _record(String name, ArgumentList arguments, [String? constructorName]) {
+  void _record(
+    String name,
+    ArgumentList arguments, {
+    String? constructorName,
+    bool isSuper = false,
+  }) {
     if (_casePaths.containsKey(name)) {
       calls.add((
         name: name,
         constructorName: constructorName,
         arguments: arguments,
+        isSuper: isSuper,
       ));
     }
+  }
+
+  @override
+  void visitClassDeclaration(ClassDeclaration node) {
+    if (node.body case BlockClassBody(
+      :final members,
+    ) when node.extendsClause?.superclass.name.lexeme == 'BeaconThreadsCase') {
+      for (final constructor in members.whereType<ConstructorDeclaration>()) {
+        for (final call
+            in constructor.initializers
+                .whereType<SuperConstructorInvocation>()) {
+          _record('BeaconThreadsCase', call.argumentList, isSuper: true);
+        }
+      }
+    }
+    super.visitClassDeclaration(node);
   }
 
   @override
@@ -234,7 +299,7 @@ class _ConstructorCalls extends RecursiveAstVisitor<void> {
     _record(
       node.constructorName.type.name.lexeme,
       node.argumentList,
-      node.constructorName.name?.name,
+      constructorName: node.constructorName.name?.name,
     );
     super.visitInstanceCreationExpression(node);
   }
@@ -245,7 +310,7 @@ class _ConstructorCalls extends RecursiveAstVisitor<void> {
     final name = node.methodName.name;
     final targetName = node.target?.endToken.lexeme;
     if (targetName != null && _casePaths.containsKey(targetName)) {
-      _record(targetName, node.argumentList, name);
+      _record(targetName, node.argumentList, constructorName: name);
     } else {
       _record(name, node.argumentList);
     }

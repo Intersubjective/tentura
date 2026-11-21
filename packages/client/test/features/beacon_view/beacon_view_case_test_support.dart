@@ -617,8 +617,6 @@ BeaconThreadsCase buildTestBeaconThreadsCaseForView(
   FakeBeaconViewRoomHintsRepository(),
   watermark,
   buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 BeaconViewCase buildTestBeaconViewCase({

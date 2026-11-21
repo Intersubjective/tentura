@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -12,7 +11,6 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
@@ -192,8 +190,6 @@ BeaconThreadsCase _makeCase(
   _FakeBeaconRoomHintsRepository(),
   watermark ?? RoomReadWatermarkStore.testing(),
   buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('threads_cubit_test'),
 );
 
 void _registerProfileCubit(String userId) {

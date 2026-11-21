@@ -530,8 +530,6 @@ Future<_Session> _openRequestView(
         FakeBeaconViewRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         realtime,
-        env: const Env(),
-        logger: Logger('test'),
       );
       final beaconRepo = _BeaconRepository(remote, invalidation, server);
       addTearDown(beaconRepo.dispose);

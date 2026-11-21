@@ -11,7 +11,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:ferry/ferry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -44,7 +43,6 @@ import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/post_view/ui/util/post_participants_sheet_request.dart';
 import 'package:tentura/features/post_view/ui/widget/post_info_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -219,8 +217,6 @@ Future<_Harness> _open(
         FakeBeaconRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         sync.case_,
-        env: const Env(),
-        logger: Logger('test'),
       ),
     )
     ..registerSingleton<CoordinationItemRoomSync>(CoordinationItemRoomSync())

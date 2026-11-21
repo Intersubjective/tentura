@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -8,7 +7,6 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
@@ -151,8 +149,6 @@ _questionsCubit({
     FakeBeaconRoomHintsRepository(),
     RoomReadWatermarkStore.testing(),
     buildTestRealtimeSync().case_,
-    env: const Env(),
-    logger: Logger('test'),
   );
   final cubit = RoomCubit(
     beaconId: kRoomCubitFakeBeaconId,

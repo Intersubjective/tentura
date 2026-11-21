@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/util/burst_coalescer.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
@@ -760,8 +758,6 @@ BeaconThreadsCase _buildTestBeaconThreadsCase({
   _FakeRoomHints(),
   RoomReadWatermarkStore.testing(),
   RealtimeSyncCase(_TestRealtimeSyncPort()),
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 BeaconThreadsCase buildTestBeaconThreadsCase() => _buildTestBeaconThreadsCase();

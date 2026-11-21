@@ -233,8 +233,6 @@ Future<_Room> _pumpRoom(
       FakeBeaconRoomHintsRepository(),
       RoomReadWatermarkStore.testing(),
       buildTestRealtimeSync().case_,
-      env: const Env(),
-      logger: Logger('test'),
     );
     final cubit = roomCubitForTest(fakeRoom, beaconRoomCase: threadsCase);
     await awaitRoomCubitLoad(cubit);

@@ -24,7 +24,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_entry_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
@@ -214,8 +213,6 @@ class OpenRequestObserverHarness {
       discussion.FakeBeaconRoomHintsRepository(),
       watermark,
       realtime,
-      env: const Env(),
-      logger: Logger('open request refresh'),
     );
     attention = buildAttentionCase(
       repository: attentionRepo,

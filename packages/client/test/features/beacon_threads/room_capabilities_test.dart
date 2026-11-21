@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -9,7 +8,6 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -90,8 +88,6 @@ base class _RequestOnlyCase extends BeaconThreadsCase {
          FakeBeaconRoomHintsRepository(),
          RoomReadWatermarkStore.testing(),
          realtime,
-         env: const Env(),
-         logger: Logger('test'),
        );
 
   final TestRealtimeSyncPort port;

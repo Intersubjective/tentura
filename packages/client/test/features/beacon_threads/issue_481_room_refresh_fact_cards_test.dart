@@ -4,10 +4,8 @@
 // (the server can be run with actor echo off).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 
@@ -54,8 +52,6 @@ void main() {
         FakeBeaconRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         buildTestRealtimeSync().case_,
-        env: const Env(),
-        logger: Logger('test'),
       ),
     );
     addTearDown(cubit.close);

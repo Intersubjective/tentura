@@ -9,14 +9,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -71,8 +69,6 @@ RoomCubit _cubit(FakeBeaconThreadsRepository fakeRoom, {String? focusFactId}) =>
         FakeBeaconRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         buildTestRealtimeSync().case_,
-        env: const Env(),
-        logger: Logger('test'),
       ),
       coordinationItemRoomSync: CoordinationItemRoomSync(),
       presenceRepository: roomCubitFakePresenceRepository(),

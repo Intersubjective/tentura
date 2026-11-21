@@ -245,8 +245,6 @@ Future<_Session> _openRequestView(
         FakeBeaconViewRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         realtime.case_,
-        env: const Env(),
-        logger: Logger('test'),
       );
       final beaconRepo = TrackingBeaconRepository()
         ..fetchByIdHandler = (_) async => _beacon(updatedAt: server.updatedAt);

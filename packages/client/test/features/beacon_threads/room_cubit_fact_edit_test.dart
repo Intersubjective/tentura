@@ -2,10 +2,8 @@
 // fact-list-only invalidation (issue #181, plan §8.7 / §14.5 / §14.6).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_card_exceptions.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
@@ -78,8 +76,6 @@ BeaconThreadsCase _makeCase(
   FakeBeaconRoomHintsRepository(),
   RoomReadWatermarkStore.testing(),
   buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 Future<void> _settle() => pumpAfterHintBurst();

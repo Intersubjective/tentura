@@ -252,8 +252,6 @@ Future<RoomCubit> _openInfoSheet(
     FakeBeaconRoomHintsRepository(),
     RoomReadWatermarkStore.testing(),
     realtime.case_,
-    env: const Env(),
-    logger: Logger('test'),
   );
   final room = RoomCubit(
     beaconId: _postId,

@@ -11,7 +11,6 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -87,8 +86,6 @@ BeaconThreadsCase _case(BeaconFactCardRepository repo) => BeaconThreadsCase(
   _FakeHints(),
   RoomReadWatermarkStore.testing(),
   buildTestRealtimeSync().case_,
-  env: const Env(),
-  logger: Logger('test'),
 );
 
 FactPickerCubit _quote(

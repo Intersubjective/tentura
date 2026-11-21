@@ -205,8 +205,6 @@ void registerFactRepository(BeaconFactCardRepository repository) {
         FakeBeaconRoomHintsRepository(),
         RoomReadWatermarkStore.testing(),
         buildTestRealtimeSync().case_,
-        env: const Env(),
-        logger: Logger('test'),
       ),
     );
   addTearDown(() {
