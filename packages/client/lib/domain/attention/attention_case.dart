@@ -1006,11 +1006,25 @@ final class AttentionCase implements AttentionReconcilePort {
   /// The sweep takes receipts only: an outcome row (tombstone) is read here
   /// and stays in Activity until the viewer dismisses it themself.
   Future<AttentionDismissAllResult> readAll() async {
+    final generation = _accountGeneration;
+    final summaryBeforeRead = surfaceSummarySnapshot;
     await markAllSeen();
     final result = await dismissAll(includeOutcomes: false);
     await _clearUnreadLeftovers(
       sweepCompleted: result.status == AttentionOperationStatus.complete,
     );
+    if (generation == _accountGeneration &&
+        identical(summaryBeforeRead, surfaceSummarySnapshot) &&
+        summaryBeforeRead.forYouReceiptSweepEligible &&
+        result.isComplete &&
+        !result.hasRefusals) {
+      // Read all includes the leftover clears. Once they finish, retire the
+      // sweep eligibility from the pre-read summary until the refresh lands.
+      _adoptSurfaceSummary(
+        summaryBeforeRead.copyWith(forYouReceiptSweepEligible: false),
+        updateHistory: false,
+      );
+    }
     return result;
   }
 
@@ -1350,12 +1364,19 @@ final class AttentionCase implements AttentionReconcilePort {
     );
   }
 
-  void _adoptSurfaceSummary(AttentionSurfaceSummary summary) {
+  void _adoptSurfaceSummary(
+    AttentionSurfaceSummary summary, {
+    bool updateHistory = true,
+  }) {
     if (!_surfaceSummarySubject.isClosed) {
       _surfaceSummarySubject.add(summary);
     }
     _emit(
-      snapshot.copyWith(summary: summary.historySummary ?? snapshot.summary),
+      updateHistory
+          ? snapshot.copyWith(
+              summary: summary.historySummary ?? snapshot.summary,
+            )
+          : snapshot,
     );
   }
 

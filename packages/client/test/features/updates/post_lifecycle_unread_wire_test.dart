@@ -53,12 +53,12 @@ final class _MutationGate {
   late final Completer<void> entered;
   late final Completer<void> release;
   late final Completer<Map<String, dynamic>> response;
-  late final Completer<void> unreadAfterSweep;
+  late final Completer<Map<String, dynamic>> historyAfterSweep;
   void arm() {
     entered = Completer<void>();
     release = Completer<void>();
     response = Completer<Map<String, dynamic>>();
-    unreadAfterSweep = Completer<void>();
+    historyAfterSweep = Completer<Map<String, dynamic>>();
   }
 }
 
@@ -137,6 +137,7 @@ Future<void> _withHistory(
             );
           }
           final requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+          final afterSweep = gate?.response.isCompleted ?? false;
           if (requestBody['operationName'] == gate?.operation) {
             gate!.entered.complete();
             await gate.release.future;
@@ -147,11 +148,14 @@ Future<void> _withHistory(
               gate.response.complete(
                 jsonDecode(response.body) as Map<String, dynamic>,
               );
-            } else if (gate.response.isCompleted &&
+            } else if (afterSweep &&
                 requestBody['operationName'] == 'AttentionFeed' &&
-                (requestBody['variables'] as Map?)?['view'] == 'unread' &&
-                !gate.unreadAfterSweep.isCompleted) {
-              gate.unreadAfterSweep.complete();
+                (requestBody['variables'] as Map<String, dynamic>)['view'] ==
+                    'all' &&
+                !gate.historyAfterSweep.isCompleted) {
+              gate.historyAfterSweep.complete(
+                jsonDecode(response.body) as Map<String, dynamic>,
+              );
             }
           }
           return response;
@@ -259,10 +263,35 @@ Future<void> _readAllThroughControl(
   );
   expect(response['errors'], isNull);
   final sweep = (response['data'] as Map)['attentionDismissAll'] as Map;
-  await gate.unreadAfterSweep.future.timeout(const Duration(seconds: 15));
-  // The leftover page and the account-wide sweep summary are independent
-  // requests. The page response alone does not finish Read all enablement.
-  await _until(() => !cubit.state.sweepEligible);
+  // Mark-all-seen clears the open Post on the server. Wait for the History
+  // page to confirm it, since eligibility can change before its rows do.
+  final historyResponse = await gate.historyAfterSweep.future.timeout(
+    const Duration(seconds: 15),
+  );
+  expect(historyResponse['errors'], isNull);
+  expect(
+    historyResponse['data'],
+    containsPair(
+      'attentionFeed',
+      containsPair(
+        'page',
+        containsPair(
+          'items',
+          contains(
+            allOf(
+              containsPair('id', openId),
+              containsPair('clearedAt', isNotNull),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await _until(
+    () =>
+        !cubit.state.sweepEligible &&
+        cubit.state.items.any((row) => row.id == openId && row.isCleared),
+  );
   await Future<void>.delayed(Duration.zero);
   await _pumpHistory(tester, cubit);
   final closed = cubit.state.items.singleWhere((r) => r.id == closedId);

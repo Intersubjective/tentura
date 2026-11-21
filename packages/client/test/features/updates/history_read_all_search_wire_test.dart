@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
@@ -31,6 +32,7 @@ const _activity = AttentionFeedDestinationId.activityStream;
 const _viewer = 'Uviewer000001';
 const _readId = 'Nread00000001';
 const _newId = 'Nnew000000001';
+const _nextId = 'Nnew000000002';
 const _deskId = 'Ndesk00000001';
 const _deskBeaconId = 'Bdesk00000001';
 const _readTitle = 'Earlier message';
@@ -40,6 +42,204 @@ const _timestamp = '2026-11-01T08:00:00Z';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('History Read all after a delayed response', () {
+    test('keeps the new search after a page for the old search arrives', () {
+      return _withFeed((feed) async {
+        final history = feed.open(_history);
+        await feed.deliverReceipt();
+        await feed.search(history, _history, _newId);
+        expect(_readAll(history), (true, true));
+
+        final page = feed.server.holdNext(
+          (request) =>
+              request.operationName == 'AttentionFeed' &&
+              request.variables['search'] == _newId,
+        );
+        final oldSearchRefresh = history.refresh();
+        await _expectRefreshWaitingForPage(page, oldSearchRefresh);
+        history.setSearch(_readId);
+        await _sweepWithResponseHeld(feed, history, page, oldSearchRefresh);
+        await feed.waitForSearch(_history, _readId);
+
+        expect(history.state.searchText, _readId);
+        expect(history.state.items.map((row) => row.id), [_readId]);
+      });
+    });
+
+    test('prevents a second sweep while the fresh summary is pending', () {
+      return _withFeed((feed) async {
+        final history = feed.open(_history);
+        await feed.deliverReceipt();
+        await _until(() => history.state.firstLoadDone, 'History head');
+        expect(_readAll(history), (true, true));
+
+        final (summary, settled) = await feed.holdSurfaceSummary();
+        await feed.search(history, _history, _noMatch);
+        final freshSummary = feed.holdSurfaceSummaryWithUnread(0);
+        expect(await history.markAllSeen(), isTrue);
+        await summary.releaseAndWaitFor(settled());
+        await freshSummary.waitForCapture(unread: 0);
+        final afterStaleSummary = _readAll(history);
+        if (history.state.canReadAll) await history.markAllSeen();
+        final operationsAfterStaleSummary = feed.readAllOperations;
+        await freshSummary.releaseAndWaitFor(feed.waitForSummary(0));
+        expect(_readAll(history), (false, false));
+        expect(history.state.searchText, _noMatch);
+
+        final beforeDelivery = feed.sent.length;
+        await feed.deliverReceipt(id: _nextId);
+        await _until(
+          () => _readAll(history) == (true, true),
+          'Read all enabled',
+        );
+        expect(history.state.searchText, _noMatch);
+        expect(await history.markAllSeen(), isTrue);
+        await feed.waitForSummary(0);
+        expect(_readAll(history), (false, false));
+        expect(history.state.searchText, _noMatch);
+        expect(
+          feed.sent
+              .skip(beforeDelivery)
+              .where(
+                (request) => request.operationName == 'AttentionDismissAll',
+              ),
+          hasLength(1),
+        );
+        final all = await feed.repository.fetch(view: AttentionView.all);
+        final fresh = all.page.items.singleWhere((row) => row.id == _nextId);
+        expect(fresh.isSeen, isTrue);
+        expect(fresh.isCleared, isTrue);
+        expect(
+          [afterStaleSummary, operationsAfterStaleSummary],
+          [
+            (false, false),
+            ['AttentionMarkAllSeen', 'AttentionDismissAll'],
+          ],
+        );
+      });
+    });
+
+    test('keeps All selected when a page for Unread arrives', () {
+      return _withFeed((feed) async {
+        final history = feed.open(_history);
+        await feed.deliverReceipt();
+        await history.setView(AttentionView.unread);
+        await feed.search(history, _history, _newId);
+        expect(_readAll(history), (true, true));
+
+        final page = feed.server.holdNext(
+          (request) =>
+              request.operationName == 'AttentionFeed' &&
+              request.variables['search'] == _newId &&
+              request.variables['view'] == 'unread',
+        );
+        final unreadRefresh = history.refresh();
+        await _expectRefreshWaitingForPage(page, unreadRefresh);
+        await history.setView(AttentionView.all);
+        await _sweepWithResponseHeld(feed, history, page, unreadRefresh);
+
+        expect(history.state.view, AttentionView.all);
+        expect(history.state.searchText, _newId);
+      });
+    });
+
+    testWidgets('disables the Russian phone button while totals catch up', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await tester.runAsync(
+        () => _withFeed((feed) async {
+          final services = GetIt.I;
+          services.pushNewScope();
+          services.registerSingleton(feed.attention);
+          services.registerSingleton(feed.sync.case_);
+          services.registerSingleton(Logger('history-delayed-response-screen'));
+          services.registerSingleton<InviteAcceptedSetupPort>(
+            NoopInviteAcceptedSetupPort(),
+          );
+          ensureNoopAttentionActorProfilesRegistered();
+          try {
+            await tester.pumpWidget(
+              StackRouterScope(
+                controller: _HistoryRouter(),
+                stateHash: 0,
+                child: MaterialApp(
+                  theme: TenturaTheme.light(),
+                  locale: const Locale('ru'),
+                  localizationsDelegates: L10n.localizationsDelegates,
+                  supportedLocales: L10n.supportedLocales,
+                  home: const MediaQuery(
+                    data: MediaQueryData(size: kPhoneSurface),
+                    child: TenturaResponsiveScope(child: UpdatesScreen()),
+                  ),
+                ),
+              ),
+            );
+            final history = tester
+                .element(find.byType(Scaffold))
+                .read<UpdatesFeedCubit>();
+            await feed.deliverReceipt();
+            await _until(() => history.state.firstLoadDone, 'History head');
+            await tester.pumpAndSettle();
+
+            final (summary, settled) = await feed.holdSurfaceSummary();
+            await tester.tap(
+              find.byTooltip(lookupL10n(const Locale('ru')).updatesSearchHint),
+            );
+            await tester.pumpAndSettle();
+            final field = find.byType(TextField);
+            await tester.enterText(field, _noMatch);
+            await feed.waitForSearch(_history, _noMatch);
+            await tester.pumpAndSettle();
+
+            final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+            expect(tester.widget<TextButton>(readAll).enabled, isTrue);
+            final sweep = feed.attention.lastSweepOutcome
+                .firstWhere((result) => result != null)
+                .timeout(const Duration(seconds: 5));
+            final freshSummary = feed.holdSurfaceSummaryWithUnread(0);
+            await tester.tap(readAll);
+            final firstSweep = await sweep;
+            await summary.releaseAndWaitFor(settled());
+            await freshSummary.waitForCapture(unread: 0);
+            await tester.pumpAndSettle();
+
+            final enabledAfterResponse = tester
+                .widget<TextButton>(readAll)
+                .enabled;
+            if (enabledAfterResponse) {
+              final secondSweep = feed.attention.lastSweepOutcome
+                  .firstWhere(
+                    (result) =>
+                        result != null &&
+                        result.operationId != firstSweep?.operationId,
+                  )
+                  .timeout(const Duration(seconds: 5));
+              await tester.tap(readAll);
+              await secondSweep;
+            }
+            final operationsAfterStaleSummary = feed.readAllOperations;
+            await freshSummary.releaseAndWaitFor(feed.waitForSummary(0));
+            await tester.pumpAndSettle();
+            expect(tester.widget<TextButton>(readAll).enabled, isFalse);
+            expect(tester.widget<TextField>(field).controller!.text, _noMatch);
+            expect(tester.takeException(), isNull);
+            expect(
+              [enabledAfterResponse, operationsAfterStaleSummary],
+              [
+                false,
+                ['AttentionMarkAllSeen', 'AttentionDismissAll'],
+              ],
+            );
+          } finally {
+            await tester.pumpWidget(const SizedBox.shrink());
+            await services.popScope();
+          }
+        }),
+      );
+    });
+  });
 
   for (final (name, view, beaconId, includeActivity) in [
     (
@@ -432,6 +632,43 @@ void main() {
 (bool, bool) _readAll(UpdatesFeedCubit cubit) =>
     (cubit.state.sweepEligible, cubit.state.canReadAll);
 
+Future<void> _expectRefreshWaitingForPage(
+  _HeldResponse page,
+  Future<void> refresh,
+) async {
+  final capturedFirst = await Future.any([
+    page.waitForCapture().then((_) => true),
+    refresh.then((_) => false),
+  ]);
+  expect(capturedFirst, isTrue, reason: 'the refresh must await the held page');
+}
+
+Future<void> _sweepWithResponseHeld(
+  _Feed feed,
+  UpdatesFeedCubit history,
+  _HeldResponse response,
+  Future<void> refresh,
+) async {
+  expect(await history.markAllSeen(), isTrue);
+  await feed.waitForSummary(0);
+  expect(_readAll(history), (false, false));
+
+  // The public refresh completes after the response goes through the
+  // repository and the cubit projects the resulting state, even if the
+  // response is discarded and the state stream has nothing to emit.
+  await response.releaseAndWaitFor(refresh);
+  expect(history.state.refreshError, isNull);
+  final after = _readAll(history);
+  if (history.state.canReadAll) await history.markAllSeen();
+  expect(
+    [after, feed.readAllOperations],
+    [
+      (false, false),
+      ['AttentionMarkAllSeen', 'AttentionDismissAll'],
+    ],
+  );
+}
+
 Future<void> _until(bool Function() ready, String description) async {
   final deadline = DateTime.now().add(const Duration(seconds: 5));
   while (!ready()) {
@@ -479,6 +716,17 @@ final class _Feed {
   final _cubits = <UpdatesFeedCubit>[];
   late final AttentionCase attention;
 
+  List<String> get readAllOperations => [
+    for (final request in sent)
+      if (const {
+        'AttentionMarkAllSeen',
+        'AttentionDismissAll',
+        'AttentionClear',
+        'AttentionClearSnapshot',
+      }.contains(request.operationName))
+        request.operationName,
+  ];
+
   UpdatesFeedCubit open(String destination) {
     final cubit = UpdatesFeedCubit(
       destinationId: destination,
@@ -508,18 +756,53 @@ final class _Feed {
         session.pages.containsKey(session.activeView);
   }, '$destination head for search "$text"');
 
-  Future<void> deliverReceipt() async {
+  Future<void> deliverReceipt({String id = _newId}) async {
+    server.receiptId = id;
     server.delivered = true;
+    server._seen = false;
+    server._cleared = false;
+    _invalidateReceipts();
+    await waitForSummary(1);
+  }
+
+  void _invalidateReceipts({String? beaconId}) {
     sync.port.emitChange(
-      const RealtimeEntityChange(
+      RealtimeEntityChange(
         kind: RealtimeEntityKind.notification,
         aggregateId: _viewer,
+        childId: beaconId,
         operation: RealtimeOperation.update,
         source: RealtimeChangeSource.serverInvalidation,
       ),
     );
-    await waitForSummary(1);
   }
+
+  Future<(_HeldResponse, Future<void> Function())> holdSurfaceSummary() async {
+    const beaconId = 'Bbeacon000001';
+    final hold = holdSurfaceSummaryWithUnread(1);
+    // This notification is published when the coordinated refresh has
+    // processed both wire responses, including when it discards them.
+    final settled = attention.requestInvalidations.firstWhere(
+      (id) => id == beaconId,
+      orElse: () => '',
+    );
+    _invalidateReceipts(beaconId: beaconId);
+    await hold.waitForCapture();
+    return (
+      hold,
+      () async {
+        expect(await settled.timeout(const Duration(seconds: 5)), beaconId);
+      },
+    );
+  }
+
+  _HeldResponse holdSurfaceSummaryWithUnread(int unread) => server.holdNext(
+    (request) => request.operationName == 'AttentionSurfaceSummary',
+    whereResponse: (response) =>
+        (response['attentionSurfaceSummary']
+            as Map<String, dynamic>)['unreadTotal'] ==
+        unread,
+  );
 
   Future<void> waitForSummary(int unread) => _until(() {
     final summary = attention.surfaceSummarySnapshot;
@@ -528,6 +811,7 @@ final class _Feed {
   }, 'server surface summary with $unread unread');
 
   Future<void> close() async {
+    server.releaseHeldResponses();
     for (final cubit in _cubits.reversed) {
       await cubit.close();
     }
@@ -562,6 +846,7 @@ final class _DeskReceipt {
 // The Activity surface rejects non-blank search.
 final class _ReceiptServer {
   bool delivered = false;
+  String receiptId = _newId;
   _DeskReceipt? desk;
   bool _seen = false;
   bool _cleared = false;
@@ -578,7 +863,37 @@ final class _ReceiptServer {
   String _searchText(WireSent request) =>
       (request.variables['search'] as String? ?? '').trim();
 
+  final _heldResponses = <_HeldResponse>[];
+
+  _HeldResponse holdNext(
+    bool Function(WireSent) matches, {
+    bool Function(Map<String, dynamic>)? whereResponse,
+  }) {
+    final hold = _HeldResponse(matches, whereResponse);
+    _heldResponses.add(hold);
+    return hold;
+  }
+
+  void releaseHeldResponses() {
+    for (final hold in _heldResponses) {
+      hold.open();
+    }
+  }
+
   Future<Map<String, dynamic>> respond(WireSent request) async {
+    final response = _snapshot(request);
+    for (final hold in _heldResponses) {
+      if (hold.captured.isCompleted || !hold.matches(request, response)) {
+        continue;
+      }
+      hold.captured.complete(response);
+      await hold.gate.future;
+      break;
+    }
+    return response;
+  }
+
+  Map<String, dynamic> _snapshot(WireSent request) {
     final desk = this.desk;
     final deskUnread = desk != null && !desk.cleared;
     switch (request.operationName) {
@@ -630,7 +945,7 @@ final class _ReceiptServer {
               'items': [
                 if (onRequestedSurface && delivered && (!_cleared || all))
                   _matchingReceipt(
-                    _newId,
+                    receiptId,
                     _newTitle,
                     searchWords: searchWords,
                     seen: _seen,
@@ -676,7 +991,7 @@ final class _ReceiptServer {
             '__typename': 'v2_AttentionDismissAllResult',
             'operationId': request.variables['operationId'],
             'status': 'complete',
-            'appliedReceiptIds': [if (delivered) _newId],
+            'appliedReceiptIds': [if (delivered) receiptId],
             'appliedOutcomeBeaconIds': <String>[],
             'appliedCount': delivered ? 1 : 0,
             'skipped': <Object>[],
@@ -720,6 +1035,43 @@ final class _ReceiptServer {
       default:
         fail('Unexpected GraphQL operation ${request.operationName}');
     }
+  }
+}
+
+final class _HeldResponse {
+  _HeldResponse(this._whereRequest, this._whereResponse);
+
+  final bool Function(WireSent) _whereRequest;
+  final bool Function(Map<String, dynamic>)? _whereResponse;
+  final captured = Completer<Map<String, dynamic>>();
+  final gate = Completer<void>();
+
+  bool matches(WireSent request, Map<String, dynamic> response) =>
+      _whereRequest(request) && (_whereResponse?.call(response) ?? true);
+
+  Future<void> waitForCapture({int unread = 1}) async {
+    final response = await captured.future.timeout(const Duration(seconds: 5));
+    if (response['attentionSurfaceSummary']
+        case final Map<String, dynamic> summary) {
+      expect(summary['forYouReceiptSweepEligible'], unread > 0);
+      expect(summary['unreadTotal'], unread);
+    } else {
+      final feed = response['attentionFeed'] as Map<String, dynamic>;
+      expect((feed['summary'] as Map<String, dynamic>)['unreadTotal'], unread);
+      expect(
+        (feed['page'] as Map<String, dynamic>)['items'],
+        contains(containsPair('id', _newId)),
+      );
+    }
+  }
+
+  void open() {
+    if (!gate.isCompleted) gate.complete();
+  }
+
+  Future<void> releaseAndWaitFor(Future<void> processed) async {
+    open();
+    await processed.timeout(const Duration(seconds: 5));
   }
 }
 
