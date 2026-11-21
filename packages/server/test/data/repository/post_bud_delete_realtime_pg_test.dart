@@ -175,6 +175,44 @@ UPDATE public.beacon SET title = 'Updated bud' WHERE id = '$_bud'
           'The hard delete must invalidate the Post hierarchy. Hints: $hints',
     );
   });
+
+  test(
+    'Post bud Chat preview refreshes for former readers after hard delete',
+    () async {
+      final hints = await record(() => hardDelete(_bud));
+      _expectNoHintsToNonReaders(hints);
+      expect(
+        _audience(hints, 'beacon_hierarchy', _post, event: 'delete'),
+        {_budAuthor, _invitee},
+        reason: 'The Post hierarchy must still refresh. Hints: $hints',
+      );
+      expect(
+        _audience(hints, 'beacon_hierarchy', _bud, event: 'delete'),
+        {_budAuthor, _invitee},
+        reason:
+            'The deleted bud must invalidate its Chat preview. Hints: $hints',
+      );
+    },
+  );
+
+  test(
+    'Post bud Chat preview refreshes for former readers after soft delete',
+    () async {
+      final hints = await record(() => softDelete(_bud, _budAuthor));
+      expect(
+        _audience(hints, 'beacon_hierarchy', _post, event: 'update'),
+        {_budAuthor, _invitee},
+        reason: 'The Post hierarchy must still refresh. Hints: $hints',
+      );
+      expect(
+        _audience(hints, 'beacon_hierarchy', _bud, event: 'update'),
+        {_budAuthor, _invitee},
+        reason:
+            'The soft-deleted bud must invalidate its Chat preview. '
+            'Hints: $hints',
+      );
+    },
+  );
 }
 
 void _expectNoHintsToNonReaders(List<Map<String, dynamic>> hints) {
