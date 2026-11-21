@@ -10,13 +10,13 @@ import 'package:test/test.dart';
 import '../support/viewer_can_forward_profile.dart';
 
 const _migrationPath = 'packages/server/lib/data/database/migration';
-const _startingRevision = '86e47c5f40e8df395fbed3511a84ef51f286b432';
-const _shippedThrough = 'm0324.dart';
-const _nextMigration = 'm0325.dart';
+const _startingRevision = 'c2d0bb484529a6b27b3254c6974db22d294f8d76';
+const _shippedThrough = 'm0326.dart';
+const _nextMigration = 'm0327.dart';
 // SHA-256 of sorted `filename sha256(file bytes)\n` lines from the starting
 // revision. This also checks the shipped files in shallow CI checkouts.
 const _shippedDigest =
-    '62d427e3211bf7637147eb49fddc8d3b57e0fa6d04166ceab143ef2c4ce45d22';
+    '1387d2893d831ccc4555065086d7d02b50a7361ef7a33ff24e0c9d85e9108955';
 final _migrationFile = RegExp(r'^m\d{4}\.dart$');
 const _explainFields = {
   'inbox_fetch.graphql': {'inbox_item'},
