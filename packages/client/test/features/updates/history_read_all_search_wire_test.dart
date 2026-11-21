@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/screen/updates_screen.dart';
@@ -42,7 +45,7 @@ void main() {
       final history = feed.open(_history);
       final activity = feed.open(_activity);
       await feed.search(history, _history, _noMatch);
-      await feed.search(activity, _activity, _noMatch);
+      await _until(() => activity.state.firstLoadDone, 'Activity head');
       expect(history.state.summary.unreadTotal, 0);
       expect(history.state.items, isEmpty);
       expect(_readAll(history), (false, false));
@@ -67,23 +70,57 @@ void main() {
       await feed.deliverReceipt();
       expect(history.state.items, isEmpty);
       expect(history.state.searchText, _noMatch);
-      expect(activity.state.items, isEmpty);
-      expect(activity.state.searchText, _noMatch);
+      expect(activity.state.searchText, isEmpty);
       expect(_readAll(activity), (true, true));
       final historyAfterDelivery = _readAll(history);
+      final beforeSweep = await feed.repository.fetch(
+        view: AttentionView.all,
+        search: _noMatch,
+      );
+      expect(beforeSweep.page.items, isEmpty);
+      final myWorkBeforeSweep = await feed.repository.fetch(
+        view: AttentionView.all,
+        surface: AttentionSurface.myWork,
+      );
 
       // Record the enabled state before invoking the public action so the
       // baseline still exercises the real read and post-sweep refresh.
       expect(await history.markAllSeen(), isTrue);
       await feed.waitForSummary(0);
+      final afterSweep = await feed.repository.fetch(
+        view: AttentionView.all,
+        search: _noMatch,
+      );
+      expect(afterSweep.page.items, isEmpty);
+      expect(afterSweep.summary.unreadTotal, 0);
+      expect(history.state.items, isEmpty);
       expect(history.state.searchText, _noMatch);
       expect(_readAll(history), (false, false));
-      expect(activity.state.searchText, _noMatch);
+      expect(activity.state.searchText, isEmpty);
       expect(_readAll(activity), (false, false));
+      final activityRequests = feed.sent.where(
+        (request) =>
+            request.operationName == 'AttentionFeed' &&
+            request.variables['surface'] == 'activity',
+      );
+      expect(activityRequests, isNotEmpty);
+      expect(
+        activityRequests.map((request) => request.variables['search']),
+        everyElement(isNull),
+      );
       expect(
         historyAfterDelivery,
         (true, true),
         reason: 'a sweepable receipt enables History even with no search hits',
+      );
+      expect(
+        (
+          beforeSweep.summary.unreadTotal,
+          myWorkBeforeSweep.summary.unreadTotal,
+        ),
+        (1, 0),
+        reason:
+            'unread totals follow the requested surface even with no search hits',
       );
     }),
   );
@@ -92,14 +129,14 @@ void main() {
     'History keeps matching read rows and enables Read all for a new nonmatching receipt',
     () => _withFeed((feed) async {
       final history = feed.open(_history);
-      await feed.search(history, _history, 'Earlier');
+      await feed.search(history, _history, _readId);
       expect(history.state.items.map((row) => row.id), [_readId]);
       expect(history.state.items.single.isSeen, isTrue);
       expect(history.state.summary.unreadTotal, 0);
       expect(_readAll(history), (false, false));
 
       await feed.deliverReceipt();
-      expect(history.state.searchText, 'Earlier');
+      expect(history.state.searchText, _readId);
       expect(history.state.items.map((row) => row.id), [_readId]);
       expect(history.state.items.single.isSeen, isTrue);
       final whileFiltered = _readAll(history);
@@ -113,6 +150,100 @@ void main() {
         whileFiltered,
         (true, true),
         reason: 'the visible read row does not hide the new unread receipt',
+      );
+    }),
+  );
+
+  test(
+    'AttentionFeed search ignores receipt titles and bodies',
+    () => _withFeed((feed) async {
+      final unfiltered = await feed.repository.fetch(view: AttentionView.all);
+      expect(unfiltered.page.items.single.title, _readTitle);
+      expect(unfiltered.page.items.single.body, 'Message preview');
+
+      final matches = <String, List<String>>{};
+      for (final search in ['Earlier', 'preview']) {
+        final response = await feed.repository.fetch(
+          view: AttentionView.all,
+          search: search,
+        );
+        matches[search] = response.page.items.map((row) => row.id).toList();
+      }
+      expect(matches, {'Earlier': <String>[], 'preview': <String>[]});
+    }),
+  );
+
+  test(
+    'AttentionFeed search uses whole case-insensitive presentation payload tokens',
+    () => _withFeed((feed) async {
+      final matches = <String, List<String>>{};
+      for (final search in [_readId, _readId.toUpperCase(), 'Nread']) {
+        final response = await feed.repository.fetch(
+          view: AttentionView.all,
+          search: search,
+        );
+        matches[search] = response.page.items.map((row) => row.id).toList();
+      }
+      expect(matches, {
+        _readId: [_readId],
+        _readId.toUpperCase(): [_readId],
+        'Nread': <String>[],
+      });
+
+      await feed.deliverReceipt();
+      final unfiltered = await feed.repository.fetch(view: AttentionView.all);
+      expect(unfiltered.page.items.map((row) => row.id), [_newId, _readId]);
+      const searchableFields = {
+        'eventType',
+        'beaconId',
+        'coordinationItemId',
+        'targetEntityId',
+        'messageId',
+      };
+      final searchedFields = <String>{};
+      for (final row in unfiltered.page.items) {
+        final payload =
+            jsonDecode(row.presentationPayloadJson) as Map<String, dynamic>;
+        if (row.id == _readId) {
+          expect(payload['messageId'], _readId);
+        }
+        for (final field in searchableFields) {
+          final value = payload[field] as String?;
+          if (value == null || value.trim().isEmpty) {
+            continue;
+          }
+          final response = await feed.repository.fetch(
+            view: AttentionView.all,
+            search: value,
+          );
+          expect(
+            response.page.items.map((match) => match.id),
+            contains(row.id),
+            reason: field,
+          );
+          searchedFields.add(field);
+        }
+      }
+      expect(searchedFields, searchableFields);
+    }),
+  );
+
+  test(
+    'AttentionFeed rejects a search on the Activity surface',
+    () => _withFeed((feed) async {
+      await expectLater(
+        feed.repository.fetch(
+          view: AttentionView.all,
+          surface: AttentionSurface.activity,
+          search: _noMatch,
+        ),
+        throwsA(
+          isA<RemoteApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('must be null when surface is activity'),
+          ),
+        ),
       );
     }),
   );
@@ -211,20 +342,26 @@ Future<void> _until(bool Function() ready, String description) async {
 Future<void> _withFeed(Future<void> Function(_Feed) body) async {
   final server = _ReceiptServer();
   final sent = <WireSent>[];
-  await withRemoteWire({}, sent, (remote) async {
-    final feed = _Feed(AttentionRepository(remote), server, sent);
-    try {
-      feed.accounts.emit(_viewer);
-      await feed.waitForSummary(0);
-      await body(feed);
-    } finally {
-      await feed.close();
-    }
-  }, responseFor: server.respond);
+  await withRemoteWire(
+    {},
+    sent,
+    (remote) async {
+      final feed = _Feed(AttentionRepository(remote), server, sent);
+      try {
+        feed.accounts.emit(_viewer);
+        await feed.waitForSummary(0);
+        await body(feed);
+      } finally {
+        await feed.close();
+      }
+    },
+    responseFor: server.respond,
+    errorFor: server.errorFor,
+  );
 }
 
 final class _Feed {
-  _Feed(AttentionRepository repository, this.server, this.sent) {
+  _Feed(this.repository, this.server, this.sent) {
     attention = buildAttentionCase(
       repository: repository,
       accounts: accounts,
@@ -232,6 +369,7 @@ final class _Feed {
     );
   }
 
+  final AttentionRepository repository;
   final _ReceiptServer server;
   final List<WireSent> sent;
   final accounts = AttentionCaseTestAccounts();
@@ -307,12 +445,26 @@ class _HistoryRouter extends Mock implements StackRouter {
 }
 
 // HTTP fixture for one already-read, cleared row and a later sweepable row.
-// The feed operation counts only matching rows. The surface operation always
-// reports the unscoped History total.
+// The feed summary counts unread rows by surface independently of search.
+// The server searches presentation payload fields and the actor name. These
+// rows have no actor, so the fixture matches plain words against the payload.
+// The Activity surface rejects non-blank search.
 final class _ReceiptServer {
   bool delivered = false;
   bool _seen = false;
   bool _cleared = false;
+
+  Map<String, dynamic>? errorFor(WireSent request) {
+    if (request.operationName == 'AttentionFeed' &&
+        request.variables['surface'] == AttentionSurface.activityWire &&
+        _searchText(request).isNotEmpty) {
+      return {'message': 'search must be null when surface is activity'};
+    }
+    return null;
+  }
+
+  String _searchText(WireSent request) =>
+      (request.variables['search'] as String? ?? '').trim();
 
   Future<Map<String, dynamic>> respond(WireSent request) async {
     switch (request.operationName) {
@@ -332,8 +484,20 @@ final class _ReceiptServer {
           },
         };
       case 'AttentionFeed':
-        final search = request.variables['search'] as String? ?? '';
-        final unread = delivered && !_cleared && _newTitle.contains(search);
+        final surface = request.variables['surface'];
+        final onRequestedSurface =
+            surface == null || surface == AttentionSurface.activityWire;
+        final unread = onRequestedSurface && delivered && !_cleared;
+        final all = request.variables['view'] == 'all';
+        final search = _searchText(request);
+        final searchWords = search.isEmpty
+            ? null
+            : search
+                  .toLowerCase()
+                  .split(RegExp('[^a-z0-9]+'))
+                  .where(
+                    (word) => word.isNotEmpty,
+                  );
         return {
           '__typename': 'query_root',
           'attentionFeed': {
@@ -347,14 +511,23 @@ final class _ReceiptServer {
               '__typename': 'v2_AttentionPage',
               'nextCursor': null,
               'items': [
-                if (delivered &&
-                    _newTitle.contains(search) &&
-                    (!_cleared || request.variables['view'] == 'all'))
-                  _receipt(_newId, _newTitle, seen: _seen, cleared: _cleared),
-                if (_readTitle.contains(search) &&
-                    request.variables['view'] == 'all')
-                  _receipt(_readId, _readTitle, seen: true, cleared: true),
-              ],
+                if (onRequestedSurface && delivered && (!_cleared || all))
+                  _matchingReceipt(
+                    _newId,
+                    _newTitle,
+                    searchWords: searchWords,
+                    seen: _seen,
+                    cleared: _cleared,
+                  ),
+                if (onRequestedSurface && all)
+                  _matchingReceipt(
+                    _readId,
+                    _readTitle,
+                    searchWords: searchWords,
+                    seen: true,
+                    cleared: true,
+                  ),
+              ].nonNulls.toList(),
             },
           },
         };
@@ -389,29 +562,45 @@ final class _ReceiptServer {
   }
 }
 
-Map<String, dynamic> _receipt(
+Map<String, dynamic>? _matchingReceipt(
   String id,
   String title, {
+  required Iterable<String>? searchWords,
   required bool seen,
   required bool cleared,
-}) => {
-  '__typename': 'v2_AttentionReceipt',
-  'id': id,
-  'category': 'requestProgress',
-  'kind': 'newMessage',
-  'priority': 'low',
-  'title': title,
-  'body': 'Message preview',
-  'actionUrl': '/#/',
-  'createdAt': _timestamp,
-  'seenAt': seen ? _timestamp : null,
-  'collapsedCount': 1,
-  'sourceEventKey': id,
-  'presentationPayloadJson': '{}',
-  'requiresAction': false,
-  'clearedAt': cleared ? _timestamp : null,
-  'clearReason': cleared ? 'manual' : null,
-  'surface': 'activity',
-  'itemKind': 'receipt',
-  'eventsPreview': <Object?>[],
-};
+}) {
+  final payload = {
+    'eventType': 'roomMessagePosted',
+    'beaconId': 'Bbeacon000001',
+    'coordinationItemId': 'Icoord0000001',
+    'targetEntityId': 'Ntarget000001',
+    'messageId': id,
+  };
+  if (searchWords != null) {
+    final tokens = payload.values.map((value) => value.toLowerCase()).toSet();
+    if (searchWords.isEmpty || !searchWords.every(tokens.contains)) {
+      return null;
+    }
+  }
+  return {
+    '__typename': 'v2_AttentionReceipt',
+    'id': id,
+    'category': 'requestProgress',
+    'kind': 'newMessage',
+    'priority': 'low',
+    'title': title,
+    'body': 'Message preview',
+    'actionUrl': '/#/',
+    'createdAt': _timestamp,
+    'seenAt': seen ? _timestamp : null,
+    'collapsedCount': 1,
+    'sourceEventKey': id,
+    'presentationPayloadJson': jsonEncode(payload),
+    'requiresAction': false,
+    'clearedAt': cleared ? _timestamp : null,
+    'clearReason': cleared ? 'manual' : null,
+    'surface': AttentionSurface.activityWire,
+    'itemKind': 'receipt',
+    'eventsPreview': <Object?>[],
+  };
+}
