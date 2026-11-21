@@ -14,22 +14,49 @@ const _mockClass = 'UserTrustEdgeRepositoryMock';
 const _repositoryPort = 'UserTrustEdgeRepositoryPort';
 const _mockDirectory = 'test/support/mocks';
 
+const _testSupportRepositories = {
+  'band_candidate': ('BandCandidateRepository', 'BandCandidatePort'),
+  'beacon_member_webs': (
+    'BeaconMemberWebsRepository',
+    'BeaconMemberWebsRepositoryPort',
+  ),
+  'beacon': ('BeaconRepository', 'BeaconRepositoryPort'),
+  'capability_cell': ('CapabilityCellRepository', 'CapabilityCellPort'),
+  'capability_evidence': (
+    'CapabilityEvidenceRepository',
+    'CapabilityEvidencePort',
+  ),
+  'capability_own_evidence': (
+    'CapabilityOwnEvidenceRepository',
+    'CapabilityOwnEvidencePort',
+  ),
+  'capability_telemetry': (
+    'CapabilityTelemetryRepository',
+    'CapabilityTelemetryPort',
+  ),
+  'closure': ('ClosureRepository', 'ClosureRepositoryPort'),
+  'commitment': ('CommitmentRepository', 'CommitmentRepositoryPort'),
+  'complaint': ('ComplaintRepository', 'ComplaintRepositoryPort'),
+  'constellation_field': (
+    'ConstellationFieldRepository',
+    'ConstellationFieldRepositoryPort',
+  ),
+  'constellation_field_requests': (
+    'ConstellationFieldRequestsRepository',
+    'ConstellationFieldRequestsPort',
+  ),
+  'constellation_mutual_trust': (
+    'ConstellationMutualTrustRepository',
+    'ConstellationMutualTrustPort',
+  ),
+  'constellation_trust_chain': (
+    'ConstellationTrustChainRepository',
+    'ConstellationTrustChainPort',
+  ),
+};
+
 // Remove the corresponding path when moving each remaining test registration.
 const _unmoved = {
-  '$_legacyMockDirectory/band_candidate_repository_mock.dart',
-  '$_legacyMockDirectory/beacon_member_webs_repository_mock.dart',
-  '$_legacyMockDirectory/beacon_repository_mock.dart',
-  '$_legacyMockDirectory/capability_cell_repository_mock.dart',
-  '$_legacyMockDirectory/capability_evidence_repository_mock.dart',
-  '$_legacyMockDirectory/capability_own_evidence_repository_mock.dart',
-  '$_legacyMockDirectory/capability_telemetry_repository_mock.dart',
-  '$_legacyMockDirectory/closure_repository_mock.dart',
-  '$_legacyMockDirectory/commitment_repository_mock.dart',
-  '$_legacyMockDirectory/complaint_repository_mock.dart',
-  '$_legacyMockDirectory/constellation_field_repository_mock.dart',
-  '$_legacyMockDirectory/constellation_field_requests_repository_mock.dart',
-  '$_legacyMockDirectory/constellation_mutual_trust_repository_mock.dart',
-  '$_legacyMockDirectory/constellation_trust_chain_repository_mock.dart',
   '$_legacyMockDirectory/coordination_repository_mock.dart',
   '$_legacyMockDirectory/fcm_remote_repository_mock.dart',
   '$_legacyMockDirectory/fcm_token_repository_mock.dart',
@@ -68,6 +95,165 @@ const _unmoved = {
 };
 
 void main() {
+  group('Repository mocks owned by test support', () {
+    final mockFiles = {
+      for (final name in _testSupportRepositories.keys)
+        '${name}_repository_mock.dart',
+    };
+
+    test('the mocks and their callers use test-support paths', () {
+      final oldPaths = {
+        for (final name in mockFiles) '$_legacyMockDirectory/$name',
+      };
+      final legacyImports = {
+        for (final name in mockFiles)
+          'package:tentura_server/data/repository/mock/$name',
+      };
+      final staleImports = [
+        for (final root in ['lib', 'bin', 'test'])
+          for (final file in _dartFiles(root))
+            if (file.readAsStringSync().contains(
+              'package:tentura_server/data/repository/mock/',
+            ))
+              for (final directive in _parse(
+                file,
+              ).directives.whereType<ImportDirective>())
+                if (legacyImports.contains(directive.uri.stringValue))
+                  '${file.path}: ${directive.uri.stringValue}',
+      ];
+
+      final callers = {
+        'test/domain/use_case/leave_in_wrapping_up_test.dart': {
+          'closure_repository_mock.dart',
+        },
+        'test/data/repository/beacon_repository_mock_cover_thumb_test.dart': {
+          'beacon_repository_mock.dart',
+        },
+        'test/support/test_dependency_graph_expectations.dart': mockFiles,
+      };
+      final missingImports = <String>[];
+      for (final MapEntry(key: path, value: names) in callers.entries) {
+        final file = File(path);
+        final imports = _parse(file).directives
+            .whereType<ImportDirective>()
+            .map((directive) => directive.uri.stringValue)
+            .whereType<String>()
+            .map(file.absolute.uri.resolve)
+            .toSet();
+        missingImports.addAll(
+          names
+              .where(
+                (name) => !imports.contains(
+                  File('$_mockDirectory/$name').absolute.uri,
+                ),
+              )
+              .map((name) => '$path: $_mockDirectory/$name'),
+        );
+      }
+
+      final violations = <String, Iterable<String>>{
+        'missing test-support imports': missingImports,
+        'missing test-support files': [
+          for (final name in mockFiles)
+            if (!File('$_mockDirectory/$name').existsSync()) name,
+        ],
+        'files still under lib': [
+          for (final path in oldPaths)
+            if (File(path).existsSync()) path,
+        ],
+        'obsolete allowlist entries': _unmoved.intersection(oldPaths),
+        'legacy package imports': staleImports,
+      }..removeWhere((_, findings) => findings.isEmpty);
+      expect(violations, isEmpty);
+    });
+
+    test('the application graph keeps the dev and prod repositories', () {
+      final file = File('lib/app/di.config.dart');
+      final graph = _GeneratedGraph(file);
+      final code = file.readAsStringSync();
+      for (final (implementation, port) in _testSupportRepositories.values) {
+        final bindings = graph.bindings.where(
+          (binding) =>
+              _typeName(binding) == port &&
+              _implementation(binding)?.group(2) == implementation,
+        );
+        expect(bindings, hasLength(1), reason: port);
+        expect(
+          graph.environments(bindings.single),
+          unorderedEquals(['dev', 'prod']),
+          reason: port,
+        );
+      }
+      final mockReferences = [
+        for (final (implementation, _) in _testSupportRepositories.values)
+          if (code.contains('${implementation}Mock')) '${implementation}Mock',
+        for (final name in mockFiles)
+          if (code.contains('data/repository/mock/$name')) name,
+      ];
+      expect(mockReferences, isEmpty);
+    });
+
+    test('the test initializer binds each mock to its test-only port', () {
+      final graph = _GeneratedGraph(File('test/support/test_di.config.dart'));
+      expect(
+        graph.bindings.map(_typeName),
+        containsAll(_testSupportRepositories.values.map((entry) => entry.$2)),
+      );
+
+      for (final MapEntry(key: name, value: (implementation, port))
+          in _testSupportRepositories.entries) {
+        final className = '${implementation}Mock';
+        final bindings = graph.bindings.where(
+          (binding) =>
+              _typeName(binding) == port &&
+              _implementation(binding)?.group(2) == className,
+        );
+        expect(bindings, hasLength(1), reason: port);
+        final binding = bindings.single;
+        expect(
+          graph.environments(binding),
+          unorderedEquals(['test']),
+          reason: port,
+        );
+        final source = File('$_mockDirectory/${name}_repository_mock.dart');
+        expect(
+          graph
+              .implementationFile(_implementation(binding)!.group(1)!)
+              ?.absolute
+              .uri,
+          source.absolute.uri,
+          reason: className,
+        );
+
+        final mock = _parse(source).declarations
+            .whereType<ClassDeclaration>()
+            .singleWhere(
+              (declaration) =>
+                  declaration.namePart.typeName.lexeme == className,
+            );
+        expect(
+          mock.implementsClause?.interfaces.map((type) => type.name.lexeme),
+          contains(port),
+          reason: className,
+        );
+        final annotationName = name == 'closure'
+            ? 'LazySingleton'
+            : 'Injectable';
+        expect(
+          mock.metadata.where(
+            (annotation) =>
+                _annotationName(annotation) == annotationName &&
+                _argument(annotation.arguments, 'as')?.toSource() == port &&
+                _testOnly(annotation) &&
+                _argument(annotation.arguments, 'order')?.toSource() == '1',
+          ),
+          hasLength(1),
+          reason: '$className must preserve its registration annotation.',
+        );
+      }
+    });
+  });
+
   test('new test-only injectable registrations stay outside lib', () {
     final offenders = <String>[];
     for (final file in _dartFiles('lib')) {

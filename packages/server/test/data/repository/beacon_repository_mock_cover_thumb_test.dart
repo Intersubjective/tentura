@@ -2,10 +2,11 @@ import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura_server/data/repository/mock/beacon_repository_mock.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+
+import '../../support/mocks/beacon_repository_mock.dart';
 
 /// B006 — `replaceMedia` contract: a staged image that becomes the cover
 /// thumbnail is promoted, so it is not among the ids reported as discarded

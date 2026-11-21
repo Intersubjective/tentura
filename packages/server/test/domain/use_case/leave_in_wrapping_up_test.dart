@@ -3,7 +3,6 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/data/repository/mock/closure_repository_mock.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
@@ -33,6 +32,7 @@ import '../../support/commitment_gates_harness.dart'
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/closure_repository_mock.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
