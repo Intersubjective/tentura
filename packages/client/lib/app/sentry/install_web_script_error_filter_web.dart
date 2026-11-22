@@ -3,6 +3,7 @@ import 'dart:js_interop_unsafe';
 
 import 'package:web/web.dart' as web;
 
+import 'drift_worker_error.dart';
 import 'opaque_script_error.dart';
 
 const _filterInstalledKey = '__tenturaScriptErrorFilter';
@@ -45,14 +46,25 @@ void installWebScriptErrorFilter() {
   }
 
   final previous = optionsObj.getProperty('beforeSend'.toJS);
-  final previousFn =
-      previous != null && previous.isA<JSFunction>() ? previous as JSFunction : null;
+  final previousFn = previous != null && previous.isA<JSFunction>()
+      ? previous as JSFunction
+      : null;
 
   final wrapped = ((JSAny? event, JSAny? hint) {
     if (event != null && event.isA<JSObject>()) {
       final eventObj = event as JSObject;
-      if (_shouldDropOpaqueScriptError(eventObj)) {
+      final exceptions = _readJsArray(
+        _readJsObject(eventObj, 'exception'),
+        'values',
+      );
+      if (_shouldDropOpaqueScriptError(eventObj, exceptions)) {
         return null;
+      }
+      if (exceptions case [final rawException]) {
+        final exception = _asJsObject(rawException);
+        if (exception != null) {
+          _annotateDriftWorkerError(exception);
+        }
       }
     }
 
@@ -62,11 +74,12 @@ void installWebScriptErrorFilter() {
     return event;
   }).toJS;
 
-  optionsObj.setProperty('beforeSend'.toJS, wrapped);
-  optionsObj.setProperty(_filterInstalledKey.toJS, true.toJS);
+  optionsObj
+    ..setProperty('beforeSend'.toJS, wrapped)
+    ..setProperty(_filterInstalledKey.toJS, true.toJS);
 }
 
-bool _shouldDropOpaqueScriptError(JSObject event) {
+bool _shouldDropOpaqueScriptError(JSObject event, List<JSAny?> exceptions) {
   String? message;
   String? messageFormatted;
   String? messageObjectMessage;
@@ -82,42 +95,48 @@ bool _shouldDropOpaqueScriptError(JSObject event) {
     }
   }
 
-  final exceptionValues = _readExceptionValues(event);
-
   return isOpaqueBrowserScriptErrorEvent(
     message: message,
     messageFormatted: messageFormatted,
     messageObjectMessage: messageObjectMessage,
-    exceptionValues: exceptionValues,
+    exceptionValues: exceptions.map(
+      (exception) => _readJsString(_asJsObject(exception), 'value'),
+    ),
   );
 }
 
-String? _readJsString(JSObject object, String key) {
-  final value = object.getProperty(key.toJS);
+void _annotateDriftWorkerError(JSObject exception) {
+  final diagnostic = driftWorkerErrorDiagnostic(
+    type: _readJsString(exception, 'type'),
+    value: _readJsString(exception, 'value'),
+    mechanism: _readJsString(_readJsObject(exception, 'mechanism'), 'type'),
+    framePaths: () => _readJsArray(
+      _readJsObject(exception, 'stacktrace'),
+      'frames',
+    ).map((frame) => _readJsString(_asJsObject(frame), 'abs_path')),
+  );
+  if (diagnostic != null) {
+    exception.setProperty('value'.toJS, diagnostic.toJS);
+  }
+}
+
+String? _readJsString(JSObject? object, String key) {
+  final value = object?.getProperty<JSAny?>(key.toJS);
   if (value == null || !value.isA<JSString>()) {
     return null;
   }
   return (value as JSString).toDart;
 }
 
-List<String?> _readExceptionValues(JSObject event) {
-  final exception = event.getProperty('exception'.toJS);
-  if (exception == null || !exception.isA<JSObject>()) {
-    return const [];
-  }
+JSObject? _asJsObject(JSAny? value) =>
+    value != null && value.isA<JSObject>() ? value as JSObject : null;
 
-  final values = (exception as JSObject).getProperty('values'.toJS);
-  if (values == null || !values.isA<JSArray>()) {
-    return const [];
-  }
+JSObject? _readJsObject(JSObject object, String key) =>
+    _asJsObject(object.getProperty<JSAny?>(key.toJS));
 
-  final array = values as JSArray;
-  final result = <String?>[];
-  for (var i = 0; i < array.length; i++) {
-    final item = array[i];
-    if (item != null && item.isA<JSObject>()) {
-      result.add(_readJsString(item as JSObject, 'value'));
-    }
-  }
-  return result;
+List<JSAny?> _readJsArray(JSObject? object, String key) {
+  final value = object?.getProperty<JSAny?>(key.toJS);
+  return value != null && value.isA<JSArray>()
+      ? (value as JSArray).toDart
+      : const [];
 }

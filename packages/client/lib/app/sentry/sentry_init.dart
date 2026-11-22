@@ -2,6 +2,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'drift_worker_error.dart';
 import 'js_error_details.dart';
 import 'sentry_benign_filter.dart';
 
@@ -51,6 +52,19 @@ void configureSentryOptions(SentryFlutterOptions options) {
       return null;
     }
     annotateJsErrorEvent(event, readJsErrorDetails);
+    if (event.exceptions case [final exception]) {
+      final diagnostic = driftWorkerErrorDiagnostic(
+        type: exception.type,
+        value: exception.value,
+        mechanism: exception.mechanism?.type,
+        framePaths: () =>
+            exception.stackTrace?.frames.map((frame) => frame.absPath) ??
+            const [],
+      );
+      if (diagnostic != null) {
+        exception.value = diagnostic;
+      }
+    }
     return event;
   };
 }
