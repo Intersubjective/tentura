@@ -1120,23 +1120,24 @@ class RoomCubit extends Cubit<RoomState> {
         coordinationItemsF,
         watermarksF,
       ).wait;
+      if (isClosed || !identical(_activeMessageRefreshOverlay, overlay)) return;
+
       final readWatermarks = _mergeReadWatermarks(
         state.readWatermarks,
         fetchedWatermarks,
       );
-      final serverRows = _joinCoordinationCounts(
-        [
-          ...rawMessages,
-          ?target,
-        ],
-        coordinationItems,
-      );
+      if (target != null &&
+          _pendingThreadMessageId == pendingMessageId &&
+          !overlay.deletedIds.contains(target.id) &&
+          !_pendingLocalDeleteIds.contains(target.id)) {
+        _pinOffWindow(
+          _joinCoordinationCounts([target], coordinationItems).single,
+        );
+      }
       final messages = _mergeMessages(
-        serverRows: serverRows,
+        serverRows: _joinCoordinationCounts(rawMessages, coordinationItems),
         overlay: overlay,
       );
-
-      if (isClosed) return;
 
       var anchor = state.unreadAnchorAt;
       if (questionsAccess != null && messages.isNotEmpty) {
@@ -1195,6 +1196,9 @@ class RoomCubit extends Cubit<RoomState> {
         );
         var next = state.copyWith(
           messages: messages,
+          pinnedJumpMessageIds: _pinnedOffWindowMessages.keys.toList(
+            growable: false,
+          ),
           participants: participants,
           participantsLoaded: true,
           readWatermarks: readWatermarks ?? state.readWatermarks,

@@ -325,6 +325,10 @@ class BasicChatBody extends StatefulWidget {
   State<BasicChatBody> createState() => BasicChatBodyState();
 }
 
+class _ChatMessageRowKey extends ValueKey<String> {
+  const _ChatMessageRowKey(super.value);
+}
+
 class BasicChatBodyState extends State<BasicChatBody> {
   final Map<String, GlobalKey> _messageKeys = {};
   final ScrollController _scrollController = ScrollController();
@@ -709,6 +713,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
     final listHeader = widget.messageListHeader;
     final listHeaderCount = listHeader == null ? 0 : 1;
+    final messageRowIndices = {
+      for (final (index, message) in visibleMessages.indexed)
+        message.id: index + listHeaderCount,
+    };
     final onMessageActions = widget.onMessageActions;
 
     return TenturaChatColumn(
@@ -739,6 +747,14 @@ class BasicChatBodyState extends State<BasicChatBody> {
                           // made its tap target compete with the text field.
                           padding: const EdgeInsets.only(bottom: kSpacingSmall),
                           itemCount: visibleMessages.length + listHeaderCount,
+                          // Move surviving rows with their overlay semantics
+                          // when a refresh changes their positions.
+                          findChildIndexCallback: (key) => switch (key) {
+                            _ChatMessageRowKey(:final value) =>
+                              messageRowIndices[value],
+                            _ when key == listHeader?.key => 0,
+                            _ => null,
+                          },
                           itemBuilder: (context, i) {
                             if (listHeader != null && i == 0) {
                               return listHeader;
@@ -857,6 +873,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             );
 
                             return Column(
+                              key: _ChatMessageRowKey(m.id),
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisSize: MainAxisSize.min,
                               children: [

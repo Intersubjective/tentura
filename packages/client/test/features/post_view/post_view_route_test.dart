@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -489,6 +491,27 @@ class _PostChatRepository extends FakeBeaconThreadsRepository
 class _WirePostChatRepository extends RoomOverRealHintWireRepository
     with _PostGeneralChat {
   _WirePostChatRepository(super._real);
+}
+
+class _PostChatPageRecorder extends _WirePostChatRepository {
+  _PostChatPageRecorder(super._real);
+
+  final pages = <List<RoomMessage>>[];
+
+  @override
+  Future<List<RoomMessage>> fetchMessages({
+    required String beaconId,
+    String? beforeIso,
+    String? threadItemId,
+  }) async {
+    final page = await super.fetchMessages(
+      beaconId: beaconId,
+      beforeIso: beforeIso,
+      threadItemId: threadItemId,
+    );
+    pages.add(List.of(page));
+    return page;
+  }
 }
 
 class _LinkedPostChatRepository extends _WirePostChatRepository {
@@ -985,6 +1008,177 @@ void main() {
   });
 
   group(_messageLinkTests, () {
+    testWidgets(
+      'a refreshed Post chat keeps the linked older reply highlighted',
+      (tester) async {
+        const target = 'Mpostolder01';
+        const edited = _secondReply;
+        const editedBody = 'Исправленный ответ';
+        final server = RoomHintWireServer()
+          ..messageRows = [
+            _postMessageRow(_firstReply, 'Первый ответ', 1),
+            _postMessageRow(edited, 'Второй ответ', 2),
+          ]
+          ..messageTargets[target] = _postMessageRow(target, 'Ранний ответ', 0);
+        final wire = (await tester.runAsync(() => RoomHintWire.start(server)))!;
+        addTearDown(() => tester.runAsync(wire.close));
+        final repo = _PostChatPageRecorder(wire.repository);
+        final router = await _pumpDetailRoot(
+          tester,
+          _postUrl,
+          roomRepo: repo,
+          phoneRu: true,
+        );
+
+        Future<void> invalidateReply(String id) async {
+          await tester.runAsync(() async {
+            final delivered = repo.beaconRoomInvalidations.first.timeout(
+              const Duration(seconds: 2),
+            );
+            wire.socket.frames.add(
+              jsonEncode({
+                'type': 'subscription',
+                'path': 'entity_changes',
+                'payload': {
+                  'entity': 'room_message',
+                  'id': _postId,
+                  'event': 'update',
+                  'actor_user_id': _author.id,
+                  'message_id': id,
+                },
+              }),
+            );
+            await delivered;
+          });
+          await tester.pump();
+        }
+
+        // Start batching an earlier hint before opening the link. That lets the
+        // next hint join a refresh already due during the short highlight.
+        await invalidateReply(_firstReply);
+        await tester.pump(
+          BurstCoalescer.window - const Duration(milliseconds: 850),
+        );
+        await router.navigatePath('$_postUrl?message=$target');
+        await tester.pump();
+        expect(await _waitForHighlight(tester, target), target);
+        final room = tester
+            .element(find.byType(PostViewScreen))
+            .read<ThreadHostCubit>()
+            .roomCubit!;
+        expect(
+          room.state.messages.map((message) => message.id),
+          contains(target),
+        );
+        final started = tester.binding.clock.now();
+        final pagesBeforeInvalidation = repo.pages.length;
+
+        server.messageRows = [
+          server.messageRows.first,
+          _postMessageRow(edited, editedBody, 2),
+        ];
+        await invalidateReply(edited);
+
+        bool refreshed() => tester
+            .widget<BasicChatBody>(_chat)
+            .messages
+            .any(
+              (message) => message.id == edited && message.body == editedBody,
+            );
+        for (var frame = 0; frame < 65 && !refreshed(); frame++) {
+          await tester.pump(_frame);
+        }
+        expect(refreshed(), isTrue, reason: 'the new GraphQL page was applied');
+        final refreshedPage = repo.pages
+            .skip(pagesBeforeInvalidation)
+            .singleWhere(
+              (page) => page.any(
+                (message) => message.id == edited && message.body == editedBody,
+              ),
+            );
+        expect(refreshedPage.map((message) => message.id), [
+          _firstReply,
+          edited,
+        ]);
+        expect(
+          tester.binding.clock.now().difference(started),
+          lessThan(const Duration(milliseconds: 1200)),
+        );
+        expect(
+          (
+            retainedInRoom: room.state.messages.any(
+              (message) => message.id == target,
+            ),
+            pinnedInRoom: room.state.pinnedJumpMessageIds.contains(target),
+            tilePresent: _tile(target).evaluate().isNotEmpty,
+            highlighted: _chatState(tester).highlightedMessageId.value,
+          ),
+          (
+            retainedInRoom: true,
+            pinnedInRoom: true,
+            tilePresent: true,
+            highlighted: target,
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'going back from a linked Post drops its pinned reply when reopened',
+      (tester) async {
+        const target = 'Mpostolder01';
+        final repo = _postChat(ids: [_secondReply]);
+        final recent = repo.messages.single;
+        repo.fetchMessageTargetsById[target] = recent.copyWith(
+          id: target,
+          body: 'Ранний ответ',
+          createdAt: recent.createdAt.subtract(const Duration(minutes: 1)),
+        );
+        final router = await _pumpDetailRoot(
+          tester,
+          '$_postUrl?message=$target',
+          roomRepo: repo,
+          phoneRu: true,
+        );
+        final screen = find.byType(PostViewScreen);
+        expect(await _waitForHighlight(tester, target), target);
+        final linkedRoom = tester
+            .element(screen)
+            .read<ThreadHostCubit>()
+            .roomCubit!;
+        expect(
+          linkedRoom.state.messages.map((message) => message.id),
+          contains(target),
+        );
+        final pinsBeforeLeaving = linkedRoom.state.pinnedJumpMessageIds;
+
+        await tester.tap(
+          find.descendant(of: screen, matching: find.byType(BackButton)),
+        );
+        await tester.pumpAndSettle();
+        expect(screen, findsNothing);
+        expect(linkedRoom.isClosed, isTrue);
+
+        unawaited(router.pushPath(_postUrl));
+        await tester.pumpAndSettle();
+        expect(router.currentUrl, _postUrl);
+        expect(screen, findsOneWidget);
+        final reopenedRoom = tester
+            .element(screen)
+            .read<ThreadHostCubit>()
+            .roomCubit!;
+        expect(reopenedRoom, isNot(same(linkedRoom)));
+        expect(reopenedRoom.state.messages.map((message) => message.id), [
+          _secondReply,
+        ]);
+        expect(reopenedRoom.state.pinnedJumpMessageIds, isEmpty);
+        expect(_tile(target), findsNothing);
+        expect(_tile(_secondReply), findsOneWidget);
+        expect(pinsBeforeLeaving, [target]);
+      },
+    );
+
     testWidgets(
       'a deleted reply link leaves Chat loaded without highlighting or retrying the reply',
       (tester) async {
