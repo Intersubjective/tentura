@@ -159,7 +159,7 @@ bash "$ROOT/scripts/sync-client-local-config.sh"
 bash "$ROOT/scripts/resolve_local_web_config.sh" --check-only
 (
   cd "$CLIENT_DIR"
-  flutter run -d web-server \
+  exec bash "$ROOT/scripts/with_web_compiler_tmp.sh" flutter run -d web-server \
     --profile \
     --web-hostname=127.0.0.1 \
     --web-port="$WEB_PORT" \

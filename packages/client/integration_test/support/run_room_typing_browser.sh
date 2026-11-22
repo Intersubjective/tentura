@@ -21,7 +21,7 @@ for _ in {1..30}; do
   sleep 0.1
 done
 cd "$ROOT/packages/client"
-flutter drive \
+bash "$ROOT/scripts/with_web_compiler_tmp.sh" flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=test/room_typing_message_visibility_web_test.dart \
   -d web-server \

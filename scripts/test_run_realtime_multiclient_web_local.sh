@@ -15,6 +15,7 @@ fail() { echo "FAIL: $1" >&2; [[ -f "${LOG:-}" ]] && sed 's/^/  call: /' "$LOG" 
 ok() { echo "OK: $1"; }
 
 TMP_BASE="$(mktemp -d)"
+export TMPDIR="$TMP_BASE"
 trap 'rm -rf "$TMP_BASE"' EXIT
 
 stub() { # stub <path> <body...>
@@ -33,7 +34,7 @@ run_case() {
   local BIN="$T/bin"
   mkdir -p "$ROOT/scripts" "$ROOT/packages/client" "$BIN" "$T/state"
   : >"$LOG"
-  cp "$SCRIPT" "$ROOT/scripts/"
+  cp "$SCRIPT" "$REAL_ROOT/scripts/with_web_compiler_tmp.sh" "$ROOT/scripts/"
   printf 'QA_AUTH_ENABLED=true\nQA_SIMPLE_LOGIN_MODE=true\nQA_AUTH_TOKEN=tok\n' >"$ROOT/.env"
 
   # Helper scripts the runner shells out to.

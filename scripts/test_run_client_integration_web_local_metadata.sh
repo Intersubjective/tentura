@@ -5,6 +5,7 @@ set -euo pipefail
 
 REAL_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP_BASE="$(mktemp -d)"
+export TMPDIR="$TMP_BASE"
 cleanup() {
   local pid_file
   for pid_file in "$TMP_BASE"/*/server.pid; do
@@ -45,7 +46,7 @@ run_case() {
   local bin="$CASE_DIR/bin"
   mkdir -p "$ROOT/scripts" "$ROOT/hasura" "$ROOT/packages/client/env" "$bin"
   : >"$EVENTS"
-  cp "$REAL_ROOT/scripts/run_client_integration_web_local.sh" "$ROOT/scripts/"
+  cp "$REAL_ROOT/scripts/"{run_client_integration_web_local,with_web_compiler_tmp}.sh "$ROOT/scripts/"
   cp "$REAL_ROOT/scripts/hasura_apply_metadata.sh" "$ROOT/scripts/real-hasura-apply.sh"
   cp "$REAL_ROOT/hasura/metadata.json" "$ROOT/hasura/"
   cp "$REAL_ROOT/packages/client/env/integration-web-caddy.env" "$ROOT/packages/client/env/"

@@ -276,9 +276,60 @@ check_referenced_web_tmpfs_sweep() {
   fi
 }
 
+check_locked_web_tmpfs_sweep() {
+  local workspace artifact owner_pid
+  local kernel="$TMPDIR/dart_test.kernel.locked-web-control-$$"
+  mkdir "$kernel"
+  coproc LOCKED_WEB_OWNER {
+    exec bash "$ROOT/scripts/with_web_compiler_tmp.sh" python3 -u -c '
+import os, pathlib, time
+workspace = pathlib.Path(os.environ["TMPDIR"])
+output = workspace / "flutter_tools.sdk" / "flutter_tool.build" / "app.dill"
+output.parent.mkdir(parents=True)
+output.write_text("compiled kernel")
+print(workspace)
+time.sleep(30)
+'
+  }
+  owner_pid="$LOCKED_WEB_OWNER_PID"
+  if ! IFS= read -r -t 5 -u "${LOCKED_WEB_OWNER[0]}" workspace; then
+    bad "locked web compiler fixture did not start"
+    kill "$owner_pid" 2>/dev/null || true
+    wait "$owner_pid" 2>/dev/null || true
+    return
+  fi
+  artifact="$workspace/flutter_tools.sdk/flutter_tool.build/app.dill"
+  find "$workspace" -exec touch -d '1 day ago' {} +
+
+  # The workspace appears only in the compiler's environment. A PID namespace
+  # that cannot see its argv has the same lack of references in the sweep.
+  if grep -Fq -- "${workspace##*/}" "/proc/$owner_pid/cmdline"; then
+    bad "locked web compiler fixture exposed its workspace in argv"
+  elif ! TENTURA_TEST_CLEANUP_SYSTEM_TMP="$TMPDIR" "$WRAP" --sweep-only; then
+    bad "sweep with a locked web compiler did not exit 0"
+  elif [[ -e "$kernel" ]]; then
+    bad "locked web workspace prevented cleanup of an unrelated Dart kernel"
+  elif still_alive "$owner_pid" && cmp -s "$artifact" <(printf '%s' 'compiled kernel'); then
+    ok "locked web workspace kept without an argv reference"
+  else
+    bad "sweep deleted or changed the locked web workspace"
+  fi
+
+  kill -KILL "$owner_pid" 2>/dev/null || true
+  wait "$owner_pid" 2>/dev/null || true
+  if ! TENTURA_TEST_CLEANUP_SYSTEM_TMP="$TMPDIR" "$WRAP" --sweep-only; then
+    bad "sweep after the locked web compiler died did not exit 0"
+  elif [[ -e "$workspace" ]]; then
+    bad "unlocked web workspace survived after its owner died"
+  else
+    ok "web workspace reclaimed after its owner was killed"
+  fi
+}
+
 if [[ "${1:-}" == --web-tmpfs-only ]]; then
   check_web_tmpfs_sweep
   check_referenced_web_tmpfs_sweep
+  check_locked_web_tmpfs_sweep
   exit "$((fail != 0))"
 fi
 
@@ -306,6 +357,7 @@ if [[ ! -d "$KERNEL_GONE" ]]; then ok "unreferenced dart_test.kernel dir removed
 
 check_web_tmpfs_sweep
 check_referenced_web_tmpfs_sweep
+check_locked_web_tmpfs_sweep
 
 # --- 2. PID-1 flutter_tester stand-in is killed; dartdevc compiler is not ---
 TESTER_MARK="selftest_flutter_tester_$$"

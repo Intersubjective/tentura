@@ -35,6 +35,7 @@ fail() {
 ok() { echo "OK: $1"; }
 
 TMP_BASE="$(mktemp -d)"
+export TMPDIR="$TMP_BASE"
 trap 'rm -rf "$TMP_BASE"' EXIT
 
 stub() {
@@ -59,7 +60,7 @@ run_case() {
   : >"$EVENTS"
   : >"$CURL_LOG"
   echo "$schema_state" >"$T/schema_state"
-  cp "$SCRIPT" "$REAL_ROOT/scripts/hasura_apply_metadata.sh" "$ROOT/scripts/"
+  cp "$SCRIPT" "$REAL_ROOT/scripts/"{hasura_apply_metadata,with_web_compiler_tmp}.sh "$ROOT/scripts/"
   mkdir -p "$ROOT/hasura"
   cp "$REAL_ROOT/hasura/metadata.json" "$ROOT/hasura/"
   cat >"$ROOT/.env" <<'EOF'

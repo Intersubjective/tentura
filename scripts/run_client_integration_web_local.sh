@@ -350,7 +350,7 @@ for target in "${TARGETS[@]}"; do
     esac
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"
-  if flutter drive \
+  if bash "$ROOT/scripts/with_web_compiler_tmp.sh" flutter drive \
     ${MODE_FLAGS[@]+"${MODE_FLAGS[@]}"} \
     --driver=test_driver/integration_test.dart \
     --target="$target" \

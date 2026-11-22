@@ -257,7 +257,7 @@ PY
 
 sweep_tmpfs() {
   python3 - <<'PY'
-import os, pathlib, shutil, stat, time
+import fcntl, os, pathlib, shutil, stat, time
 
 def live_cmdlines() -> bytes:
     blobs = []
@@ -297,21 +297,28 @@ for root in roots:
         token = d.name.encode()
         if token in live:
             continue
+        directory_fd = None
         try:
-            # A web compiler in another PID namespace may be invisible here.
-            # Give fresh trees time to publish output, and count writes to any
-            # descendant as activity even when the parent mtime is unchanged.
+            # Keep the activity grace period for legacy Flutter workspaces.
             if pat == "flutter_tools.*" and (
                 any(d.glob("flutter_tool.*")) or any(d.glob("flutter_test.*"))
             ) and not tree_is_stale(d, web_cutoff):
                 continue
             if d.is_dir():
+                if pat == "flutter_tools.*":
+                    # Web launchers lock their workspace before publishing it.
+                    # Keep our lock through deletion to arbitrate concurrent sweeps.
+                    directory_fd = os.open(d, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                    fcntl.flock(directory_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 shutil.rmtree(d, ignore_errors=True)
             else:
                 d.unlink(missing_ok=True)
             removed.append(str(d))
         except OSError:
             pass
+        finally:
+            if directory_fd is not None:
+                os.close(directory_fd)
 if removed:
     print("\n".join(removed))
 PY

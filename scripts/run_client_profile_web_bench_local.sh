@@ -161,7 +161,7 @@ cd "$CLIENT_DIR"
 rm -f "$REPORT"
 log "flutter drive --profile${MODE_FLAGS[*]:+ ${MODE_FLAGS[*]}}: $TARGET"
 set +e
-flutter drive \
+bash "$ROOT/scripts/with_web_compiler_tmp.sh" flutter drive \
   --profile \
   ${MODE_FLAGS[@]+"${MODE_FLAGS[@]}"} \
   --driver="$DRIVER" \

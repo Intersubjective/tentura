@@ -11,7 +11,7 @@ dart run tool/apply_google_maps_web_key.dart --source
 # Bind IPv4 explicitly: the web-server device otherwise binds whatever `localhost`
 # resolves to (often IPv6 ::1), which Caddyfile.local's 127.0.0.1:8888 upstream
 # cannot reach → 502 on app paths. Override with LOCAL_FLUTTER_HOSTNAME if needed.
-exec flutter run -d web-server --web-port=8888 \
+exec bash "$ROOT/scripts/with_web_compiler_tmp.sh" flutter run -d web-server --web-port=8888 \
   --web-hostname="${LOCAL_FLUTTER_HOSTNAME:-127.0.0.1}" \
   --dart-define-from-file=env/local-web.env \
   "$@"
