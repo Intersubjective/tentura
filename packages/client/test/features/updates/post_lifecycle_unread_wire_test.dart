@@ -54,11 +54,16 @@ final class _MutationGate {
   late final Completer<void> release;
   late final Completer<Map<String, dynamic>> response;
   late final Completer<Map<String, dynamic>> historyAfterSweep;
+  late final Completer<void> unreadEntered;
+  late final Completer<void> releaseUnread;
+  bool unreadResponded = false;
   void arm() {
     entered = Completer<void>();
     release = Completer<void>();
     response = Completer<Map<String, dynamic>>();
     historyAfterSweep = Completer<Map<String, dynamic>>();
+    unreadEntered = Completer<void>();
+    releaseUnread = Completer<void>();
   }
 }
 
@@ -137,21 +142,31 @@ Future<void> _withHistory(
             );
           }
           final requestBody = jsonDecode(request.body) as Map<String, dynamic>;
-          final afterSweep = gate?.response.isCompleted ?? false;
+          final afterSweepFeed =
+              gate != null &&
+              gate.operation == 'AttentionDismissAll' &&
+              gate.response.isCompleted &&
+              requestBody['operationName'] == 'AttentionFeed';
+          final feedView = afterSweepFeed
+              ? (requestBody['variables'] as Map<String, dynamic>)['view']
+              : null;
           if (requestBody['operationName'] == gate?.operation) {
             gate!.entered.complete();
             await gate.release.future;
           }
+          if (gate != null && feedView == 'unread') {
+            gate.unreadEntered.complete();
+            await gate.releaseUnread.future;
+          }
           final response = await transport.graphql(_viewer, requestBody);
           if (gate != null) {
-            if (requestBody['operationName'] == gate.operation) {
+            if (feedView == 'unread') {
+              gate.unreadResponded = true;
+            } else if (requestBody['operationName'] == gate.operation) {
               gate.response.complete(
                 jsonDecode(response.body) as Map<String, dynamic>,
               );
-            } else if (afterSweep &&
-                requestBody['operationName'] == 'AttentionFeed' &&
-                (requestBody['variables'] as Map<String, dynamic>)['view'] ==
-                    'all' &&
+            } else if (feedView == 'all' &&
                 !gate.historyAfterSweep.isCompleted) {
               gate.historyAfterSweep.complete(
                 jsonDecode(response.body) as Map<String, dynamic>,
@@ -229,70 +244,84 @@ Future<void> _readAllThroughControl(
     isTrue,
     reason: 'the open Post enables Read all in a mixed History',
   );
-  await tester.tap(_readAllButton);
-  Map<String, Object?>? pending;
+  // Keep the handler's future so a History refresh can't end the fixture
+  // while Read all is still checking Unread.
+  final readAll = markAllUpdatesSeen(tester.element(_readAllButton));
+  final Map<String, Object?> pending;
+  final Map<dynamic, dynamic> sweep;
   try {
-    await gate.entered.future.timeout(const Duration(seconds: 15));
-    await Future<void>.delayed(Duration.zero);
-    await _pumpHistory(tester, cubit);
-    expect(
-      cubit.state.summary.unreadTotal,
-      0,
-      reason:
-          'the pending sweep removes the only eligible unread receipt from the count',
+    try {
+      await gate.entered.future.timeout(const Duration(seconds: 15));
+      await Future<void>.delayed(Duration.zero);
+      await _pumpHistory(tester, cubit);
+      expect(
+        cubit.state.summary.unreadTotal,
+        0,
+        reason:
+            'the pending sweep removes the only eligible unread receipt from the count',
+      );
+      pending = {
+        'unread count': cubit.state.summary.unreadTotal,
+        'visible count one': find.text('1').evaluate().length,
+        'archived receipt read': cubit.state.items
+            .singleWhere((r) => r.id == closedId)
+            .isSeen,
+        'archived receipt swept': cubit.state.items
+            .singleWhere((r) => r.id == closedId)
+            .isCleared,
+        'eligible receipt swept': cubit.state.items
+            .singleWhere((r) => r.id == openId)
+            .isCleared,
+        'dots': find.byKey(UpdatesFeedTile.unreadDotKey).evaluate().length,
+      };
+    } finally {
+      gate.release.complete();
+    }
+    final response = await gate.response.future.timeout(
+      const Duration(seconds: 15),
     );
-    pending = {
-      'unread count': cubit.state.summary.unreadTotal,
-      'visible count one': find.text('1').evaluate().length,
-      'archived receipt read': cubit.state.items
-          .singleWhere((r) => r.id == closedId)
-          .isSeen,
-      'archived receipt swept': cubit.state.items
-          .singleWhere((r) => r.id == closedId)
-          .isCleared,
-      'eligible receipt swept': cubit.state.items
-          .singleWhere((r) => r.id == openId)
-          .isCleared,
-      'dots': find.byKey(UpdatesFeedTile.unreadDotKey).evaluate().length,
-    };
-  } finally {
-    gate.release.complete();
-  }
-  final response = await gate.response.future.timeout(
-    const Duration(seconds: 15),
-  );
-  expect(response['errors'], isNull);
-  final sweep = (response['data'] as Map)['attentionDismissAll'] as Map;
-  // Mark-all-seen clears the open Post on the server. Wait for the History
-  // page to confirm it, since eligibility can change before its rows do.
-  final historyResponse = await gate.historyAfterSweep.future.timeout(
-    const Duration(seconds: 15),
-  );
-  expect(historyResponse['errors'], isNull);
-  expect(
-    historyResponse['data'],
-    containsPair(
-      'attentionFeed',
+    expect(response['errors'], isNull);
+    sweep = (response['data'] as Map)['attentionDismissAll'] as Map;
+    // Mark-all-seen clears the open Post on the server. Wait for the History
+    // page to confirm it, since eligibility can change before its rows do.
+    final historyResponse = await gate.historyAfterSweep.future.timeout(
+      const Duration(seconds: 15),
+    );
+    expect(historyResponse['errors'], isNull);
+    expect(
+      historyResponse['data'],
       containsPair(
-        'page',
+        'attentionFeed',
         containsPair(
-          'items',
-          contains(
-            allOf(
-              containsPair('id', openId),
-              containsPair('clearedAt', isNotNull),
+          'page',
+          containsPair(
+            'items',
+            contains(
+              allOf(
+                containsPair('id', openId),
+                containsPair('clearedAt', isNotNull),
+              ),
             ),
           ),
         ),
       ),
-    ),
+    );
+    await _until(
+      () =>
+          !cubit.state.sweepEligible &&
+          cubit.state.items.any((row) => row.id == openId && row.isCleared),
+    );
+    await gate.unreadEntered.future.timeout(const Duration(seconds: 15));
+  } finally {
+    gate.releaseUnread.complete();
+    await readAll.timeout(const Duration(seconds: 15));
+  }
+  expect(
+    gate.unreadResponded,
+    isTrue,
+    reason: 'Read all must finish the Unread request before fixture teardown',
   );
-  await _until(
-    () =>
-        !cubit.state.sweepEligible &&
-        cubit.state.items.any((row) => row.id == openId && row.isCleared),
-  );
-  await Future<void>.delayed(Duration.zero);
+  expect(cubit.state.actionError, isNull);
   await _pumpHistory(tester, cubit);
   final closed = cubit.state.items.singleWhere((r) => r.id == closedId);
   final open = cubit.state.items.singleWhere((r) => r.id == openId);
