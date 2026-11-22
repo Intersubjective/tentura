@@ -253,12 +253,15 @@ class Graph:
         self.files: set[str] = set()
         for pkg in PACKAGES.values():
             base = root / pkg
+            test_dir = base / "test"
             for d, dirs, fs in os.walk(base):
-                top = Path(d) == base
+                directory = Path(d)
                 dirs[:] = [
                     x for x in dirs
                     if not x.startswith(".") and x not in SKIP_DIRS
-                    and not (top and x in SKIP_TOP_DIRS)
+                    and not (directory == base and x in SKIP_TOP_DIRS)
+                    # Generated CI entry points aggregate the original tests.
+                    and not (directory == test_dir and x == "_bundle")
                 ]
                 for f in fs:
                     if f.endswith(".dart"):

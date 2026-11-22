@@ -167,6 +167,11 @@ FILES = {
     f"{SERVER}/lib/s.dart": "",
     f"{SERVER}/test/s_test.dart": "import 'package:tentura_server/s.dart';\n",
     f"{SERVER}/test/pg_test.dart": "@Tags(['pg'])\nlibrary;\n",
+    f"{SERVER}/test/_bundle/bundle_0_test.dart": (
+        "import '../s_test.dart' as t0;\n"
+        "import '../pg_test.dart' as t1;\n"
+        "void main() { t0.main(); t1.main(); }\n"
+    ),
     # Migrations: a routine reading the widget table, code naming the table
     # in Drift's spelling, code calling the routine.
     f"{SERVER}/lib/data/database/migration/m0002.dart": (
@@ -325,6 +330,16 @@ class SyntheticTreeTest(unittest.TestCase):
             self.names(self.sel(f"{CLIENT}/lib/a.dart")),
             with_readers("a_test.dart", "c_test.dart", "via_helper_test.dart"),
         )
+
+    def test_ci_bundles_are_excluded_from_affected_selection(self):
+        targeted = self.sel(f"{SERVER}/lib/s.dart", pkg=SERVER)
+        self.assertEqual(self.names(targeted), ["s_test.dart"])
+
+    def test_ci_bundles_are_excluded_from_whole_package_selection(self):
+        whole = self.sel("pubspec.lock", pkg=SERVER)
+        self.assert_whole(whole, pkg=SERVER)
+        self.assertIn(f"{SERVER}/test/s_test.dart", whole.tests)
+        self.assertNotIn(f"{SERVER}/test/_bundle/bundle_0_test.dart", whole.tests)
 
     def test_unimported_change_selects_only_source_readers(self):
         sel = self.sel(f"{CLIENT}/lib/orphan.dart")
