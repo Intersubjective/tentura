@@ -725,31 +725,49 @@ function renderAlreadyFriends(p) {
   );
 }
 
+function lapsedRequestNotice(p, name) {
+  if (p.beacon?.lapsed !== true) return null;
+  return t('{name} invited you to «{requestTitle}», but it has already closed.', {
+    name,
+    requestTitle: p.beacon.title,
+  });
+}
+
 function renderExistingUser(p) {
   setState('existing-user');
-  setPageTitle(t('{name} invited you — Tentura', { name: inviterName(p) }));
+  const name = inviterName(p);
+  setPageTitle(t('{name} invited you — Tentura', { name }));
+  const lapsedNotice = lapsedRequestNotice(p, name);
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, t('{name} wants to connect', { name: inviterName(p) })),
-    el('p', {}, t('Accept the invite in the app to become friends.')),
+    el('h1', {}, lapsedNotice ?? t('{name} wants to connect', { name })),
+    lapsedNotice ? null : el('p', {}, t('Accept the invite in the app to become friends.')),
     ctaOpenAcceptInvite(),
   );
 }
 
 function renderAnonymous(p) {
   setState('anonymous');
-  setPageTitle(t('{name} invited you — Tentura', { name: inviterName(p) }));
+  const name = inviterName(p);
+  setPageTitle(t('{name} invited you — Tentura', { name }));
   const code = parseInviteCode();
   // U084: say what Tentura is and why the friend sent the link before
   // asking for an email address.
   const copy = inviteLandingCopy({
-    inviterName: inviterName(p),
+    inviterName: name,
     hasRequest: Boolean(p.beacon),
     isPost: p.beacon?.kind === 'post',
     inApp: env.inApp,
   });
+  const lapsedNotice = lapsedRequestNotice(p, name);
+  const why = lapsedNotice
+    ? `${lapsedNotice} ${t(
+        "You're still welcome on Tentura, and you're now connected with {name}.",
+        { name },
+      )}`
+    : copy.why;
   // #601: a failed Google sign-in started here comes back to this invite
   // page with `?auth_error=`.
   const authError = isSignedInReturn() ? null : authErrorMessage(location.search);
@@ -762,10 +780,10 @@ function renderAnonymous(p) {
     { class: 'content' },
     beaconOverlay(p),
     signedInFlash(),
-    el('h1', {}, t('{name} invited you to Tentura', { name: inviterName(p) })),
+    el('h1', {}, t('{name} invited you to Tentura', { name })),
     authError ? el('p', { class: 'error', role: 'alert' }, authError) : null,
     el('p', { class: 'invite-about' }, copy.about),
-    el('p', {}, copy.why),
+    el('p', {}, why),
     copy.signUp ? el('p', {}, copy.signUp) : null,
     ...authOptions,
     existingToggle,

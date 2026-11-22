@@ -91,6 +91,10 @@ const RU = {
   'Accept the invite in the app to become friends.':
     'Примите приглашение в приложении, чтобы стать друзьями.',
   '{name} invited you to Tentura': '{name} приглашает вас в Tentura',
+  '{name} invited you to «{requestTitle}», but it has already closed.':
+    '{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт.',
+  "You're still welcome on Tentura, and you're now connected with {name}.":
+    'Вам по-прежнему рады в Тентуре, и теперь вы на связи с {name}.',
   'Something went wrong — Tentura': 'Что-то пошло не так — Tentura',
   'Something went wrong': 'Что-то пошло не так',
   'Please try opening this link again.':
