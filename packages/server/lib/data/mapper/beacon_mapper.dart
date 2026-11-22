@@ -25,6 +25,7 @@ BeaconEntity beaconModelToEntity(
   updatedAt: model.updatedAt.dateTime,
   startAt: model.startAt?.dateTime,
   endAt: model.endAt?.dateTime,
+  expiresAt: model.expiresAt?.dateTime,
   coordinates: model.lat != null && model.long != null
       ? Coordinates(lat: model.lat!, long: model.long!)
       : null,

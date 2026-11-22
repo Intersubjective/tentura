@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 
+import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -177,7 +178,6 @@ class UserRepository implements UserRepositoryPort {
     if (beacon.kind == BeaconKind.request) {
       final canForward = await _canForwardRequestInvite(
         beacon,
-        expiresAt: expiresAt,
         issuerId: invitation.userId,
       );
       return (beacon: beacon, canForward: canForward);
@@ -208,6 +208,7 @@ class UserRepository implements UserRepositoryPort {
     author: UserEntity(id: row.userId ?? ''),
     createdAt: row.createdAt.dateTime,
     updatedAt: row.updatedAt.dateTime,
+    expiresAt: row.expiresAt?.dateTime,
     status: BeaconStatus.fromSmallint(row.status),
     kind: BeaconKind.fromValue(row.kind),
     forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
@@ -215,35 +216,38 @@ class UserRepository implements UserRepositoryPort {
 
   Future<bool> _canForwardRequestInvite(
     BeaconEntity beacon, {
-    required DateTime? expiresAt,
     required String issuerId,
-  }) async =>
-      BeaconForwardPolicy.canForward(beacon: beacon, senderId: issuerId) &&
-      (expiresAt == null || expiresAt.isAfter(DateTime.timestamp())) &&
-      await BeaconAccessRepository(_database).canReadContent(
-        beaconId: beacon.id,
-        viewerId: issuerId,
-      );
+  }) => BeaconForwardPolicy.canForwardRequestInvite(
+    beacon: beacon,
+    issuerId: issuerId,
+    issuerCanReadContent: () =>
+        BeaconAccessRepository(_database).canReadContent(
+          beaconId: beacon.id,
+          viewerId: issuerId,
+        ),
+  );
 
   /// Called inside the accepting transaction. Keep every ancestor locked until
   /// commit so a concurrent leave cannot invalidate admission before insertion.
-  Future<bool> _lockActiveInviteParentChain(String? parentEdgeId) async {
-    final visited = <String>{};
-    var edgeId = parentEdgeId;
-    while (edgeId != null) {
-      if (!visited.add(edgeId)) return false;
-      final edge = await _database
-          .customSelect(
-            'SELECT parent_edge_id, cancelled_at IS NULL AS active '
-            r'FROM public.beacon_forward_edge WHERE id = $1 FOR UPDATE',
-            variables: [Variable<String>(edgeId)],
-          )
-          .getSingleOrNull();
-      if (edge == null || !edge.read<bool>('active')) return false;
-      edgeId = edge.readNullable<String>('parent_edge_id');
-    }
-    return true;
-  }
+  Future<bool> _lockActiveInviteParentChain(String parentEdgeId) =>
+      hasLiveForwardParentChain(
+        parentEdgeId,
+        readEdge: (edgeId) async {
+          final edge = await _database
+              .customSelect(
+                'SELECT parent_edge_id, cancelled_at IS NULL AS active '
+                r'FROM public.beacon_forward_edge WHERE id = $1 FOR UPDATE',
+                variables: [Variable<String>(edgeId)],
+              )
+              .getSingleOrNull();
+          return edge == null
+              ? null
+              : (
+                  parentEdgeId: edge.readNullable<String>('parent_edge_id'),
+                  active: edge.read<bool>('active'),
+                );
+        },
+      );
 
   @override
   Future<UserEntity> createInvited({
@@ -1020,7 +1024,6 @@ class UserRepository implements UserRepositoryPort {
           !chainIsLive ||
           !await _canForwardRequestInvite(
             _inviteBeacon(row),
-            expiresAt: row.expiresAt?.dateTime,
             issuerId: invitation.userId,
           );
     }

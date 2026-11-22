@@ -197,17 +197,10 @@ final class InvitationCase extends UseCaseBase {
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
-    BeaconEntity? beacon;
     final beaconId = invitation.beaconId;
-    if (beaconId != null) {
-      beacon = await _previewBeaconForInvite(
-        beaconId: beaconId,
-        issuerId: invitation.issuer.id,
-        invitationExists: true,
-        invitationConsumed: invitation.isAccepted,
-        invitationExpired: invitation.isExpired,
-      );
-    }
+    final beacon = beaconId == null
+        ? null
+        : await _previewBeaconForInvite(invitation, beaconId, codeStatus);
 
     final InviteCallerStatus callerStatus;
     if (callerUserId == null) {
@@ -243,13 +236,11 @@ final class InvitationCase extends UseCaseBase {
     );
   }
 
-  Future<BeaconEntity?> _previewBeaconForInvite({
-    required String beaconId,
-    required String issuerId,
-    required bool invitationExists,
-    required bool invitationConsumed,
-    required bool invitationExpired,
-  }) async {
+  Future<InvitePreviewBeacon?> _previewBeaconForInvite(
+    InvitationEntity invitation,
+    String beaconId,
+    InviteCodeStatus codeStatus,
+  ) async {
     BeaconEntity beacon;
     try {
       beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
@@ -257,15 +248,51 @@ final class InvitationCase extends UseCaseBase {
       return null;
     }
 
-    final issuerCanRead = await _guard.canReadContent(
+    final issuerId = invitation.issuer.id;
+    Future<bool> issuerCanReadContent() => _guard.canReadContent(
       beaconId: beaconId,
       viewerId: issuerId,
     );
+
+    if (beacon.kind == BeaconKind.request) {
+      if (codeStatus != InviteCodeStatus.available) return null;
+      final canForward = await BeaconForwardPolicy.canForwardRequestInvite(
+        beacon: beacon,
+        issuerId: issuerId,
+        issuerCanReadContent: issuerCanReadContent,
+      );
+      if (!canForward ||
+          !await hasLiveForwardParentChain(
+            invitation.parentForwardEdgeId,
+            readEdge: (edgeId) async {
+              final edge = await _forwardEdgeRepository.fetchById(edgeId);
+              return edge == null
+                  ? null
+                  : (
+                      parentEdgeId: edge.parentEdgeId,
+                      active: edge.cancelledAt == null,
+                    );
+            },
+          )) {
+        return InvitePreviewBeacon.lapsedRequest(
+          id: beacon.id,
+          title: beacon.title,
+        );
+      }
+      return InvitePreviewBeacon.visible(
+        id: beacon.id,
+        kind: beacon.kind,
+        title: beacon.title,
+        description: beacon.description,
+      );
+    }
+
+    final issuerCanRead = await issuerCanReadContent();
     final canPreview = BeaconVisibility.canPreviewInvite(
       BeaconInvitePreviewFacts(
-        invitationExists: invitationExists,
-        invitationConsumed: invitationConsumed,
-        invitationExpired: invitationExpired,
+        invitationExists: true,
+        invitationConsumed: codeStatus == InviteCodeStatus.consumed,
+        invitationExpired: codeStatus == InviteCodeStatus.expired,
         hasBeaconId: true,
         beaconStatus: beacon.status,
         beaconAllowsForward: beacon.allowsForward,
@@ -279,18 +306,14 @@ final class InvitationCase extends UseCaseBase {
 
     // A Post has no description of its own: its text is the root message.
     final rootId = beacon.postRootMessageId;
-    final description = beacon.kind == BeaconKind.post && rootId != null
+    final description = rootId != null
         ? (await _room?.getRoomMessageById(rootId))?.body ?? ''
         : beacon.description;
 
-    return BeaconEntity(
+    return InvitePreviewBeacon.visible(
       id: beacon.id,
       title: beacon.title,
       description: description,
-      author: beacon.author,
-      createdAt: beacon.createdAt,
-      updatedAt: beacon.updatedAt,
-      status: beacon.status,
       kind: beacon.kind,
     );
   }

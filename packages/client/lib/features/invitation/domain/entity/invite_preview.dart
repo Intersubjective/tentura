@@ -105,6 +105,7 @@ class InvitePreviewBeacon {
     required this.title,
     this.snippet,
     this.isPost = false,
+    this.lapsed = false,
   });
 
   factory InvitePreviewBeacon.fromJson(Map<String, dynamic> json) =>
@@ -113,6 +114,7 @@ class InvitePreviewBeacon {
         title: json['title'] as String? ?? '',
         snippet: json['snippet'] as String?,
         isPost: json['kind'] == 'post',
+        lapsed: json['lapsed'] as bool? ?? false,
       );
 
   final String id;
@@ -121,4 +123,6 @@ class InvitePreviewBeacon {
 
   /// The invite shares a Post, not a Request (#501).
   final bool isPost;
+
+  final bool lapsed;
 }

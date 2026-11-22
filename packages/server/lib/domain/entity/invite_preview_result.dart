@@ -1,4 +1,3 @@
-import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
@@ -29,8 +28,8 @@ class InvitePreviewResult {
   /// The invite issuer; null only when the code is invalid.
   final UserEntity? inviter;
 
-  /// Present iff the invite carries a `beaconId` (beacon-forward invite).
-  final BeaconEntity? beacon;
+  /// Present when the invite can show beacon details or a lapsed Request title.
+  final InvitePreviewBeacon? beacon;
 
   /// Hint the landing uses to pick the primary CTA. Derived, not stored.
   String get suggestedAction {
@@ -61,15 +60,7 @@ class InvitePreviewResult {
           },
     'codeStatus': codeStatus.name,
     'callerStatus': _callerStatusJson,
-    if (beacon != null)
-      'beacon': {
-        'id': beacon!.id,
-        // Lets the landing and the app say "post" for a Post invite (#501).
-        'kind': beacon!.kind == BeaconKind.post ? 'post' : 'request',
-        'title': beacon!.title,
-        'snippet': _snippet(beacon!.description),
-        'description': beacon!.description.trim(),
-      },
+    if (beacon case final preview?) 'beacon': preview.toJson(),
     'suggestedAction': suggestedAction,
   };
 
@@ -78,6 +69,37 @@ class InvitePreviewResult {
     InviteCallerStatus.existingUser => 'existing-user',
     InviteCallerStatus.alreadyFriends => 'already-friends',
     InviteCallerStatus.isInviter => 'is-inviter',
+  };
+}
+
+class InvitePreviewBeacon {
+  const InvitePreviewBeacon.visible({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.description,
+  }) : lapsed = false;
+
+  const InvitePreviewBeacon.lapsedRequest({
+    required this.id,
+    required this.title,
+  }) : kind = BeaconKind.request,
+       description = '',
+       lapsed = true;
+
+  final String id;
+  final BeaconKind kind;
+  final String title;
+  final String description;
+  final bool lapsed;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'kind': kind == BeaconKind.post ? 'post' : 'request',
+    'title': title,
+    'snippet': _snippet(description),
+    'description': description.trim(),
+    'lapsed': lapsed,
   };
 
   static String _snippet(String description, {int max = 140}) {

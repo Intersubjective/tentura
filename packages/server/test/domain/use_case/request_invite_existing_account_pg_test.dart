@@ -305,6 +305,153 @@ WHERE beacon_id = @request AND recipient_id = @account
     );
   }
 
+  group('Invite preview before joining', () {
+    for (final gate in _LapseGate.values) {
+      test(
+        'keeps the Request title and signup when ${gate.description}',
+        () async {
+          final withParentChain = gate != _LapseGate.unreadable;
+          await publishRequest(withParentChain: withParentChain);
+          final invite = await issueInvite('New member');
+          if (withParentChain) {
+            expect(
+              await query(
+                'SELECT parent_forward_edge_id FROM public.invitation WHERE id = @id',
+                {'id': invite},
+              ),
+              [
+                [_parent],
+              ],
+            );
+          }
+          await lapseRequest(gate);
+
+          final preview = (await invitations.preview(code: invite)).toJson();
+          expect(preview, containsPair('callerStatus', 'anonymous'));
+          expect(preview, containsPair('codeStatus', 'available'));
+          expect(preview, containsPair('suggestedAction', 'accept-as-new'));
+          expect(
+            preview['inviter'],
+            containsPair('displayName', 'Invite issuer'),
+          );
+          expect(
+            preview,
+            containsPair(
+              'beacon',
+              allOf(
+                containsPair('kind', 'request'),
+                containsPair('title', 'Community garden'),
+                containsPair('lapsed', true),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    test(
+      'offers an existing account acceptance after the Request closes',
+      () async {
+        await publishRequest(withParentChain: true);
+        final invite = await issueInvite('Existing member');
+        await lapseRequest(_LapseGate.closed);
+
+        final preview = (await invitations.preview(
+          code: invite,
+          callerUserId: _acceptingAccount,
+        )).toJson();
+        expect(preview, containsPair('callerStatus', 'existing-user'));
+        expect(preview, containsPair('codeStatus', 'available'));
+        expect(preview, containsPair('suggestedAction', 'accept-as-existing'));
+        expect(
+          preview,
+          containsPair(
+            'beacon',
+            allOf(
+              containsPair('title', 'Community garden'),
+              containsPair('lapsed', true),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'includes details for an open Request and omits them for a plain invite',
+      () async {
+        final plain = await invitations.create(
+          userId: _issuer,
+          addresseeName: 'New member',
+        );
+        final plainPreview = (await invitations.preview(
+          code: plain.id,
+        )).toJson();
+        expect(plainPreview, containsPair('codeStatus', 'available'));
+        expect(plainPreview, isNot(contains('beacon')));
+
+        await publishRequest(withParentChain: true);
+        final invite = await issueInvite('Another member');
+        final preview = (await invitations.preview(code: invite)).toJson();
+        expect(preview, containsPair('codeStatus', 'available'));
+        expect(preview['beacon'], {
+          'id': _request,
+          'kind': 'request',
+          'title': 'Community garden',
+          'snippet': 'Help planting seedlings',
+          'description': 'Help planting seedlings',
+          'lapsed': false,
+        });
+      },
+    );
+
+    test('never marks a Post as lapsed, even after it closes', () async {
+      const post = 'B1a95ea4e0002';
+      const root = 'M1a95ea4e0001';
+      await query(
+        '''
+INSERT INTO public.beacon (id, user_id, title, description, status, kind,
+  forward_policy, is_discoverable, published_at)
+VALUES (@post, @author, '', '', @status, @kind, @policy, false, now())
+''',
+        {
+          'post': post,
+          'author': _author,
+          'status': BeaconStatus.open.smallintValue,
+          'kind': BeaconKind.post.value,
+          'policy': BeaconForwardPolicyValue.open.value,
+        },
+      );
+      await query(
+        '''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES (@root, @post, @author, 'Updates from the garden')
+''',
+        {'root': root, 'post': post, 'author': _author},
+      );
+      await query(
+        'UPDATE public.beacon SET post_root_message_id = @root WHERE id = @post',
+        {'root': root, 'post': post},
+      );
+      final invite = await invitations.create(
+        userId: _author,
+        addresseeName: 'New member',
+        beaconId: post,
+      );
+      final open = (await invitations.preview(code: invite.id)).toJson();
+      expect(open, containsPair('codeStatus', 'available'));
+      expect(open['beacon'], containsPair('kind', 'post'));
+
+      await query(
+        'UPDATE public.beacon SET status = @status WHERE id = @post',
+        {'status': BeaconStatus.closed.smallintValue, 'post': post},
+      );
+      final closed = (await invitations.preview(code: invite.id)).toJson();
+      expect(closed, containsPair('codeStatus', 'available'));
+      expect(closed, isNot(contains('beacon')));
+      expect(open['beacon'], containsPair('lapsed', false));
+    });
+  });
+
   for (final path in _AcceptancePath.values) {
     group(path.label, () {
       for (final gate in _LapseGate.values) {

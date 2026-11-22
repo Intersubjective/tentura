@@ -174,6 +174,7 @@ VALUES
           'title': 'Garden request',
           'snippet': 'Request description',
           'description': 'Request description',
+          'lapsed': false,
         });
 
         // Preview visibility gates the entire Post. Root excerpts use the
