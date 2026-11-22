@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
+import 'beacon_hierarchy_repository.dart';
 import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/user_entity.dart';
@@ -109,16 +110,13 @@ class UserRepository implements UserRepositoryPort {
 
   /// ADR 0008: consuming a beacon-tied invite materializes a forward edge
   /// (sharer→invitee). Inbox for the recipient is maintained by DB trigger
-  /// `inbox_item_on_forward_insert`.
+  /// `inbox_item_on_forward_insert`. The caller holds the parent chain locks.
   Future<bool> _materializeBeaconInviteForward({
     required String beaconId,
     required String senderId,
     required String recipientId,
     required String? parentForwardEdgeId,
   }) async {
-    if (!await _lockActiveInviteParentChain(parentForwardEdgeId)) {
-      throw IdNotFoundException(id: parentForwardEdgeId!);
-    }
     if (senderId == recipientId) return false;
     final existing = await _database.managers.beaconForwardEdges
         .filter(
@@ -146,21 +144,26 @@ class UserRepository implements UserRepositoryPort {
     return created != null;
   }
 
-  /// The invite's issuer must still be allowed to forward its beacon. For a
-  /// Post the Post lock is taken first and the beacon is judged under it.
-  Future<BeaconEntity> _requireInviteIssuerMayForward({
-    required String beaconId,
-    required String issuerId,
-  }) async {
+  /// Signup genealogy can inherit blocks, whose trigger takes the hierarchy
+  /// lock. Take it before the claim, together with the Post lock for a Post.
+  Future<BeaconEntity?> _lockInvitedSignupScope(Invitation invitation) async {
+    final beaconId = invitation.beaconId;
+    if (beaconId == null) {
+      await BeaconHierarchyRepository(_database).lockMutationScope();
+      return null;
+    }
+
     Future<Beacon?> read() => _database.managers.beacons
         .filter((e) => e.id(beaconId))
         .getSingleOrNull();
 
     var row = await read();
-    if (row != null && row.kind == BeaconKind.post.value) {
+    if (row?.kind == BeaconKind.post.value) {
       await PostLockRepository(_database).lockForPostMutation(beaconId);
-      row = await read();
+    } else {
+      await BeaconHierarchyRepository(_database).lockMutationScope();
     }
+    row = await read();
     if (row == null) throw IdNotFoundException(id: beaconId);
     final beacon = BeaconEntity(
       id: row.id,
@@ -181,7 +184,10 @@ class UserRepository implements UserRepositoryPort {
         )) {
       throw IdNotFoundException(id: beaconId);
     }
-    if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: issuerId)) {
+    if (!BeaconForwardPolicy.canForward(
+      beacon: beacon,
+      senderId: invitation.userId,
+    )) {
       throw const UnauthorizedException(
         description: 'Forwarding is off for this post',
       );
@@ -240,13 +246,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final beacon = switch (invitation.beaconId) {
-      final beaconId? => await _requireInviteIssuerMayForward(
-        beaconId: beaconId,
-        issuerId: invitation.userId,
-      ),
-      null => null,
-    };
+    final beacon = await _lockInvitedSignupScope(invitation);
 
     final user = await _database.managers.users.createReturning(
       (o) => o(
@@ -275,47 +275,12 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final ancestorUser = await _database.managers.users
-        .filter((e) => e.id(invitation.userId))
-        .getSingle();
-    await _inviteGenealogyRepository.recordSignupEdge(
-      ancestorUserId: invitation.userId,
-      ancestorUserCreatedAt: ancestorUser.createdAt.dateTime,
-      descendantUserId: user.id,
-      descendantUserCreatedAt: user.createdAt.dateTime,
-      invitationId: invitationId,
+    await _finishInvitedSignup(
+      invitation,
+      user,
+      beacon,
+      onPostForwardCreated,
     );
-    await _inviteSeedPrompt.insertPending(
-      inviterId: invitation.userId,
-      inviteeId: user.id,
-    );
-
-    // Individual inserts: Drift batch() is forbidden on TenturaDb.
-    await _database.managers.voteUsers.create(
-      (o) => o(subject: user.id, object: invitation.userId, amount: 1),
-    );
-    await _database.managers.voteUsers.create(
-      (o) => o(subject: invitation.userId, object: user.id, amount: 1),
-    );
-    await _applyReciprocalTrustEdges(user.id, invitation.userId);
-
-    await _upsertInviteContact(
-      viewerId: invitation.userId,
-      subjectId: user.id,
-      addresseeName: invitation.addresseeName,
-    );
-
-    if (beacon != null) {
-      final created = await _materializeBeaconInviteForward(
-        beaconId: beacon.id,
-        senderId: invitation.userId,
-        recipientId: user.id,
-        parentForwardEdgeId: invitation.parentForwardEdgeId,
-      );
-      if (created) {
-        await onPostForwardCreated?.call(beacon, user.id);
-      }
-    }
 
     return userModelToEntity(user);
   });
@@ -429,13 +394,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final beacon = switch (invitation.beaconId) {
-      final beaconId? => await _requireInviteIssuerMayForward(
-        beaconId: beaconId,
-        issuerId: invitation.userId,
-      ),
-      null => null,
-    };
+    final beacon = await _lockInvitedSignupScope(invitation);
 
     final user = await _createUserWithCredential(
       type: type,
@@ -462,53 +421,71 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final ancestorUser = await _database.managers.users
-        .filter((e) => e.id(invitation.userId))
-        .getSingle();
     final descendantUser = await _database.managers.users
         .filter((e) => e.id(user.id))
         .getSingle();
-    await _inviteGenealogyRepository.recordSignupEdge(
-      ancestorUserId: invitation.userId,
-      ancestorUserCreatedAt: ancestorUser.createdAt.dateTime,
-      descendantUserId: user.id,
-      descendantUserCreatedAt: descendantUser.createdAt.dateTime,
-      invitationId: invitationId,
-    );
-    await _inviteSeedPrompt.insertPending(
-      inviterId: invitation.userId,
-      inviteeId: user.id,
+
+    await _finishInvitedSignup(
+      invitation,
+      descendantUser,
+      beacon,
+      onPostForwardCreated,
     );
 
-    // Individual inserts: Drift batch() is forbidden on TenturaDb.
-    await _database.managers.voteUsers.create(
-      (o) => o(subject: user.id, object: invitation.userId, amount: 1),
-    );
-    await _database.managers.voteUsers.create(
-      (o) => o(subject: invitation.userId, object: user.id, amount: 1),
-    );
-    await _applyReciprocalTrustEdges(user.id, invitation.userId);
+    return user;
+  });
+
+  Future<void> _finishInvitedSignup(
+    Invitation invitation,
+    User user,
+    BeaconEntity? beacon,
+    InvitedPostForwardCreated? onPostForwardCreated,
+  ) async {
+    final parentEdgeId = invitation.parentForwardEdgeId;
+    if (beacon != null &&
+        parentEdgeId != null &&
+        !await _lockActiveInviteParentChain(parentEdgeId)) {
+      throw IdNotFoundException(id: parentEdgeId);
+    }
 
     await _upsertInviteContact(
       viewerId: invitation.userId,
       subjectId: user.id,
       addresseeName: invitation.addresseeName,
     );
-
-    if (beacon != null) {
-      final created = await _materializeBeaconInviteForward(
-        beaconId: beacon.id,
-        senderId: invitation.userId,
-        recipientId: user.id,
-        parentForwardEdgeId: invitation.parentForwardEdgeId,
-      );
-      if (created) {
-        await onPostForwardCreated?.call(beacon, user.id);
-      }
+    await _inviteSeedPrompt.insertPending(
+      inviterId: invitation.userId,
+      inviteeId: user.id,
+    );
+    final ancestorUser = await _database.managers.users
+        .filter((e) => e.id(invitation.userId))
+        .getSingle();
+    final forwardCreated =
+        beacon != null &&
+        await _materializeBeaconInviteForward(
+          beaconId: beacon.id,
+          senderId: invitation.userId,
+          recipientId: user.id,
+          parentForwardEdgeId: parentEdgeId,
+        );
+    await _applyReciprocalTrustEdges(
+      user.id,
+      invitation.userId,
+      InviteOrigin.newAccount,
+    );
+    // The inherited-block trigger can also lock the trust generation. Record
+    // genealogy once both vote subject counters are already locked.
+    await _inviteGenealogyRepository.recordSignupEdge(
+      ancestorUserId: invitation.userId,
+      ancestorUserCreatedAt: ancestorUser.createdAt.dateTime,
+      descendantUserId: user.id,
+      descendantUserCreatedAt: user.createdAt.dateTime,
+      invitationId: invitation.id,
+    );
+    if (beacon != null && forwardCreated) {
+      await onPostForwardCreated?.call(beacon, user.id);
     }
-
-    return user;
-  });
+  }
 
   @override
   Future<UserEntity> getById(String id) => _database.managers.users
@@ -916,7 +893,7 @@ class UserRepository implements UserRepositoryPort {
     required String userId,
     bool bindFriendship = true,
     Future<void> Function()? onForwardCreated,
-  }) => (() async {
+  }) => _database.withJoinedTransaction(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingleOrNull();
@@ -939,9 +916,21 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    if (invitation.beaconId != null &&
-        !await _lockActiveInviteParentChain(invitation.parentForwardEdgeId)) {
-      return false;
+    final beaconId = invitation.beaconId;
+    final parentEdgeId = invitation.parentForwardEdgeId;
+    if (beaconId != null && parentEdgeId != null) {
+      // Reserve the claim before locking the chain. Record acceptance only
+      // after finding a live chain so a stale invite can still return false.
+      final claim = await _database
+          .customSelect(
+            'SELECT id FROM public.invitation '
+            r'WHERE id = $1 AND invited_id IS NULL FOR NO KEY UPDATE',
+            variables: [Variable<String>(invitationId)],
+          )
+          .getSingleOrNull();
+      if (claim == null || !await _lockActiveInviteParentChain(parentEdgeId)) {
+        return false;
+      }
     }
 
     // Claim the row first, atomically — everything below is a side effect
@@ -968,51 +957,46 @@ class UserRepository implements UserRepositoryPort {
       addresseeName: invitation.addresseeName,
     );
 
-    if (invitation.beaconId != null) {
-      final created = await _materializeBeaconInviteForward(
-        beaconId: invitation.beaconId!,
-        senderId: invitation.userId,
-        recipientId: userId,
-        parentForwardEdgeId: invitation.parentForwardEdgeId,
-      );
-      if (created) await onForwardCreated?.call();
-    }
+    final forwardCreated =
+        beaconId != null &&
+        await _materializeBeaconInviteForward(
+          beaconId: beaconId,
+          senderId: invitation.userId,
+          recipientId: userId,
+          parentForwardEdgeId: parentEdgeId,
+        );
 
     if (bindFriendship) {
-      // Individual inserts: Drift batch() is forbidden on TenturaDb.
-      await _database.managers.voteUsers.create(
-        (o) => o(subject: invitation.userId, object: userId, amount: 1),
-        mode: InsertMode.insertOrIgnore,
-        onConflict: DoNothing(),
+      await _applyReciprocalTrustEdges(
+        invitation.userId,
+        userId,
+        InviteOrigin.existingAccount,
       );
-      await _database.managers.voteUsers.create(
-        (o) => o(subject: userId, object: invitation.userId, amount: 1),
-        mode: InsertMode.insertOrIgnore,
-        onConflict: DoNothing(),
-      );
-      await _applyReciprocalTrustEdges(invitation.userId, userId);
     }
+    if (forwardCreated) await onForwardCreated?.call();
 
     return true;
-  })();
+  });
 
   Future<void> _applyReciprocalTrustEdges(
     String userA,
     String userB,
+    InviteOrigin origin,
   ) async {
-    final pairs =
-        [
-          [userA, userB],
-          [userB, userA],
-        ]..sort((x, y) {
-          final c = x[0].compareTo(y[0]);
-          return c != 0 ? c : x[1].compareTo(y[1]);
-        });
-    for (final pair in pairs) {
-      await _database.customStatement(
-        r'SELECT public.trust_project_pair($1, $2)',
-        [pair[0], pair[1]],
-      );
-    }
+    final subjects = [userA, userB]..sort();
+    final onConflict = origin == InviteOrigin.existingAccount
+        ? ' ON CONFLICT (subject, object) DO NOTHING'
+        : '';
+    // Both subject counters must be locked before the statement trigger
+    // advances the trust generation.
+    await _database.customStatement(
+      'INSERT INTO public.vote_user (subject, object, amount) '
+      r'VALUES ($1, $2, 1), ($2, $1, 1)'
+      '$onConflict',
+      subjects,
+    );
+    const projection = r'SELECT public.trust_project_pair($1, $2)';
+    await _database.customStatement(projection, subjects);
+    await _database.customStatement(projection, subjects.reversed.toList());
   }
 }
