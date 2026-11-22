@@ -158,7 +158,8 @@ final class AuthCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
     );
-    return _attention!.runAction(
+    final attention = _attention!;
+    Future<UserEntity> acceptInvite() => attention.runAction(
       actorUserId: null,
       action: (transaction) async {
         final user = await _userRepository.createInvited(
@@ -208,6 +209,7 @@ final class AuthCase extends UseCaseBase {
         return user;
       },
     );
+    return attention.retryOnConflict(acceptInvite);
   }
 
   Future<bool> signOut({

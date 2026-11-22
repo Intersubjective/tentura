@@ -152,8 +152,9 @@ final class CredentialAuthCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: inviteId,
     );
-    try {
-      return await _attention!.runAction(
+    final attention = _attention!;
+    Future<({String accountId, bool isNewAccount})> acceptInvite() {
+      return attention.runAction(
         actorUserId: null,
         action: (transaction) async {
           final user = await _userRepository.createInvitedWithCredential(
@@ -205,6 +206,10 @@ final class CredentialAuthCase extends UseCaseBase {
           return (accountId: user.id, isNewAccount: true);
         },
       );
+    }
+
+    try {
+      return await attention.retryOnConflict(acceptInvite);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(
         type: type,

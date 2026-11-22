@@ -413,40 +413,44 @@ final class InvitationCase extends UseCaseBase {
     required Future<bool> Function(AttentionTransaction transaction) mutation,
     bool emitMutualConnection = false,
     bool emitInviteAccepted = true,
-  }) => _attention!.runAction(
-    actorUserId: userId,
-    action: (transaction) async {
-      final accepted = await mutation(transaction);
-      if (accepted) {
-        if (emitInviteAccepted) {
-          final accepter = await _userRepository.getById(userId);
-          await transaction.record(
-            await _attentionIntents!.inviteAccepted(
-              notification: InviteAcceptedNotificationIntent(
-                inviterUserId: invitation.issuer.id,
-                accepterUserId: userId,
-                accepterDisplayName: accepter.displayName,
-                actionUrl: '/#/profile/view/$userId',
-                inviteOrigin: 'existing_account',
-                accepterHandle: accepter.handle,
+  }) {
+    final attention = _attention!;
+    Future<bool> acceptInvite() => attention.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final accepted = await mutation(transaction);
+        if (accepted) {
+          if (emitInviteAccepted) {
+            final accepter = await _userRepository.getById(userId);
+            await transaction.record(
+              await _attentionIntents!.inviteAccepted(
+                notification: InviteAcceptedNotificationIntent(
+                  inviterUserId: invitation.issuer.id,
+                  accepterUserId: userId,
+                  accepterDisplayName: accepter.displayName,
+                  actionUrl: '/#/profile/view/$userId',
+                  inviteOrigin: 'existing_account',
+                  accepterHandle: accepter.handle,
+                ),
+                sourceEventKey: 'invitation:${invitation.id}:accepted',
               ),
-              sourceEventKey: 'invitation:${invitation.id}:accepted',
-            ),
-          );
+            );
+          }
+          if (emitMutualConnection) {
+            await transaction.record(
+              await _attentionIntents!.mutualConnectionFormed(
+                actorUserId: invitation.issuer.id,
+                counterpartUserId: userId,
+                sourceEventKey: 'invitation:${invitation.id}:mutual',
+              ),
+            );
+          }
         }
-        if (emitMutualConnection) {
-          await transaction.record(
-            await _attentionIntents!.mutualConnectionFormed(
-              actorUserId: invitation.issuer.id,
-              counterpartUserId: userId,
-              sourceEventKey: 'invitation:${invitation.id}:mutual',
-            ),
-          );
-        }
-      }
-      return accepted;
-    },
-  );
+        return accepted;
+      },
+    );
+    return attention.retryOnConflict(acceptInvite);
+  }
 
   Future<bool> _acceptBeaconInviteOnly({
     required InvitationEntity invitation,

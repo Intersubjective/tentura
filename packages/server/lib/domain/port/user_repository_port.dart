@@ -3,8 +3,8 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
-/// Called inside the signup transaction only after a new Post forward edge
-/// has been inserted. Existing edges do not trigger another receipt.
+/// Called inside the signup transaction after inserting a new invite forward,
+/// for either a Request or a Post. Existing edges do not trigger a receipt.
 typedef InvitedPostForwardCreated =
     Future<void> Function(
       BeaconEntity beacon,

@@ -312,7 +312,7 @@ class UserRepository implements UserRepositoryPort {
         recipientId: user.id,
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
-      if (created && beacon.kind == BeaconKind.post) {
+      if (created) {
         await onPostForwardCreated?.call(beacon, user.id);
       }
     }
@@ -502,7 +502,7 @@ class UserRepository implements UserRepositoryPort {
         recipientId: user.id,
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
-      if (created && beacon.kind == BeaconKind.post) {
+      if (created) {
         await onPostForwardCreated?.call(beacon, user.id);
       }
     }
