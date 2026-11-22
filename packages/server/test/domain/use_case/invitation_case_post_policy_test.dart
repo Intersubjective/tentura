@@ -50,7 +50,7 @@ final class _RecordingPostLock implements PostLockPort {
 typedef _Operation = ({
   String name,
   Future<void> Function(String issuerId) run,
-  void Function(String issuerId) verifyEffect,
+  void Function(String issuerId, BeaconKind kind) verifyEffect,
   void Function() verifyNoEffect,
   Matcher refusal,
 });
@@ -146,7 +146,7 @@ void main() {
         addresseeName: 'Friend',
         beaconId: _beaconId,
       ),
-      verifyEffect: (issuerId) => verify(
+      verifyEffect: (issuerId, _) => verify(
         invitationRepo.create(
           issuerId: issuerId,
           addresseeName: anyNamed('addresseeName'),
@@ -170,7 +170,9 @@ void main() {
         stubInvitation(issuerId);
         await case_.accept(invitationId: _invitationId, userId: _joinerId);
       },
-      verifyEffect: (_) => verifyBound(bindFriendship: true),
+      verifyEffect: (_, kind) => verifyBound(
+        bindFriendship: kind == BeaconKind.post,
+      ),
       verifyNoEffect: verifyNothingBound,
       refusal: anyOf(isA<UnauthorizedException>(), isA<IdNotFoundException>()),
     ),
@@ -180,7 +182,7 @@ void main() {
         stubInvitation(issuerId);
         await case_.acceptAsExisting(code: _invitationId, userId: _joinerId);
       },
-      verifyEffect: (_) => verifyBound(bindFriendship: false),
+      verifyEffect: (_, _) => verifyBound(bindFriendship: false),
       verifyNoEffect: verifyNothingBound,
       refusal: anyOf(isA<UnauthorizedException>(), isA<IdNotFoundException>()),
     ),
@@ -336,7 +338,7 @@ void main() {
         test('lets the author issuer through under the Post lock', () async {
           await op.run(_authorId);
 
-          op.verifyEffect(_authorId);
+          op.verifyEffect(_authorId, BeaconKind.post);
           expect(postLock.lockedBeaconIds, [_beaconId]);
         });
       });
@@ -352,7 +354,7 @@ void main() {
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.post);
           expect(postLock.lockedBeaconIds, [_beaconId]);
         });
 
@@ -373,7 +375,7 @@ void main() {
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.post);
         });
 
         test('rejects a Post deleted while locking with postNotOpen', () async {
@@ -436,7 +438,7 @@ void main() {
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.request);
           expect(postLock.lockedBeaconIds, isEmpty);
         });
       });

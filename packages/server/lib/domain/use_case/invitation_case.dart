@@ -329,6 +329,17 @@ final class InvitationCase extends UseCaseBase {
         description: 'Cannot accept your own invite',
       );
     }
+    if (invitation.isExpired) {
+      throw IdNotFoundException(id: invitationId);
+    }
+
+    final beaconId = invitation.beaconId;
+    if (beaconId != null) {
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      if (beacon.kind == BeaconKind.request) {
+        return _acceptForAdmission(invitation: invitation, userId: userId);
+      }
+    }
     return _acceptAndRecord(
       invitation: invitation,
       userId: userId,
@@ -340,7 +351,6 @@ final class InvitationCase extends UseCaseBase {
         return _userRepository.bindMutual(
           invitationId: invitationId,
           userId: userId,
-          bindFriendship: true,
         );
       },
     );
@@ -370,16 +380,7 @@ final class InvitationCase extends UseCaseBase {
     }
 
     if (invitation.beaconId != null) {
-      return _acceptAndRecord(
-        invitation: invitation,
-        userId: userId,
-        emitInviteAccepted: false,
-        mutation: (transaction) => _acceptBeaconInviteOnly(
-          invitation: invitation,
-          userId: userId,
-          transaction: transaction,
-        ),
-      );
+      return _acceptForAdmission(invitation: invitation, userId: userId);
     }
 
     if (await _friendshipLookup.isReciprocalSubscribe(
@@ -445,6 +446,20 @@ final class InvitationCase extends UseCaseBase {
     );
     return attention.retryOnConflict(acceptInvite);
   }
+
+  Future<bool> _acceptForAdmission({
+    required InvitationEntity invitation,
+    required String userId,
+  }) => _acceptAndRecord(
+    invitation: invitation,
+    userId: userId,
+    emitInviteAccepted: false,
+    mutation: (transaction) => _acceptBeaconInviteOnly(
+      invitation: invitation,
+      userId: userId,
+      transaction: transaction,
+    ),
+  );
 
   Future<bool> _acceptBeaconInviteOnly({
     required InvitationEntity invitation,
