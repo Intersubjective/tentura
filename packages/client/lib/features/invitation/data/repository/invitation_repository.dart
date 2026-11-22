@@ -214,9 +214,18 @@ class InvitationRepository implements InvitationAcceptPort {
 
   /// Caller-aware preview (`GET /api/v2/invite/:code/preview`).
   @override
-  Future<InvitePreview> fetchInvitePreview(String code) async {
+  Future<InvitePreview> fetchInvitePreview(String code) =>
+      _fetchInvitePreview(code, _remoteApiService.getAuthenticatedJson);
+
+  Future<InvitePreview> fetchSignupInvitePreview(String code) =>
+      _fetchInvitePreview(code, _remoteApiService.getPublicJson);
+
+  Future<InvitePreview> _fetchInvitePreview(
+    String code,
+    Future<Map<String, dynamic>> Function(Uri) getJson,
+  ) async {
     try {
-      final json = await _remoteApiService.getAuthenticatedJson(
+      final json = await getJson(
         _inviteApiUri('/api/v2/invite/${Uri.encodeComponent(code)}/preview'),
       );
       return InvitePreview.fromJson(json);

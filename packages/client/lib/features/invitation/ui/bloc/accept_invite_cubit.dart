@@ -113,7 +113,9 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _repository.acceptExistingInvite(code);
-      if (beacon != null && beacon.id.isNotEmpty) {
+      if (beacon?.lapsed == true) {
+        _finishWithMessage(null);
+      } else if (beacon != null && beacon.id.isNotEmpty) {
         _postJoinNavigation.setFromBeaconInvite(
           beaconId: beacon.id,
           beaconTitle: beacon.title,

@@ -794,7 +794,7 @@ function renderAnonymous(p) {
 const POST_JOIN_BEACON_KEY = 'tentura_post_join_beacon';
 
 function persistPostJoinBeacon(p) {
-  if (!p?.beacon?.id) return;
+  if (!p?.beacon?.id || p.beacon.lapsed === true) return;
   try {
     sessionStorage.setItem(
       POST_JOIN_BEACON_KEY,

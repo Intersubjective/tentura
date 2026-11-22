@@ -267,13 +267,18 @@ abstract base class RemoteApiClientBase
   }
 
   /// Authenticated GET returning a decoded JSON object (REST `/api/v2/…`).
-  Future<Map<String, dynamic>> getAuthenticatedJson(Uri uri) async {
-    final token = (await getAuthToken()).accessToken;
+  Future<Map<String, dynamic>> getAuthenticatedJson(Uri uri) async =>
+      _getJson(uri, token: (await getAuthToken()).accessToken);
+
+  /// GET a public JSON endpoint without requesting a bearer token.
+  Future<Map<String, dynamic>> getPublicJson(Uri uri) => _getJson(uri);
+
+  Future<Map<String, dynamic>> _getJson(Uri uri, {String? token}) async {
     final response = await http
         .get(
           uri,
           headers: {
-            'Authorization': 'Bearer $token',
+            if (token != null) 'Authorization': 'Bearer $token',
             kHeaderUserAgent: userAgent,
             kHeaderAccept: 'application/json',
           },

@@ -83,7 +83,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
     if (!auth.isAuthenticated || auth.isLoading) return;
     final preview = context.read<RegisterInviteCubit>().state.preview;
     final beacon = preview?.beacon;
-    if (beacon == null || beacon.id.isEmpty) return;
+    if (beacon == null || beacon.id.isEmpty || beacon.lapsed) return;
     GetIt.I<PostJoinNavigationCubit>().setFromBeaconInvite(
       beaconId: beacon.id,
       beaconTitle: beacon.title,

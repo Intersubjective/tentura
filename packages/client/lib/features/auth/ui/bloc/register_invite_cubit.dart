@@ -35,7 +35,7 @@ class RegisterInviteCubit extends Cubit<RegisterInviteState> {
   RegisterInviteCubit(
     InvitationRepository repository,
     UiEffectPort effects,
-  ) : _repository = repository,
+  ) : _fetchPreview = repository.fetchSignupInvitePreview,
       _effects = effects,
       super(const RegisterInviteState());
 
@@ -43,11 +43,11 @@ class RegisterInviteCubit extends Cubit<RegisterInviteState> {
   RegisterInviteCubit.withPort(
     InvitationAcceptPort repository, {
     UiEffectPort? effects,
-  }) : _repository = repository,
+  }) : _fetchPreview = repository.fetchInvitePreview,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(const RegisterInviteState());
 
-  final InvitationAcceptPort _repository;
+  final Future<InvitePreview> Function(String) _fetchPreview;
 
   final UiEffectPort _effects;
 
@@ -63,7 +63,7 @@ class RegisterInviteCubit extends Cubit<RegisterInviteState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final preview = await _repository.fetchInvitePreview(code);
+      final preview = await _fetchPreview(code);
       if (!isClosed) {
         emit(
           state.copyWith(
