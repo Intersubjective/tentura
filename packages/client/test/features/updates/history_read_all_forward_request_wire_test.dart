@@ -237,7 +237,9 @@ void main() {
     'tapping Read all leaves the forwarded-Request row without an unread '
     'dot and the History badge without a count',
     (tester) async {
-      await _withServer(tester, () async {
+      late final Completer<http.Response> unreadReadback;
+      Future<void> readAll() async {
+        unreadReadback = Completer<http.Response>();
         final session = await _Session.open();
         try {
           await _pump(tester, session.cubit);
@@ -257,6 +259,18 @@ void main() {
             () => session.cubit.state.summary.unreadTotal == 0,
             why: () => session.cubit.state,
           );
+          // The badge can clear before Read all finishes checking Unread.
+          final response = await unreadReadback.future.timeout(
+            const Duration(seconds: 15),
+          );
+          expect(response.statusCode, 200);
+          expect(
+            jsonDecode(response.body),
+            allOf(
+              containsPair('data', isNotNull),
+              isNot(containsPair('errors', isNotNull)),
+            ),
+          );
           await _pump(tester, session.cubit);
 
           expect(forwardDot, findsNothing);
@@ -265,7 +279,21 @@ void main() {
         } finally {
           await session.close();
         }
-      });
+      }
+
+      await _withServer(
+        tester,
+        readAll,
+        observeRequest: (request) {
+          if (request case {
+            'operationName': 'AttentionFeed',
+            'variables': {'view': 'unread'},
+          }) {
+            return unreadReadback.complete;
+          }
+          return null;
+        },
+      );
     },
   );
 
