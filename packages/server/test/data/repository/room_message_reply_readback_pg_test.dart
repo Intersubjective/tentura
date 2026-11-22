@@ -20,7 +20,6 @@ import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/published_child_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
@@ -40,6 +39,8 @@ import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
+
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 class _PgFakeFactCards extends Fake implements BeaconFactCardRepositoryPort {}
 

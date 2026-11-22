@@ -32,7 +32,6 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
 import 'package:tentura_server/data/repository/image_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/polling_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
@@ -60,6 +59,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Copying a fact that holds a file (non-image) attachment, through the real
 /// use cases over Postgres: the copy gets its own stored copy of the file

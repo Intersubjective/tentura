@@ -32,7 +32,6 @@ import 'package:tentura_server/data/repository/forward_attribution_repository.da
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/pair_block_query_repository.dart';
 import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
@@ -83,6 +82,7 @@ import '../../support/beacon_not_request_matcher.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 const _author = 'Uaudauthor001';
 const _bob = 'Uaudbob000001';

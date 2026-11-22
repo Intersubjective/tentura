@@ -19,7 +19,6 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
@@ -30,6 +29,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import '../../support/fake_user_block_repository.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// U12 / D15 — reconciliation repairs *derived* obligation state and nothing
 /// else.

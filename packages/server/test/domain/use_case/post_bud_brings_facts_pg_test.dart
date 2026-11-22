@@ -41,7 +41,6 @@ import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
 import 'package:tentura_server/data/repository/image_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_bud_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
@@ -72,6 +71,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/beacon_repository_ctor_arg.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Budding a Request from a Post with ticked Post facts, through the real
 /// use cases over Postgres: the live child Request gets discussion-only

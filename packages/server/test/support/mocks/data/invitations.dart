@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 
-import 'package:tentura_server/data/repository/mock/data/users.dart';
+import 'users.dart';
 
 final kInvitationFromThorin = InvitationEntity(
   id: 'I286f94380611',

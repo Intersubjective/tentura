@@ -30,7 +30,6 @@ import 'package:tentura_server/data/repository/forward_attribution_repository.da
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_bud_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
@@ -85,6 +84,7 @@ import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Budding C9 (plan §4 C9, Arch §4.1): every bud path races its neighbours
 /// on two real connections. Each race runs [_rounds] rounds (simultaneous

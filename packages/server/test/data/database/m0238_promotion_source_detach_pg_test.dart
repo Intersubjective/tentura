@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -29,6 +28,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// m0238: a published promotion may outlive its source message (Arch §10.3).
 ///

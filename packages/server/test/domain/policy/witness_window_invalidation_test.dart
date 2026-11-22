@@ -1,7 +1,8 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/repository/mock/witness_window_repository_mock.dart';
 import 'package:tentura_server/domain/policy/witness_window_invalidation.dart';
+
+import '../../support/mocks/witness_window_repository_mock.dart';
 
 final class _RecordingWitnessWindow extends WitnessWindowRepositoryMock {
   final invalidated = <String>[];

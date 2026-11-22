@@ -1,6 +1,7 @@
 @Tags(['pg'])
 library;
 
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -9,7 +10,6 @@ import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/repository/fcm_remote_repository_module.dart';
-import 'package:tentura_server/data/repository/mock/data/users.dart';
 import 'package:tentura_server/data/service/fcm_service.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -31,6 +31,7 @@ import '../support/disposable_pg_target.dart';
 import '../support/mocks/beacon_repository_mock.dart';
 import '../support/test_dependency_graph_expectations.dart';
 import '../support/test_di.config.dart';
+import '../support/mocks/data/users.dart';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -43,6 +44,25 @@ Future<void> main() async {
     final session = await setUpDisposablePgWriter(target: target);
     addTearDown(() => tearDownDisposablePgWriter(session: session));
   });
+
+  test(
+    'test support supplies repository mocks while dev and prod use real repositories',
+    () async {
+      final warnAboutMultipleDatabases =
+          driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+      final logLevel = Logger.root.level;
+      // Each graph opens its own database handles with independent executors.
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      addTearDown(() {
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases =
+            warnAboutMultipleDatabases;
+        Logger.root.level = logLevel;
+      });
+      addTearDown(getIt.reset);
+      await expectRepositoryImplementationsByEnvironment(target.databaseEnv);
+    },
+    skip: skipReason,
+  );
 
   test(
     'the live test graph gets its repository mocks from the test initializer',

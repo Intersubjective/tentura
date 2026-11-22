@@ -11,7 +11,6 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/closure_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/plan_attention_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -24,6 +23,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/env.dart';
 
 import 'fake_user_block_repository.dart';
+import 'mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Request plan («либретто», #220): the real plan use-case graph over one
 /// database, for pg suites.

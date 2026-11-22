@@ -17,7 +17,6 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/room_baton_repository.dart';
@@ -33,6 +32,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 const _author = 'Ubatondec_au1';
 const _candA = 'Ubatondec_ca1';

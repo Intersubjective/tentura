@@ -22,7 +22,6 @@ import 'package:tentura_server/data/repository/forward_attribution_repository.da
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
 import 'package:tentura_server/data/repository/post_bud_repository.dart';
@@ -59,6 +58,7 @@ import 'package:tentura_server/env.dart';
 
 import 'fake_beacon_child_create_port.dart';
 import 'pg_test_public_keys.dart';
+import 'mocks/invite_seed_prompt_repository_mock.dart';
 
 const postPublishRecipient = 'Upubreader01';
 String postPublishAuthor(int i) => 'Upubauthor0$i';

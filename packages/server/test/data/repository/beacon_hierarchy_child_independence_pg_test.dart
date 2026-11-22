@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -29,6 +28,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// U11 — a child Request is its own attention object (D16, R7, contract §8).
 ///

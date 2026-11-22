@@ -26,7 +26,6 @@ import 'package:tentura_server/data/repository/forward_attribution_repository.da
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
@@ -80,6 +79,7 @@ import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 const _author = 'Unotifauthor01';
 const _bob = 'Unotifbob00001';

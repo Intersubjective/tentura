@@ -3,7 +3,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 
-import 'package:tentura_server/data/repository/mock/data/users.dart';
+import 'users.dart';
 
 const kB20f3d51e498f = 'B20f3d51e498f';
 const kBc1cb783b0159 = 'Bc1cb783b0159';

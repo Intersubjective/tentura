@@ -15,10 +15,10 @@ import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_block_case.dart';
-import 'package:tentura_server/data/repository/mock/witness_window_repository_mock.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/mocks/witness_window_repository_mock.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/commitment_gates_harness.dart';
 

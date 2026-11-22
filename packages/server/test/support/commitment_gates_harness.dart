@@ -4,7 +4,6 @@ import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura_server/data/repository/mock/trust_ledger_repository_mock.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
@@ -43,6 +42,7 @@ import 'beacon_lifecycle_effects_test_support.dart';
 import 'fake_user_block_repository.dart';
 import 'recording_commitment_repository.dart';
 import 'test_attention_harness.dart';
+import 'mocks/trust_ledger_repository_mock.dart';
 
 /// In-memory help-offer store shared across gate-scenario use cases.
 final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {

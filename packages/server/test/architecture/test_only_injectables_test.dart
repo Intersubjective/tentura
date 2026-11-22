@@ -8,7 +8,8 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:test/test.dart';
 
-const _legacyMockDirectory = 'lib/data/repository/mock';
+const _legacyImportPath = 'data/repository/mock';
+const _legacyMockDirectory = 'lib/$_legacyImportPath';
 const _mockFileName = 'user_trust_edge_repository_mock.dart';
 const _mockClass = 'UserTrustEdgeRepositoryMock';
 const _repositoryPort = 'UserTrustEdgeRepositoryPort';
@@ -62,9 +63,26 @@ const _inviteGenealogyThroughTaskRepositories = {
   'task': ('TaskRepository', 'TaskRepositoryPort'),
 };
 
+const _repositoryMocksLeavingLib = {
+  'invite_seed_prompt': ('InviteSeedPromptRepository', 'InviteSeedPromptPort'),
+  'trust_ledger': ('TrustLedgerRepository', 'TrustLedgerPort'),
+  'trust_preference': ('TrustPreferenceRepository', 'TrustPreferencePort'),
+  'upload_quota': ('UploadQuotaRepository', 'UploadQuotaRepositoryPort'),
+  'user_availability': (
+    'UserAvailabilityRepository',
+    'UserAvailabilityRepositoryPort',
+  ),
+  'user_block': ('UserBlockRepository', 'UserBlockRepositoryPort'),
+  'user_contact': ('UserContactRepository', 'UserContactRepositoryPort'),
+  'user_presence': ('UserPresenceRepository', 'UserPresenceRepositoryPort'),
+  'user': ('UserRepository', 'UserRepositoryPort'),
+  'witness_window': ('WitnessWindowRepository', 'WitnessWindowPort'),
+};
+
 const _testSupportRepositories = {
   ..._coordinationThroughInvitationRepositories,
   ..._inviteGenealogyThroughTaskRepositories,
+  ..._repositoryMocksLeavingLib,
   'band_candidate': ('BandCandidateRepository', 'BandCandidatePort'),
   'beacon_member_webs': (
     'BeaconMemberWebsRepository',
@@ -105,20 +123,7 @@ const _testSupportRepositories = {
   ),
 };
 
-// Remove the corresponding path when moving each remaining test registration.
-const _unmoved = {
-  '$_legacyMockDirectory/invite_seed_prompt_repository_mock.dart',
-  '$_legacyMockDirectory/trust_ledger_repository_mock.dart',
-  '$_legacyMockDirectory/trust_preference_repository_mock.dart',
-  '$_legacyMockDirectory/upload_quota_repository_mock.dart',
-  '$_legacyMockDirectory/user_availability_repository_mock.dart',
-  '$_legacyMockDirectory/user_block_repository_mock.dart',
-  '$_legacyMockDirectory/user_contact_repository_mock.dart',
-  '$_legacyMockDirectory/user_presence_repository_mock.dart',
-  '$_legacyMockDirectory/user_repository_mock.dart',
-  '$_legacyMockDirectory/witness_window_repository_mock.dart',
-  'lib/data/service/email/logging_email_sender.dart',
-};
+const _unmoved = {'lib/data/service/email/logging_email_sender.dart'};
 
 void main() {
   group('Repository mocks owned by test support', () {
@@ -131,16 +136,27 @@ void main() {
       final oldPaths = {
         for (final name in mockFiles) '$_legacyMockDirectory/$name',
       };
-      final legacyUris = oldPaths
-          .map((path) => File(path).absolute.uri)
-          .toSet();
-      final staleImports = [
-        for (final root in ['lib', 'bin', 'test'])
-          for (final file in _dartFiles(root))
-            if (mockFiles.any(file.readAsStringSync().contains))
-              for (final uri in _imports(file))
-                if (legacyUris.contains(uri)) '${file.path}: ${uri.path}',
-      ];
+      final mockUris = {
+        for (final name in mockFiles)
+          name: File('$_mockDirectory/$name').absolute.uri,
+      };
+      final staleReferences = <String>[];
+      final misplacedImports = <String>[];
+      for (final root in ['lib', 'bin', 'test']) {
+        for (final file in _dartFiles(root)) {
+          final code = file.readAsStringSync();
+          if (code.contains('$_legacyImportPath/')) {
+            staleReferences.add(file.path);
+          }
+          if (!mockFiles.any(code.contains)) continue;
+          for (final uri in _imports(file)) {
+            final expected = mockUris[uri.pathSegments.lastOrNull];
+            if (expected != null && uri != expected) {
+              misplacedImports.add('${file.path}: ${uri.path}');
+            }
+          }
+        }
+      }
 
       final callers = {
         'test/domain/use_case/leave_in_wrapping_up_test.dart': {
@@ -152,11 +168,12 @@ void main() {
         'test/domain/use_case/request_only_guards_test.dart': {
           'pair_block_query_repository_mock.dart',
         },
-        // The live graph checks the new ports against the isolated test
-        // initializer, so those mock classes need no direct test import.
+        // The live graph checks these ports against the isolated test
+        // initializer, so their mock classes need no direct test import.
         'test/support/test_dependency_graph_expectations.dart': {
           for (final name in _testSupportRepositories.keys)
-            if (!_inviteGenealogyThroughTaskRepositories.containsKey(name))
+            if (!_inviteGenealogyThroughTaskRepositories.containsKey(name) &&
+                !_repositoryMocksLeavingLib.containsKey(name))
               '${name}_repository_mock.dart',
         },
       };
@@ -175,32 +192,6 @@ void main() {
         );
       }
 
-      final remainingMocks = _unmoved.where(
-        (path) =>
-            path.startsWith('$_legacyMockDirectory/') &&
-            !oldPaths.contains(path),
-      );
-      const repositoriesStillInLib = [
-        'invite_seed_prompt',
-        'trust_ledger',
-        'trust_preference',
-        'upload_quota',
-        'user_availability',
-        'user_block',
-        'user_contact',
-        'user_presence',
-        'user',
-        'witness_window',
-      ];
-      expect(
-        remainingMocks,
-        unorderedEquals([
-          for (final name in repositoriesStillInLib)
-            '$_legacyMockDirectory/${name}_repository_mock.dart',
-        ]),
-      );
-      expect(remainingMocks.where((path) => !File(path).existsSync()), isEmpty);
-
       final violations = <String, Iterable<String>>{
         'missing test-support imports': missingImports,
         'missing test-support files': [
@@ -211,30 +202,24 @@ void main() {
           for (final path in oldPaths)
             if (File(path).existsSync()) path,
         ],
-        'unexpected files under the lib mock directory': [
-          for (final file in Directory(
+        'obsolete lib mock directory': [
+          if (Directory(_legacyMockDirectory).existsSync())
             _legacyMockDirectory,
-          ).listSync().whereType<File>())
-            if (file.path.endsWith('_repository_mock.dart') &&
-                !remainingMocks.contains(file.path))
-              file.path,
         ],
-        'invite seed prompt mock under test support': [
-          if (File(
-            '$_mockDirectory/invite_seed_prompt_repository_mock.dart',
-          ).existsSync())
-            '$_mockDirectory/invite_seed_prompt_repository_mock.dart',
-        ],
-        'obsolete allowlist entries': _unmoved.intersection(oldPaths),
-        'legacy imports': staleImports,
+        'obsolete allowlist entries': _unmoved.where(
+          (path) => path.startsWith('$_legacyMockDirectory/'),
+        ),
+        'legacy path references': staleReferences,
+        'imports outside test support': misplacedImports,
       }..removeWhere((_, findings) => findings.isEmpty);
       expect(violations, isEmpty);
     });
 
-    test('beacon and invitation mocks import their test-support fixtures', () {
+    test('beacon, invitation and user callers import test-support fixtures', () {
       const fixtures = {
         'beacon': 'beacons.dart',
         'invitation': 'invitations.dart',
+        'user': 'users.dart',
       };
       final legacyUris = {
         for (final fixture in fixtures.values)
@@ -245,6 +230,10 @@ void main() {
           if (File.fromUri(uri).existsSync()) 'Legacy fixture: ${uri.path}',
         for (final MapEntry(key: mock, value: fixture) in fixtures.entries)
           ..._fixtureViolations(mock, fixture),
+        if (!_imports(
+          File('test/app/test_dependency_graph_pg_test.dart'),
+        ).contains(File('$_mockDirectory/data/users.dart').absolute.uri))
+          'The live dependency graph test must import the test-support users fixture.',
         for (final root in ['lib', 'bin', 'test'])
           for (final file in _dartFiles(root))
             if (fixtures.values.any(file.readAsStringSync().contains))
@@ -291,7 +280,10 @@ void main() {
         for (final (implementation, _) in _testSupportRepositories.values)
           if (code.contains('${implementation}Mock')) '${implementation}Mock',
         for (final name in mockFiles)
-          if (code.contains('data/repository/mock/$name')) name,
+          if (code.contains('$_legacyImportPath/$name')) name,
+        ...RegExp(
+          r'\b\w*RepositoryMock\b',
+        ).allMatches(code).map((match) => match.group(0)!).toSet(),
       ];
       final testDirectory = Directory('test').absolute.uri.path;
       final testImports = [
@@ -347,15 +339,26 @@ void main() {
           reason: className,
         );
         final annotationName = switch (name) {
-          'fcm_remote' => 'Singleton',
+          'fcm_remote' || 'trust_ledger' => 'Singleton',
           'closure' ||
           'forward_attribution' ||
           'forward_candidate_context' ||
           'task' => 'LazySingleton',
           _ => 'Injectable',
         };
+        final registrations = mock.metadata.where(
+          (annotation) => const {
+            'Injectable',
+            'Singleton',
+            'LazySingleton',
+            'injectable',
+            'singleton',
+            'lazySingleton',
+          }.contains(_annotationName(annotation)),
+        );
+        expect(registrations, hasLength(1), reason: className);
         expect(
-          mock.metadata.where(
+          registrations.where(
             (annotation) =>
                 _annotationName(annotation) == annotationName &&
                 _argument(annotation.arguments, 'as')?.toSource() == port &&

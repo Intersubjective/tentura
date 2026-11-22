@@ -7,7 +7,6 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart'
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_erasure_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -18,6 +17,8 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
+
+import 'mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Wires the production account-erasure stack for disposable PG tests.
 UserErasureTestStack buildUserErasureTestStack({

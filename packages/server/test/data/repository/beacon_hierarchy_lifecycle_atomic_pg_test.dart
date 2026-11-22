@@ -18,7 +18,6 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -30,7 +29,7 @@ import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/recording_beacon_hierarchy_outbox.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
-
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

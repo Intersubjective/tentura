@@ -5,7 +5,6 @@ import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 
-import 'package:tentura_server/data/repository/mock/trust_ledger_repository_mock.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
@@ -32,6 +31,7 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/recording_commitment_repository.dart';
+import '../../support/mocks/trust_ledger_repository_mock.dart';
 
 final class _NoopCapabilityEvidence extends Fake
     implements CapabilityEvidencePort {

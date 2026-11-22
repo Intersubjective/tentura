@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
+import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
+import 'package:tentura_server/app/di.dart' show configureDependencies;
 import 'package:tentura_server/data/service/email/logging_email_sender.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/port/band_candidate_port.dart';
@@ -30,6 +33,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/lineage_memory_read_port.dart';
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/meritrank_status_port.dart';
@@ -41,7 +45,16 @@ import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/routing_mute_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/port/trust_ledger_port.dart';
+import 'package:tentura_server/domain/port/trust_preference_port.dart';
+import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
+import 'package:tentura_server/domain/port/user_block_repository_port.dart';
+import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -73,6 +86,71 @@ import 'mocks/inbox_repository_mock.dart';
 import 'mocks/invitation_repository_mock.dart';
 import 'mocks/user_trust_edge_repository_mock.dart';
 import 'test_di.dart';
+import 'test_di.config.dart';
+
+Future<void> expectRepositoryImplementationsByEnvironment(Env database) async {
+  const repositories = {
+    InviteSeedPromptPort: 'InviteSeedPromptRepository',
+    TrustLedgerPort: 'TrustLedgerRepository',
+    TrustPreferencePort: 'TrustPreferenceRepository',
+    UploadQuotaRepositoryPort: 'UploadQuotaRepository',
+    UserAvailabilityRepositoryPort: 'UserAvailabilityRepository',
+    UserBlockRepositoryPort: 'UserBlockRepository',
+    UserContactRepositoryPort: 'UserContactRepository',
+    UserPresenceRepositoryPort: 'UserPresenceRepository',
+    UserRepositoryPort: 'UserRepository',
+    WitnessWindowPort: 'WitnessWindowRepository',
+  };
+  Map<Type, Type?> resolvedTypes(GetIt registry) => {
+    for (final port in repositories.keys)
+      port: registry.maybeGet<Object>(type: port)?.runtimeType,
+  };
+
+  for (final environment in [Environment.dev, Environment.prod]) {
+    final env = Env(
+      environment: environment,
+      serverUri: Uri.parse('http://127.0.0.1:2080'),
+      publicOrigin: 'http://127.0.0.1:2080',
+      publicKey: Env.kJwtPublicKey,
+      privateKey: Env.kJwtPrivateKey,
+      pgHost: database.pgHost,
+      pgPort: database.pgPort,
+      pgDatabase: database.pgDatabase,
+      pgUsername: database.pgUsername,
+      pgPassword: database.pgPassword,
+      printEnv: false,
+      workersCount: 1,
+    );
+    await configureDependencies(env);
+    await getIt.getAsync<PgNotificationService>();
+    expect(
+      resolvedTypes(
+        getIt,
+      ).map((port, type) => MapEntry(port, type?.toString())),
+      repositories,
+      reason: '$environment must resolve the real repositories.',
+    );
+    await getIt.reset();
+  }
+
+  await expectTestDependencyGraph(database);
+  final liveTypes = resolvedTypes(getIt);
+  expect(
+    liveTypes.map((port, type) => MapEntry(port, type?.toString())),
+    repositories.map((port, name) => MapEntry(port, '${name}Mock')),
+    reason: 'The live test graph must resolve every repository mock.',
+  );
+
+  final testOnly = GetIt.asNewInstance()
+    ..registerSingleton<Logger>(getIt<Logger>())
+    ..initTestMocks(environment: Environment.test);
+  addTearDown(testOnly.reset);
+  expect(
+    resolvedTypes(testOnly),
+    liveTypes,
+    reason: 'The test-support initializer must supply the live graph mocks.',
+  );
+}
 
 Future<void> expectTestDependencyGraph(Env env) async {
   await configureTestDependencies(env);

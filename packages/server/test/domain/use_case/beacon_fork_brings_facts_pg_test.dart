@@ -37,7 +37,6 @@ import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
 import 'package:tentura_server/data/repository/image_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/upload_quota_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -64,6 +63,7 @@ import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/plan_cases.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Forking a Request with ticked facts, through the real use cases over
 /// Postgres: the draft gets discussion-only copies of the facts the forker

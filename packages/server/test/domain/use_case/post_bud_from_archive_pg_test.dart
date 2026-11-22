@@ -26,7 +26,6 @@ import 'package:tentura_server/data/repository/constellation_anchor_repository.d
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_bud_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
@@ -46,6 +45,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Budding a Request from a Post that already ended (closed by its author, or
 /// expired but not yet swept): members may still bud, and budding never ends

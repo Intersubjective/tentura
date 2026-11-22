@@ -14,7 +14,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -30,6 +29,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/user_erasure_test_stack.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Queued channel jobs must survive the erasure of the person who caused them:
 /// the actor is scrubbed, but the job keeps its presentation identity, reaches

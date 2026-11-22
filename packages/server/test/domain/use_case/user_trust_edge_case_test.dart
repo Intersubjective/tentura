@@ -4,7 +4,6 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
-import 'package:tentura_server/data/repository/mock/witness_window_repository_mock.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/enum.dart';
@@ -13,6 +12,7 @@ import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 
 import 'user_trust_edge_case_mocks.mocks.dart';
 import '../../support/fake_trust_maintenance_port.dart';
+import '../../support/mocks/witness_window_repository_mock.dart';
 import '../../support/test_attention_harness.dart';
 
 final class _RecordingWitnessWindow extends WitnessWindowRepositoryMock {

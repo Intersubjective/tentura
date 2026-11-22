@@ -13,7 +13,6 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -42,6 +41,7 @@ import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 const _reader = 'Upostdigestreader';
 const _alice = 'Upostdigestalice';

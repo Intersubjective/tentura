@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repositor
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/image_object_gc_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_erasure_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -30,6 +29,7 @@ import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 // More owned rows than one erasure transaction handles (batch size is 200).
 const _ownedRows = 450;

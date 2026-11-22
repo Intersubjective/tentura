@@ -27,7 +27,6 @@ import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -54,6 +53,7 @@ import 'package:tentura_server/env.dart';
 import '../../data/repository/beacon_hierarchy_pg_helpers.dart';
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 const _standaloneBeaconId = 'Bhierstand01';
 

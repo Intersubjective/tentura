@@ -27,7 +27,6 @@ import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/invitation_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
@@ -68,6 +67,7 @@ import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/invite_seed_prompt_repository_mock.dart';
 
 /// Post mutations take one lock sequence (hierarchy scope → per-request
 /// advisory lock → beacon row) and re-check every mutable fact after it, so a

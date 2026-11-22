@@ -4,7 +4,6 @@ import 'package:test/test.dart';
 
 import '../../../support/fake_beacon_hierarchy_repository.dart';
 
-import 'package:tentura_server/data/repository/mock/trust_ledger_repository_mock.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_user_block.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_user_block.dart';
@@ -31,6 +30,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../../support/recording_commitment_repository.dart';
 import '../../../support/commitment_gates_harness.dart';
+import '../../../support/mocks/trust_ledger_repository_mock.dart';
 
 final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override

@@ -16,7 +16,6 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
-import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/room_baton_repository.dart';
@@ -33,6 +32,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 
 import 'disposable_pg_target.dart';
 import 'pg_test_public_keys.dart';
+import 'mocks/invite_seed_prompt_repository_mock.dart';
 
 const batonAnna = 'Ubaton0000001';
 // Carol sorts first by ID. Boris still answers first in propose().
