@@ -4438,7 +4438,6 @@ packages/server	   info - test/architecture/run_with_test_cleanup_sweep_test.dar
 packages/server	   info - test/architecture/run_with_test_cleanup_sweep_test.dart:620:13 - Use of an async 'dart:io' method. Try using the synchronous version of the method. - avoid_slow_async_io
 packages/server	   info - test/architecture/run_with_test_cleanup_sweep_test.dart:633:19 - Use of an async 'dart:io' method. Try using the synchronous version of the method. - avoid_slow_async_io
 packages/server	   info - test/architecture/run_with_test_cleanup_sweep_test.dart:634:25 - Use of an async 'dart:io' method. Try using the synchronous version of the method. - avoid_slow_async_io
-packages/server	   info - test/architecture/server_test_double_guidance_test.dart:103:32 - Unnecessary use of a raw string. Try using a normal string. - unnecessary_raw_strings
 packages/server	   info - test/data/closure_repository_test.dart:145:43 - The value of the argument is redundant because it matches the default value. Try removing the argument. - avoid_redundant_argument_values
 packages/server	   info - test/data/closure_repository_test.dart:217:20 - The value of the argument is redundant because it matches the default value. Try removing the argument. - avoid_redundant_argument_values
 packages/server	   info - test/data/closure_repository_test.dart:348:43 - The value of the argument is redundant because it matches the default value. Try removing the argument. - avoid_redundant_argument_values
