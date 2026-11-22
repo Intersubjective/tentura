@@ -45,6 +45,21 @@ Future<void> main() async {
   });
 
   test(
+    'the live test graph gets its repository mocks from the test initializer',
+    () async {
+      addTearDown(getIt.reset);
+      await expectTestDependencyGraph(target.databaseEnv);
+
+      final testOnly = GetIt.asNewInstance()
+        ..registerSingleton<Logger>(getIt<Logger>())
+        ..initTestMocks(environment: Environment.test);
+      addTearDown(testOnly.reset);
+      await expectTestSupportRepositoryBindings(testOnly);
+    },
+    skip: skipReason,
+  );
+
+  test(
     'the server test graph resolves the moved mock and application dependencies',
     () async {
       addTearDown(getIt.reset);

@@ -1,3 +1,4 @@
+import 'package:get_it/get_it.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/data/service/email/logging_email_sender.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
@@ -28,6 +29,18 @@ import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/lineage_memory_read_port.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+import 'package:tentura_server/domain/port/meritrank_status_port.dart';
+import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
+import 'package:tentura_server/domain/port/pair_block_query_port.dart';
+import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
+import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
+import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
+import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/port/routing_mute_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'package:tentura_server/env.dart';
@@ -134,4 +147,49 @@ Future<void> expectTestDependencyGraph(Env env) async {
   expect(getIt<EmailSenderPort>(), isA<LoggingEmailSender>());
   expect(getIt<UserTrustEdgeCase>(), isA<UserTrustEdgeCase>());
   await getIt.getAsync<PgNotificationService>();
+}
+
+Future<void> expectTestSupportRepositoryBindings(GetIt testOnly) async {
+  const expectedMocks = {
+    InviteGenealogyRepositoryPort: 'InviteGenealogyRepositoryMock',
+    LineageMemoryReadPort: 'LineageMemoryReadRepositoryMock',
+    MeritrankRepositoryPort: 'MeritrankRepositoryMock',
+    MeritrankStatusPort: 'MeritrankStatusRepositoryMock',
+    MutualFriendsRepositoryPort: 'MutualFriendsRepositoryMock',
+    PairBlockQueryPort: 'PairBlockQueryRepositoryMock',
+    PeopleTagsRepositoryPort: 'PeopleTagsRepositoryMock',
+    PersonCapabilityEventRepositoryPort: 'PersonCapabilityEventRepositoryMock',
+    PollingActRepositoryPort: 'PollingActRepositoryMock',
+    PollingRepositoryPort: 'PollingRepositoryMock',
+    RoutingMutePort: 'RoutingMuteRepositoryMock',
+    TaskRepositoryPort: 'TaskRepositoryMock',
+  };
+  final testOnlyTypes = {
+    for (final port in expectedMocks.keys)
+      port: await _repositoryType(testOnly, port),
+  };
+  final liveTypes = {
+    for (final port in expectedMocks.keys)
+      port: await _repositoryType(getIt, port),
+  };
+  expect(
+    testOnlyTypes.map((port, type) => MapEntry(port, type?.toString())),
+    expectedMocks,
+    reason: 'The test initializer must supply each repository mock.',
+  );
+  expect(
+    liveTypes,
+    testOnlyTypes,
+    reason:
+        'The running server test graph must resolve each test-support mock.',
+  );
+}
+
+Future<Type?> _repositoryType(GetIt registry, Type port) async {
+  if (port != TaskRepositoryPort) {
+    return registry.maybeGet<Object>(type: port)?.runtimeType;
+  }
+  // TaskRepositoryMock is a lazy singleton with an async factory.
+  if (!registry.isRegistered<TaskRepositoryPort>()) return null;
+  return (await registry.getAsync<TaskRepositoryPort>()).runtimeType;
 }

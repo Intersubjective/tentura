@@ -7,7 +7,6 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
-import 'package:tentura_server/data/repository/mock/pair_block_query_repository_mock.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -48,6 +47,7 @@ import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/mocks/pair_block_query_repository_mock.dart';
 import '../../support/noop_commitment_query_case.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';

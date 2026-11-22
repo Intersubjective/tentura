@@ -38,8 +38,33 @@ const _coordinationThroughInvitationRepositories = {
   'invitation': ('InvitationRepository', 'InvitationRepositoryPort'),
 };
 
+const _inviteGenealogyThroughTaskRepositories = {
+  'invite_genealogy': (
+    'InviteGenealogyRepository',
+    'InviteGenealogyRepositoryPort',
+  ),
+  'lineage_memory_read': (
+    'LineageMemoryReadRepository',
+    'LineageMemoryReadPort',
+  ),
+  'meritrank': ('MeritrankRepository', 'MeritrankRepositoryPort'),
+  'meritrank_status': ('MeritrankStatusRepository', 'MeritrankStatusPort'),
+  'mutual_friends': ('MutualFriendsRepository', 'MutualFriendsRepositoryPort'),
+  'pair_block_query': ('PairBlockQueryRepository', 'PairBlockQueryPort'),
+  'people_tags': ('PeopleTagsRepository', 'PeopleTagsRepositoryPort'),
+  'person_capability_event': (
+    'PersonCapabilityEventRepository',
+    'PersonCapabilityEventRepositoryPort',
+  ),
+  'polling_act': ('PollingActRepository', 'PollingActRepositoryPort'),
+  'polling': ('PollingRepository', 'PollingRepositoryPort'),
+  'routing_mute': ('RoutingMuteRepository', 'RoutingMutePort'),
+  'task': ('TaskRepository', 'TaskRepositoryPort'),
+};
+
 const _testSupportRepositories = {
   ..._coordinationThroughInvitationRepositories,
+  ..._inviteGenealogyThroughTaskRepositories,
   'band_candidate': ('BandCandidateRepository', 'BandCandidatePort'),
   'beacon_member_webs': (
     'BeaconMemberWebsRepository',
@@ -82,19 +107,7 @@ const _testSupportRepositories = {
 
 // Remove the corresponding path when moving each remaining test registration.
 const _unmoved = {
-  '$_legacyMockDirectory/invite_genealogy_repository_mock.dart',
   '$_legacyMockDirectory/invite_seed_prompt_repository_mock.dart',
-  '$_legacyMockDirectory/lineage_memory_read_repository_mock.dart',
-  '$_legacyMockDirectory/meritrank_repository_mock.dart',
-  '$_legacyMockDirectory/meritrank_status_repository_mock.dart',
-  '$_legacyMockDirectory/mutual_friends_repository_mock.dart',
-  '$_legacyMockDirectory/pair_block_query_repository_mock.dart',
-  '$_legacyMockDirectory/people_tags_repository_mock.dart',
-  '$_legacyMockDirectory/person_capability_event_repository_mock.dart',
-  '$_legacyMockDirectory/polling_act_repository_mock.dart',
-  '$_legacyMockDirectory/polling_repository_mock.dart',
-  '$_legacyMockDirectory/routing_mute_repository_mock.dart',
-  '$_legacyMockDirectory/task_repository_mock.dart',
   '$_legacyMockDirectory/trust_ledger_repository_mock.dart',
   '$_legacyMockDirectory/trust_preference_repository_mock.dart',
   '$_legacyMockDirectory/upload_quota_repository_mock.dart',
@@ -136,7 +149,16 @@ void main() {
         'test/data/repository/beacon_repository_mock_cover_thumb_test.dart': {
           'beacon_repository_mock.dart',
         },
-        'test/support/test_dependency_graph_expectations.dart': mockFiles,
+        'test/domain/use_case/request_only_guards_test.dart': {
+          'pair_block_query_repository_mock.dart',
+        },
+        // The live graph checks the new ports against the isolated test
+        // initializer, so those mock classes need no direct test import.
+        'test/support/test_dependency_graph_expectations.dart': {
+          for (final name in _testSupportRepositories.keys)
+            if (!_inviteGenealogyThroughTaskRepositories.containsKey(name))
+              '${name}_repository_mock.dart',
+        },
       };
       final missingImports = <String>[];
       for (final MapEntry(key: path, value: names) in callers.entries) {
@@ -159,19 +181,7 @@ void main() {
             !oldPaths.contains(path),
       );
       const repositoriesStillInLib = [
-        'invite_genealogy',
         'invite_seed_prompt',
-        'lineage_memory_read',
-        'meritrank',
-        'meritrank_status',
-        'mutual_friends',
-        'pair_block_query',
-        'people_tags',
-        'person_capability_event',
-        'polling_act',
-        'polling',
-        'routing_mute',
-        'task',
         'trust_ledger',
         'trust_preference',
         'upload_quota',
@@ -200,6 +210,20 @@ void main() {
         'files still under lib': [
           for (final path in oldPaths)
             if (File(path).existsSync()) path,
+        ],
+        'unexpected files under the lib mock directory': [
+          for (final file in Directory(
+            _legacyMockDirectory,
+          ).listSync().whereType<File>())
+            if (file.path.endsWith('_repository_mock.dart') &&
+                !remainingMocks.contains(file.path))
+              file.path,
+        ],
+        'invite seed prompt mock under test support': [
+          if (File(
+            '$_mockDirectory/invite_seed_prompt_repository_mock.dart',
+          ).existsSync())
+            '$_mockDirectory/invite_seed_prompt_repository_mock.dart',
         ],
         'obsolete allowlist entries': _unmoved.intersection(oldPaths),
         'legacy imports': staleImports,
@@ -326,7 +350,8 @@ void main() {
           'fcm_remote' => 'Singleton',
           'closure' ||
           'forward_attribution' ||
-          'forward_candidate_context' => 'LazySingleton',
+          'forward_candidate_context' ||
+          'task' => 'LazySingleton',
           _ => 'Injectable',
         };
         expect(
@@ -335,7 +360,8 @@ void main() {
                 _annotationName(annotation) == annotationName &&
                 _argument(annotation.arguments, 'as')?.toSource() == port &&
                 _testOnly(annotation) &&
-                _argument(annotation.arguments, 'order')?.toSource() == '1',
+                _argument(annotation.arguments, 'order')?.toSource() ==
+                    (name == 'task' ? null : '1'),
           ),
           hasLength(1),
           reason: '$className must preserve its registration annotation.',
