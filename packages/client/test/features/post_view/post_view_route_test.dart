@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -39,6 +40,7 @@ import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/conversations_screen.dart';
+import 'package:tentura/features/inbox/ui/widget/post_conversation_row.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../support/attention_case_factory.dart';
@@ -71,6 +73,7 @@ import 'package:tentura/ui/widget/basic_chat_body.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
 import '../../support/forward_outcome_wire.dart';
+import '../../support/posts_case_test_support.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
@@ -225,6 +228,7 @@ Future<RootStackRouter> _pumpRoute(
   bool withRequestCollaborators = false,
   bool withThrowingRequestCollaborators = false,
   PostsCase? activityCase,
+  HomeTabReselectCubit? homeReselect,
   FakeBeaconThreadsRepository? roomRepo,
   RootRouter? rootRouter,
   String? initialLocation,
@@ -335,7 +339,10 @@ Future<RootStackRouter> _pumpRoute(
   if (activityCase != null) {
     app = MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => HomeTabReselectCubit()),
+        if (homeReselect == null)
+          BlocProvider(create: (_) => HomeTabReselectCubit())
+        else
+          BlocProvider.value(value: homeReselect),
         BlocProvider(create: (_) => ScreenCubit.local()),
         BlocProvider(create: (_) => PostsCubit(postsCase: activityCase)),
       ],
@@ -674,6 +681,9 @@ Future<Duration> _remainingFlash(WidgetTester tester, String id) async {
 }
 
 class _ConversationPosts implements PostsRepositoryPort {
+  _ConversationPosts({this.otherPostCount = 0});
+
+  final int otherPostCount;
   final post = PostSummary(
     id: _postId,
     authorId: _author.id,
@@ -683,14 +693,272 @@ class _ConversationPosts implements PostsRepositoryPort {
   );
 
   @override
-  Future<List<PostSummary>> myPosts() async => [post];
+  Future<List<PostSummary>> myPosts() async => [
+    post,
+    for (var i = 0; i < otherPostCount; i++)
+      PostSummary(
+        id: 'Bconversation$i',
+        authorId: _author.id,
+        authorName: _author.displayName,
+        rootExcerpt: 'Conversation $i',
+        lastActivityAt: post.lastActivityAt.subtract(Duration(minutes: i + 1)),
+      ),
+  ];
 
   @override
   Future<PostSummary?> postSummary(String id) async =>
       id == post.id ? post : null;
 }
 
+class _ConversationLinkDispatch extends HomeTabReselectCubit {
+  final results = <({String postId, String messageId, bool handled})>[];
+
+  @override
+  bool openConversationMessage(String postId, String messageId) {
+    final handled = super.openConversationMessage(postId, messageId);
+    results.add((postId: postId, messageId: messageId, handled: handled));
+    return handled;
+  }
+}
+
+final _conversationList = find.descendant(
+  of: find.byKey(TenturaListDetailLayout.listPaneKey),
+  matching: find.byType(ListView),
+);
+final _selectedPostRow = find.descendant(
+  of: _conversationList,
+  matching: find.byKey(const ValueKey(_postId)),
+);
+final _postScreen = find.byType(PostViewScreen);
+
+enum _OpeningMessageAvailability { loaded, fetchable, absent }
+
+Future<({RootRouter router, _ConversationLinkDispatch dispatch})>
+_pumpWideConversation(WidgetTester tester, RoomHintWireServer server) async {
+  final repo = await _wirePostRoom(tester, server);
+  final sync = buildTestRealtimeSync();
+  addTearDown(sync.port.dispose);
+  final dispatch = _ConversationLinkDispatch();
+  await _register<HomeTabReselectCubit>(dispatch);
+  addTearDown(() async {
+    await GetIt.I.unregister<HomeTabReselectCubit>();
+    await dispatch.close();
+  });
+  final router = RootRouter(
+    Logger('ConversationMessageLinks'),
+    _Auth(),
+    _Settings(),
+    PostJoinNavigationCubit(),
+  );
+  addTearDown(router.dispose);
+  await _pumpRoute(
+    tester,
+    id: _postId,
+    kinds: _FakeBeaconKindRepository({_postId: BeaconKind.post}),
+    beacons: _BeaconOnlyRepository({
+      _postId: _beacon(
+        _postId,
+        BeaconKind.post,
+      ).copyWith(postRootMessageId: _openingMessageId),
+    }),
+    withRequestCollaborators: true,
+    activityCase: buildTestPostsCase(
+      _ConversationPosts(otherPostCount: 24),
+      sync.case_,
+    ),
+    homeReselect: dispatch,
+    roomRepo: repo,
+    rootRouter: router,
+    initialLocation: kPathConversations,
+    home: AutoTabsRouter(
+      routes: [for (final spec in HomeTabSpec.all) spec.shell()],
+      duration: Duration.zero,
+      transitionBuilder: (_, child, _) => child,
+      builder: (_, child) => child,
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(_selectedPostRow);
+  await tester.pumpAndSettle();
+  expect(_postScreen, findsOneWidget);
+  expect(server.queried, contains('RoomMessageList'));
+  return (router: router, dispatch: dispatch);
+}
+
+Future<void> _deliverConversationLink(
+  WidgetTester tester,
+  RootRouter router,
+  _ConversationLinkDispatch dispatch,
+  String messageId,
+) async {
+  final previousCount = dispatch.results.length;
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    'flutter/navigation',
+    const JSONMethodCodec().encodeMethodCall(
+      MethodCall('pushRouteInformation', {
+        'location': '$_postUrl?message=$messageId',
+      }),
+    ),
+    (_) {},
+  );
+  await tester.pumpAndSettle(
+    _frame,
+    EnginePhase.sendSemanticsUpdate,
+    const Duration(seconds: 3),
+  );
+  expect(
+    dispatch.results.skip(previousCount),
+    [(postId: _postId, messageId: messageId, handled: true)],
+  );
+  expect(router.stackData.map((route) => route.name), [HomeRoute.name]);
+}
+
+Future<void> _waitForConversationHighlightToClear(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 1200));
+  expect(_chatState(tester).highlightedMessageId.value, isNull);
+  expect(tester.widget<PostRootPinCard>(_openingCard).highlighted, isFalse);
+}
+
 void main() {
+  group('Message links in the wide Conversations pane', () {
+    testWidgets(
+      'reply links restore the target highlight and viewport on every open',
+      (tester) async {
+        const latestReply = 25;
+        final olderReply = _numberedReplyId(1);
+        final newerReply = _numberedReplyId(latestReply);
+        final server = RoomHintWireServer()
+          ..messageRows = [
+            _postMessageRow(_openingMessageId, _openingBody, 0),
+            for (var i = 1; i <= latestReply; i++)
+              _postMessageRow(_numberedReplyId(i), 'Reply $i', i),
+          ];
+        final (:router, :dispatch) = await _pumpWideConversation(
+          tester,
+          server,
+        );
+
+        final listPosition = tester
+            .widget<ListView>(_conversationList)
+            .controller!
+            .position;
+        const listOffset = 24.0;
+        expect(listPosition.maxScrollExtent, greaterThan(listOffset));
+        listPosition.jumpTo(listOffset);
+        await tester.pumpAndSettle();
+        final noConversation = L10n.of(
+          tester.element(_conversationList),
+        )!.postsTabSelectConversation;
+        final locationResults = <({String? highlight, bool visible})>[];
+        final targets = [
+          olderReply,
+          olderReply,
+          olderReply,
+          newerReply,
+          olderReply,
+        ];
+        for (final target in targets) {
+          final position = _replyScroll(tester);
+          position.jumpTo(
+            target == olderReply
+                ? position.maxScrollExtent
+                : position.minScrollExtent,
+          );
+          await tester.pumpAndSettle();
+          final targetBubble = _tile(
+            target,
+          ).hitTestable(at: const Alignment(-0.65, 0));
+          expect(targetBubble, findsNothing);
+
+          await _deliverConversationLink(tester, router, dispatch, target);
+          locationResults.add((
+            highlight: _chatState(tester).highlightedMessageId.value,
+            visible: targetBubble.evaluate().isNotEmpty,
+          ));
+          expect(
+            tester.widget<PostViewScreen>(_postScreen).id,
+            _postId,
+          );
+          expect(find.text(noConversation), findsNothing);
+          expect(
+            tester.widget<PostConversationRow>(_selectedPostRow).selected,
+            isTrue,
+          );
+          expect(
+            tester.widget<ListView>(_conversationList).controller!.offset,
+            closeTo(listOffset, 1),
+          );
+          await _waitForConversationHighlightToClear(tester);
+        }
+        expect(locationResults, [
+          for (final target in targets) (highlight: target, visible: true),
+        ]);
+      },
+    );
+
+    for (final availability in _OpeningMessageAvailability.values) {
+      testWidgets(
+        switch (availability) {
+          _OpeningMessageAvailability.loaded =>
+            'opening-message links expand and highlight the card on every open',
+          _OpeningMessageAvailability.fetchable =>
+            'opening-message links expand and highlight the card beyond the loaded page',
+          _OpeningMessageAvailability.absent =>
+            'opening-message links expand and highlight the card when the root stays outside the room messages',
+        },
+        (tester) async {
+          final opening = _postMessageRow(_openingMessageId, _openingBody, 0);
+          final server = RoomHintWireServer()
+            ..messageRows = [
+              if (availability == _OpeningMessageAvailability.loaded) opening,
+              for (var i = 1; i <= 25; i++)
+                _postMessageRow(_numberedReplyId(i), 'Reply $i', i),
+            ];
+          if (availability == _OpeningMessageAvailability.fetchable) {
+            server.messageTargets[_openingMessageId] = opening;
+          }
+          final (:router, :dispatch) = await _pumpWideConversation(
+            tester,
+            server,
+          );
+          final room = tester
+              .element(_postScreen)
+              .read<ThreadHostCubit>()
+              .roomCubit!;
+          expect(
+            room.state.messages.any((m) => m.id == _openingMessageId),
+            availability == _OpeningMessageAvailability.loaded,
+          );
+          final openingResults = <({bool expanded, bool highlighted})>[];
+          for (var open = 0; open < 2; open++) {
+            final position = _replyScroll(tester);
+            position.jumpTo(position.maxScrollExtent);
+            await tester.pumpAndSettle();
+            expect(_collapsedOpening, findsOneWidget);
+
+            await _deliverConversationLink(
+              tester,
+              router,
+              dispatch,
+              _openingMessageId,
+            );
+            openingResults.add((
+              expanded: _expandedOpening.hitTestable().evaluate().isNotEmpty,
+              highlighted: tester
+                  .widget<PostRootPinCard>(_openingCard)
+                  .highlighted,
+            ));
+            await _waitForConversationHighlightToClear(tester);
+          }
+          expect(openingResults, [
+            (expanded: true, highlighted: true),
+            (expanded: true, highlighted: true),
+          ]);
+        },
+      );
+    }
+  });
+
   group('Links to the Post opening message', () {
     testWidgets(
       'a phone deep link flashes the opening card above two replies',

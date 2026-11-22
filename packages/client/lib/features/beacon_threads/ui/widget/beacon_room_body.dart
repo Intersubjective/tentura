@@ -229,7 +229,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       onTap: _expandPostRootCard,
       now: _postClock(),
       rootMessage: root,
-      highlighted: root != null && root.id == highlightedMessageId,
+      highlighted: pin.messageId == highlightedMessageId,
       author: widget.beaconAuthor ?? root?.author,
       expiresAt: widget.postExpiresAt,
       archived: widget.postArchived,

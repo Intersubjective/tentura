@@ -45,7 +45,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final _scrollController = ScrollController();
 
   /// The Post open in the chat pane beside the list (wide windows only).
-  ({String postId, String? messageId})? _selection;
+  ({String postId, ({String id, Object token})? messageLink})? _selection;
   late final VoidCallback _unregisterPane;
 
   /// Whether the last layout had room for the list and the chat side by side.
@@ -71,7 +71,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   void _openPost(String id) {
     if (_canSplit) {
-      setState(() => _selection = (postId: id, messageId: null));
+      setState(() => _selection = (postId: id, messageLink: null));
     } else {
       context.router.push(PostViewRoute(id: id));
     }
@@ -79,7 +79,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   bool _openMessageInPane(String postId, String messageId) {
     if (!_canSplit || _selection?.postId != postId) return false;
-    setState(() => _selection = (postId: postId, messageId: messageId));
+    setState(
+      () => _selection = (
+        postId: postId,
+        messageLink: (id: messageId, token: Object()),
+      ),
+    );
     return true;
   }
 
@@ -152,7 +157,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   /// The chat starts at the list's edge rather than floating mid-pane.
   Widget _buildPostPane(
     BuildContext context,
-    ({String postId, String? messageId}) selection,
+    ({String postId, ({String id, Object token})? messageLink}) selection,
   ) => TenturaChatColumnScope(
     alignment: AlignmentDirectional.topStart,
     child:
@@ -161,7 +166,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           id: selection.postId,
           myProfile: context.read<ProfileCubit>().state.profile,
           onClose: _closePost,
-          messageId: selection.messageId,
+          messageId: selection.messageLink?.id,
+          messageLinkToken: selection.messageLink?.token,
         ),
   );
 

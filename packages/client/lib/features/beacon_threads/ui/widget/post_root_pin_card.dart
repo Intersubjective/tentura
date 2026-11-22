@@ -56,8 +56,6 @@ class PostRootPinCard extends StatelessWidget {
 
   bool get _isEditor => editorBody != null;
 
-  bool get _showExpanded => !_isEditor && !collapsed && rootMessage != null;
-
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -71,16 +69,15 @@ class PostRootPinCard extends StatelessWidget {
         body: editorBody!,
       );
     } else {
-      final collapsed = _CollapsedBody(
-        pin: pin,
-        excerpt: _collapsedExcerpt(),
-      );
-      final expanded = rootMessage == null
-          ? collapsed
+      final content = collapsed
+          ? _CollapsedBody(
+              pin: pin,
+              excerpt: _collapsedExcerpt(),
+            )
           : _ExpandedBody(
               pin: pin,
-              message: rootMessage!,
-              author: author ?? rootMessage!.author,
+              message: rootMessage,
+              author: author ?? rootMessage?.author,
               now: now,
               expiresAt: expiresAt,
               archived: archived,
@@ -95,15 +92,7 @@ class PostRootPinCard extends StatelessWidget {
             : const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         alignment: Alignment.topCenter,
-        child: _showExpanded
-            ? KeyedSubtree(
-                key: const Key('PostRootPinCard.expanded'),
-                child: expanded,
-              )
-            : KeyedSubtree(
-                key: const Key('PostRootPinCard.collapsed'),
-                child: collapsed,
-              ),
+        child: content,
       );
     }
 
@@ -117,6 +106,11 @@ class PostRootPinCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        key: _isEditor
+            ? null
+            : collapsed
+            ? const Key('PostRootPinCard.collapsed')
+            : const Key('PostRootPinCard.expanded'),
         onTap: onTap,
         child: Padding(
           padding: tt.cardPadding,
@@ -253,8 +247,8 @@ class _ExpandedBody extends StatelessWidget {
   });
 
   final RoomPostRootPin pin;
-  final RoomMessage message;
-  final Profile author;
+  final RoomMessage? message;
+  final Profile? author;
   final DateTime now;
   final DateTime? expiresAt;
   final bool archived;
@@ -268,8 +262,10 @@ class _ExpandedBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final forwardedLine = _forwardedLine(l10n, pin);
-    final age = cardRelativeAge(when: message.createdAt, now: now, l10n: l10n);
-    final body = message.body.trim();
+    final author = this.author;
+    final createdAt = message?.createdAt;
+    final body = (message?.body ?? pin.excerpt).trim();
+    final attachments = message?.attachments ?? const [];
     final metaStyle = TenturaText.bodySmall(tt.textMuted);
     final lifetime = postLifetimeLineForDeadline(
       l10n,
@@ -295,22 +291,25 @@ class _ExpandedBody extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TenturaAvatar.small(profile: author),
-              SizedBox(width: tt.avatarTextGap),
+              if (author != null) ...[
+                TenturaAvatar.small(profile: author),
+                SizedBox(width: tt.avatarTextGap),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            author.shownName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TenturaText.titleSmall(tt.text),
+                        if (author != null)
+                          Expanded(
+                            child: Text(
+                              author.shownName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TenturaText.titleSmall(tt.text),
+                            ),
                           ),
-                        ),
                         if (lifetime.isNotEmpty) ...[
                           SizedBox(width: tt.tightGap),
                           Flexible(
@@ -324,7 +323,11 @@ class _ExpandedBody extends StatelessWidget {
                         ],
                       ],
                     ),
-                    Text(age, style: metaStyle),
+                    if (createdAt != null)
+                      Text(
+                        cardRelativeAge(when: createdAt, now: now, l10n: l10n),
+                        style: metaStyle,
+                      ),
                   ],
                 ),
               ),
@@ -341,10 +344,10 @@ class _ExpandedBody extends StatelessWidget {
               mentionAnnotations: bodyAnnotations,
             ),
           ],
-          if (message.attachments.isNotEmpty) ...[
+          if (attachments.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             RoomPinnedStyleAttachments(
-              attachments: message.attachments,
+              attachments: attachments,
               l10n: l10n,
               onOpenFileAttachment: (a) =>
                   openRoomFileAttachment(context, l10n, a),

@@ -321,7 +321,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   StreamSubscription<CoordinationItem>? _itemSyncSub;
 
-  String? _pendingThreadMessageId;
+  ({String id, bool allowMissing})? _pendingThreadMessage;
   String? _pendingThreadItemId;
 
   static const _uuid = Uuid();
@@ -882,13 +882,28 @@ class RoomCubit extends Cubit<RoomState> {
   void prepareThreadScroll({
     String? messageId,
     String? coordinationItemId,
+  }) => _prepareThreadScroll(
+    messageId: messageId,
+    coordinationItemId: coordinationItemId,
+  );
+
+  /// The Post's opening card can use its preview if the message lookup is empty.
+  void preparePostOpeningScroll(String messageId) =>
+      _prepareThreadScroll(messageId: messageId, allowMissingMessage: true);
+
+  void _prepareThreadScroll({
+    String? messageId,
+    String? coordinationItemId,
+    bool allowMissingMessage = false,
   }) {
-    _pendingThreadMessageId = _trimOrNull(messageId);
+    final id = _trimOrNull(messageId);
+    _pendingThreadMessage = id == null
+        ? null
+        : (id: id, allowMissing: allowMissingMessage);
     _pendingThreadItemId = _trimOrNull(coordinationItemId);
     if ((state.firstLoadDone || state.messages.isNotEmpty) &&
-        (_pendingThreadMessageId != null || _pendingThreadItemId != null)) {
-      if (_pendingThreadMessageId != null &&
-          !state.messages.any((m) => m.id == _pendingThreadMessageId)) {
+        (id != null || _pendingThreadItemId != null)) {
+      if (id != null && !state.messages.any((m) => m.id == id)) {
         unawaited(
           _requestRefresh(scope: _RoomRefreshScope.full),
         );
@@ -904,12 +919,16 @@ class RoomCubit extends Cubit<RoomState> {
     return t.isEmpty ? null : t;
   }
 
-  void _applyPendingThreadScroll(List<RoomMessage> messages) {
-    if (_pendingThreadMessageId == null && _pendingThreadItemId == null) {
+  void _applyPendingThreadScroll(
+    List<RoomMessage> messages, {
+    bool allowMissingMessage = false,
+  }) {
+    if (_pendingThreadMessage == null && _pendingThreadItemId == null) {
       return;
     }
-    var target = _pendingThreadMessageId;
-    if (target == null || !messages.any((m) => m.id == target)) {
+    var target = _pendingThreadMessage?.id;
+    if (target == null ||
+        (!allowMissingMessage && !messages.any((m) => m.id == target))) {
       target = null;
       final iid = _pendingThreadItemId;
       if (iid != null) {
@@ -924,7 +943,7 @@ class RoomCubit extends Cubit<RoomState> {
     if (target == null) {
       return;
     }
-    _pendingThreadMessageId = null;
+    _pendingThreadMessage = null;
     _pendingThreadItemId = null;
     emit(state.copyWith(scrollToMessageId: null));
     if (!isClosed) {
@@ -1061,16 +1080,18 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
       );
-      final pendingMessageId = _pendingThreadMessageId;
+      final pendingMessage = _pendingThreadMessage;
       RoomMessage? target;
-      if (pendingMessageId != null &&
-          !rawMessages.any((message) => message.id == pendingMessageId)) {
+      if (pendingMessage != null &&
+          !rawMessages.any((message) => message.id == pendingMessage.id)) {
         target = await _case.fetchMessageTarget(
           beaconId: state.beaconId,
-          messageId: pendingMessageId,
+          messageId: pendingMessage.id,
         );
-        if (target == null && _pendingThreadMessageId == pendingMessageId) {
-          _pendingThreadMessageId = null;
+        if (target == null &&
+            !pendingMessage.allowMissing &&
+            _pendingThreadMessage == pendingMessage) {
+          _pendingThreadMessage = null;
         }
       }
       // The server refuses the participant list outside the room.
@@ -1127,7 +1148,7 @@ class RoomCubit extends Cubit<RoomState> {
         fetchedWatermarks,
       );
       if (target != null &&
-          _pendingThreadMessageId == pendingMessageId &&
+          _pendingThreadMessage == pendingMessage &&
           !overlay.deletedIds.contains(target.id) &&
           !_pendingLocalDeleteIds.contains(target.id)) {
         _pinOffWindow(
@@ -1235,7 +1256,12 @@ class RoomCubit extends Cubit<RoomState> {
           _watchRoomPresence(participants);
         }
         if (!isClosed) {
-          _applyPendingThreadScroll(messages);
+          _applyPendingThreadScroll(
+            messages,
+            allowMissingMessage:
+                pendingMessage?.allowMissing == true &&
+                _pendingThreadMessage == pendingMessage,
+          );
         }
       }
     } on Object catch (e) {

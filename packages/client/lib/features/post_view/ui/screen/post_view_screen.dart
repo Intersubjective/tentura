@@ -67,11 +67,13 @@ class PostViewScreen extends StatefulWidget {
     this.postBuddingEnabled = kPostBuddingEnabled,
     this.retargetOwnerHomeTabOnLeave = false,
     this.messageId,
+    this.messageLinkToken,
     super.key,
   });
 
   final String id;
   final String? messageId;
+  final Object? messageLinkToken;
 
   /// Offers «Оформить запрос» in ⋮; defaults to [kPostBuddingEnabled].
   final bool postBuddingEnabled;
@@ -167,6 +169,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
             roomLease: _roomLease,
             // The Post identifies which message lives in the header.
             messageId: state.isSuccess ? widget.messageId : null,
+            messageLinkToken: state.isSuccess ? widget.messageLinkToken : null,
             postRoot: _postRoot(state),
             postArchived: state.beacon.isPostArchivedAt(cubit.now()),
             postExpiresAt: state.beacon.expiresAt,

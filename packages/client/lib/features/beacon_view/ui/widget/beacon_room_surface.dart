@@ -22,6 +22,7 @@ class BeaconRoomSurface extends StatefulWidget {
     required this.roomLease,
     this.legacyThreadId,
     this.messageId,
+    this.messageLinkToken,
     this.coordinationItemId,
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
@@ -41,6 +42,9 @@ class BeaconRoomSurface extends StatefulWidget {
   final String? legacyThreadId;
 
   final String? messageId;
+
+  /// Identifies each in-pane link open, including repeats of the same message.
+  final Object? messageLinkToken;
   final String? coordinationItemId;
   final VoidCallback? onCoordinationSaved;
   final void Function(CoordinationItem item)? onOpenCoordinationItem;
@@ -124,7 +128,8 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     final general = _generalThread;
     if (general != null &&
         !_isLegacyThreadId() &&
-        oldWidget.messageId != widget.messageId) {
+        (oldWidget.messageId != widget.messageId ||
+            oldWidget.messageLinkToken != widget.messageLinkToken)) {
       unawaited(_prepareThreadScroll(general));
     }
   }
@@ -222,10 +227,15 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
         );
       }
       if (!mounted || room.isClosed || host.roomCubit != room) return;
-      room.prepareThreadScroll(
-        messageId: widget.messageId,
-        coordinationItemId: widget.coordinationItemId ?? general.item?.id,
-      );
+      final messageId = widget.messageId;
+      if (messageId != null && messageId == widget.postRoot?.messageId) {
+        room.preparePostOpeningScroll(messageId);
+      } else {
+        room.prepareThreadScroll(
+          messageId: messageId,
+          coordinationItemId: widget.coordinationItemId ?? general.item?.id,
+        );
+      }
     } finally {
       _preparingScroll = false;
     }

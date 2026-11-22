@@ -27,6 +27,7 @@ class PostViewScope extends StatelessWidget {
     this.retargetOwnerHomeTabOnLeave = false,
     this.focusFactId,
     this.messageId,
+    this.messageLinkToken,
     super.key,
   });
 
@@ -46,6 +47,7 @@ class PostViewScope extends StatelessWidget {
   /// Fact whose actions open on arrival (`focus_fact=`).
   final String? focusFactId;
   final String? messageId;
+  final Object? messageLinkToken;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -86,6 +88,7 @@ class PostViewScope extends StatelessWidget {
               inPane: onClose != null,
               retargetOwnerHomeTabOnLeave: retargetOwnerHomeTabOnLeave,
               messageId: messageId,
+              messageLinkToken: messageLinkToken,
             ),
           ),
         ),
