@@ -365,28 +365,6 @@ final class InvitationCase extends UseCaseBase {
         description: 'Cannot accept your own invite',
       );
     }
-    if (invitation.beaconId != null &&
-        (invitation.isAccepted || invitation.isExpired)) {
-      throw IdNotFoundException(id: code);
-    }
-    if (await _friendshipLookup.isReciprocalSubscribe(
-      viewerId: userId,
-      peerId: invitation.issuer.id,
-    )) {
-      if (invitation.beaconId != null) {
-        return _acceptAndRecord(
-          invitation: invitation,
-          userId: userId,
-          emitInviteAccepted: false,
-          mutation: (transaction) => _acceptBeaconInviteOnly(
-            invitation: invitation,
-            userId: userId,
-            transaction: transaction,
-          ),
-        );
-      }
-      return true;
-    }
     if (invitation.isAccepted || invitation.isExpired) {
       throw IdNotFoundException(id: code);
     }
@@ -400,6 +378,22 @@ final class InvitationCase extends UseCaseBase {
           invitation: invitation,
           userId: userId,
           transaction: transaction,
+        ),
+      );
+    }
+
+    if (await _friendshipLookup.isReciprocalSubscribe(
+      viewerId: userId,
+      peerId: invitation.issuer.id,
+    )) {
+      return _acceptAndRecord(
+        invitation: invitation,
+        userId: userId,
+        emitInviteAccepted: false,
+        mutation: (_) => _userRepository.bindMutual(
+          invitationId: code,
+          userId: userId,
+          bindFriendship: false,
         ),
       );
     }

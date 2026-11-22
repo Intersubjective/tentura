@@ -507,7 +507,7 @@ void main() {
       );
     });
 
-    test('already-friends -> ok, never re-binds (retry-safe)', () async {
+    test('a friend claims an available invite without rebinding', () async {
       stubGetById(invitation());
       when(
         friendshipLookup.isReciprocalSubscribe(
@@ -515,8 +515,22 @@ void main() {
           peerId: issuerId,
         ),
       ).thenAnswer((_) async => true);
+      when(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ufriend',
+          bindFriendship: false,
+        ),
+      ).thenAnswer((_) async => true);
       final ok = await case_.acceptAsExisting(code: 'Iabc', userId: 'Ufriend');
       expect(ok, isTrue);
+      verify(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ufriend',
+          bindFriendship: false,
+        ),
+      ).called(1);
       verifyNever(
         userRepo.bindMutual(
           invitationId: anyNamed('invitationId'),
