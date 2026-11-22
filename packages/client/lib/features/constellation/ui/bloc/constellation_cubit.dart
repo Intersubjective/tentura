@@ -308,7 +308,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationPresentationComposer _composePresentation;
   int? _anchorLifecycleToken;
   int _layoutReconciliationCount = 0;
-  List<TimelineTask>? _dropReflowSpans;
+  Map<TimelineTask, Set<ConstellationAnchorTarget>>? _dropReflowSpans;
   final ConstellationSceneController _scene;
   ConstellationInteractionController get _interaction => _scene.interaction;
 
@@ -1191,7 +1191,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     unawaited(_reloadWhenOnline.close());
     _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
-    _finishDropReflowSpans();
+    _finishDropReflowSpans(abandon: true);
     // Test hook: detach scene listener registered in the constructor.
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
@@ -1799,6 +1799,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _reconcileLayout(immediateHandoff: true);
     } else if (deferTargets.isEmpty) {
       _scene.syncLabelDisplayPlan(composition.labelPlan);
+      // The acknowledgement can confirm the optimistic layout as-is.
+      _finishDropReflowSpans();
     }
   }
 
@@ -1883,7 +1885,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // A store publication still queued reads the outbox itself when it lands.
     if (!identical(_case.current.field, _lastAppliedStoreField)) return;
     final presentationField = _fieldForPresentation(field);
-    if (_sameLayoutInputs(_lastPresentationField, presentationField)) return;
+    if (_sameLayoutInputs(_lastPresentationField, presentationField)) {
+      _finishDropReflowSpans();
+      return;
+    }
     _lastPresentationField = presentationField;
     _noteDisappearedAnchors(presentationField.resolvedAnchorProjection);
     final composition = _composePresentation(
@@ -1930,6 +1935,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _storeInputHeld = false;
     _outboxInputHeld = false;
     _cancelUnsentPlacement(write: false, force: true);
+    _finishDropReflowSpans(abandon: true);
     final generation =
         _anchorCase?.onAccountChanged() ?? state.loadGeneration + 1;
     _anchorLifecycleToken =
@@ -2519,12 +2525,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           member,
   ];
 
-  void _finishDropReflowSpans() {
+  void _finishDropReflowSpans({bool abandon = false}) {
     if (kReleaseMode) return;
-    (_dropReflowSpans ?? const <TimelineTask>[]).forEach(
-      ConstellationPerf.finishSpan,
-    );
-    _dropReflowSpans = null;
+    final spans = _dropReflowSpans;
+    if (spans == null) return;
+    if (!abandon &&
+        (_scene.isFrozen ||
+            _scene.awaitingLayoutOutcome ||
+            !identical(_case.current.field, _lastAppliedStoreField))) {
+      return;
+    }
+    final outbox = _placementCase?.current;
+    spans.removeWhere((span, targets) {
+      if (!abandon && outbox != null && !_dropTargetsSettled(outbox, targets)) {
+        return false;
+      }
+      ConstellationPerf.finishSpan(span);
+      return true;
+    });
+    if (spans.isEmpty) _dropReflowSpans = null;
   }
 
   Future<void> onExistingNodeDrop({
@@ -2532,8 +2551,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required Offset sceneCentre,
   }) async {
     if (isClosed || _interaction.suppressLateGestureEnd) return;
-    if (kReleaseMode) {
-      await _dropNode(target: target, sceneCentre: sceneCentre);
+    if (_isRevokedWhileHeld(target)) {
+      // The viewer can no longer see the node, so the drop is not written.
+      _cancelUnsentPlacement(write: false, suppressLateGestureEnd: false);
       return;
     }
     final draggable = ConstellationPerf.startSpan(
@@ -2541,37 +2561,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     final ack = ConstellationPerf.startSpan('drop→acked');
     final reflow = ConstellationPerf.startSpan('drop→reflowed');
-    var handedOff = false;
-    try {
-      await _dropNode(
-        target: target,
-        sceneCentre: sceneCentre,
-        draggableSpan: draggable,
-        ackSpan: ack,
-      );
-      if (!isClosed && !state.isComposing && reflow != null) {
-        (_dropReflowSpans ??= <TimelineTask>[]).add(reflow);
-        handedOff = true;
-      }
-    } finally {
-      if (!handedOff) ConstellationPerf.finishSpan(reflow);
-    }
-  }
-
-  Future<void> _dropNode({
-    required ConstellationAnchorTarget target,
-    required Offset sceneCentre,
-    TimelineTask? draggableSpan,
-    TimelineTask? ackSpan,
-  }) async {
-    if (isClosed || _interaction.suppressLateGestureEnd) {
-      return;
-    }
-    if (_isRevokedWhileHeld(target)) {
-      // The viewer can no longer see the node, so the drop is not written.
-      _cancelUnsentPlacement(write: false, suppressLateGestureEnd: false);
-      return;
-    }
     _holdDropPresentation(target: target, sceneCentre: sceneCentre);
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     final parentStart = _interaction.clusterStartCentres[parentGraphId];
@@ -2687,9 +2676,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         activePlacementTarget: target,
       ),
     );
-    if (!kReleaseMode) ConstellationPerf.finishSpan(draggableSpan);
+    ConstellationPerf.finishSpan(draggable);
     _submitUpsert(
-      ackSpan: ackSpan,
+      ackSpan: ack,
+      reflowSpan: reflow,
       target: target,
       position: position,
       companions: companions,
@@ -2917,6 +2907,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     TimelineTask? ackSpan,
+    TimelineTask? reflowSpan,
     bool saveManualHistory = true,
     List<
           ({
@@ -2931,6 +2922,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ({String tagId, Offset previous})? persistTagMagnet,
   }) {
     if (_placementCase == null) {
+      ConstellationPerf.finishSpan(ackSpan);
+      ConstellationPerf.finishSpan(reflowSpan);
       return;
     }
     _writeCount++;
@@ -2971,10 +2964,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
     if (!kReleaseMode) {
-      _finishAckSpanOnSettlement(ackSpan, {
+      final targets = {
         target,
         for (final companion in companions) companion.target,
-      });
+      };
+      _finishAckSpanOnSettlement(ackSpan, targets);
+      if (reflowSpan != null && !state.isComposing) {
+        (_dropReflowSpans ??= {})[reflowSpan] = targets;
+      } else {
+        ConstellationPerf.finishSpan(reflowSpan);
+      }
     }
     if (isClosed) {
       return;
@@ -2996,19 +2995,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (ackSpan == null) {
       return;
     }
-    bool settled(PlacementOutboxState outbox) => targets.every((target) {
-      final slots = outbox.targets[target];
-      return slots?.inFlight == null && slots?.latestPending == null;
-    });
     unawaited(
       _placementCase!.changes
-          .firstWhere(settled)
+          .firstWhere((outbox) => _dropTargetsSettled(outbox, targets))
           .then<void>(
             (_) => ConstellationPerf.finishSpan(ackSpan),
             onError: (Object _) => ConstellationPerf.finishSpan(ackSpan),
           ),
     );
   }
+
+  bool _dropTargetsSettled(
+    PlacementOutboxState outbox,
+    Set<ConstellationAnchorTarget> targets,
+  ) => targets.every((target) {
+    final slots = outbox.targets[target];
+    final pending = slots?.latestPending;
+    return slots?.inFlight == null &&
+        (pending == null || pending.status == PlacementSlotStatus.rejected);
+  });
 
   void _noteDisappearedAnchors(ConstellationAnchorProjection? incoming) {
     final previousAnchors =
