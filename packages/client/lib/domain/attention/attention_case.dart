@@ -1377,8 +1377,10 @@ final class AttentionCase implements AttentionReconcilePort {
     if (historySummary != null) {
       const destination = AttentionFeedDestinationId.history;
       final history = _feedSessions.session(destination);
-      // Filtered History pages leave the account-wide total to this refresh.
-      if (history.normalizedSearch != null) {
+      // Seed History before its first page. While searching, keep its total
+      // current with the unfiltered summary. A loaded unfiltered page owns
+      // its own badge count.
+      if (history.pages.isEmpty || history.normalizedSearch != null) {
         _feedSessions.update(
           destination,
           history.copyWith(summary: historySummary),

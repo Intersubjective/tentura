@@ -39,10 +39,242 @@ const _deskBeaconId = 'Bdesk00000001';
 const _readTitle = 'Earlier message';
 const _newTitle = 'New reply';
 const _noMatch = 'zzz';
+const _noUnreadMatch = 'needle';
 const _timestamp = '2026-11-01T08:00:00Z';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('History Read all with no unread search matches', () {
+    test(
+      'uses account-wide sweep eligibility with and without search',
+      () async {
+        await _withFeed((feed) async {
+          final history = feed.open(
+            _history,
+            pinnedView: AttentionView.unread,
+          );
+          await _until(
+            () => history.state.firstLoadDone,
+            'History Unread head',
+          );
+          expect(history.state.view, AttentionView.unread);
+          expect(history.state.searchText, isEmpty);
+          expect(history.state.refreshError, isNull);
+          expect(history.state.items, isEmpty);
+          expect(history.state.summary.unreadTotal, 0);
+          expect(history.state.canReadAll, isFalse);
+
+          await feed.search(history, _history, _noUnreadMatch);
+          expect(history.state.searchText, _noUnreadMatch);
+          expect(history.state.refreshError, isNull);
+          expect(history.state.items, isEmpty);
+          expect(history.state.summary.unreadTotal, 0);
+          expect(history.state.canReadAll, isFalse);
+        });
+
+        final searched =
+            <({bool summaryArrivedLate, int unread, bool enabled})>[];
+        for (final summaryArrivedLate in [false, true]) {
+          await _withFeed(startAccount: false, (feed) async {
+            feed.server
+              ..delivered = true
+              ..secondReceipt = true
+              ..emptySearchReportsZeroUnread = true;
+            final summary = summaryArrivedLate
+                ? feed.holdSurfaceSummaryWithUnread(2)
+                : null;
+            feed.accounts.emit(_viewer);
+            if (summary == null) {
+              await feed.waitForSummary(2);
+            } else {
+              await summary.waitForCapture(unread: 2);
+            }
+
+            final firstHead = _holdUnfilteredHistoryHead(feed);
+            final history = feed.open(
+              _history,
+              pinnedView: AttentionView.unread,
+            );
+            await firstHead.waitForCapture(unread: 2);
+            history.setSearch(_noUnreadMatch);
+            firstHead.open();
+            await feed.waitForSearch(_history, _noUnreadMatch);
+            expect(history.state.refreshError, isNull);
+            expect(history.state.view, AttentionView.unread);
+            expect(history.state.searchText, _noUnreadMatch);
+            expect(history.state.items, isEmpty);
+            if (summary != null) {
+              expect(history.state.canReadAll, isFalse);
+              await summary.releaseAndWaitFor(feed.waitForSummary(2));
+            }
+            searched.add((
+              summaryArrivedLate: summaryArrivedLate,
+              unread: history.state.summary.unreadTotal,
+              enabled: history.state.canReadAll,
+            ));
+
+            await _clearSearch(feed, history, _history);
+            expect(
+              history.state.items.map((row) => row.id),
+              unorderedEquals([_newId, _nextId]),
+            );
+            expect(history.state.summary.unreadTotal, 2);
+            expect(history.state.canReadAll, isTrue);
+
+            await feed.search(history, _history, _noUnreadMatch);
+            expect(history.state.items, isEmpty);
+            expect(history.state.summary.unreadTotal, 2);
+            expect(history.state.canReadAll, isTrue);
+            expect(await history.markAllSeen(), isTrue);
+            expect(feed.readAllOperations, [
+              'AttentionMarkAllSeen',
+              'AttentionDismissAll',
+            ]);
+            final unfilteredUnread = await feed.repository.fetch(
+              view: AttentionView.unread,
+            );
+            expect(unfilteredUnread.page.items, isEmpty);
+            await feed.waitForSummary(0);
+            expect(history.state.searchText, _noUnreadMatch);
+            expect(history.state.summary.unreadTotal, 0);
+            expect(history.state.canReadAll, isFalse);
+
+            await _clearSearch(feed, history, _history);
+            expect(history.state.items, isEmpty);
+            expect(history.state.canReadAll, isFalse);
+          });
+        }
+        expect(searched, [
+          (summaryArrivedLate: false, unread: 2, enabled: true),
+          (summaryArrivedLate: true, unread: 2, enabled: true),
+        ]);
+      },
+    );
+
+    testWidgets(
+      'enables Read all only with sweepable receipts on a Russian phone',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        Future<void> exercisePhone({
+          required bool hasSweepableUnread,
+        }) => _withFeed((feed) async {
+          if (hasSweepableUnread) await feed.deliverReceipt();
+          final firstHead = hasSweepableUnread
+              ? _holdUnfilteredHistoryHead(feed)
+              : null;
+          final services = GetIt.I
+            ..pushNewScope()
+            ..registerSingleton(feed.attention)
+            ..registerSingleton(feed.sync.case_)
+            ..registerSingleton(Logger('history-read-all-phone'))
+            ..registerSingleton<InviteAcceptedSetupPort>(
+              NoopInviteAcceptedSetupPort(),
+            );
+          ensureNoopAttentionActorProfilesRegistered();
+          const locale = Locale('ru');
+          final l10n = lookupL10n(locale);
+          try {
+            await tester.pumpWidget(
+              StackRouterScope(
+                controller: _HistoryRouter(),
+                stateHash: 0,
+                child: MaterialApp(
+                  theme: TenturaTheme.light(),
+                  locale: locale,
+                  localizationsDelegates: L10n.localizationsDelegates,
+                  supportedLocales: L10n.supportedLocales,
+                  home: const MediaQuery(
+                    data: MediaQueryData(size: kPhoneSurface),
+                    child: TenturaResponsiveScope(child: UpdatesScreen()),
+                  ),
+                ),
+              ),
+            );
+            final history = tester
+                .element(find.byType(Scaffold))
+                .read<UpdatesFeedCubit>();
+            final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+            if (firstHead == null) {
+              await _until(() => history.state.firstLoadDone, 'History head');
+              await tester.pumpAndSettle();
+              expect(history.state.searchText, isEmpty);
+              expect(history.state.refreshError, isNull);
+              expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+            } else {
+              await firstHead.waitForCapture();
+            }
+            await tester.tap(find.byTooltip(l10n.updatesSearchHint));
+            await tester.pumpAndSettle();
+            final field = find.byType(TextField);
+            await tester.enterText(field, _noUnreadMatch);
+            await _until(
+              () => history.state.searchText == _noUnreadMatch,
+              'History search text',
+            );
+            firstHead?.open();
+            await feed.waitForSearch(_history, _noUnreadMatch);
+            await tester.pumpAndSettle();
+            expect(history.state.refreshError, isNull);
+            expect(history.state.items, isEmpty);
+            expect(tester.takeException(), isNull);
+
+            final badge = find.descendant(
+              of: find.byKey(const ValueKey<String>('updates-unread')),
+              matching: find.text('1'),
+            );
+            if (!hasSweepableUnread) {
+              expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+              expect(badge, findsNothing);
+              return;
+            }
+            expect(
+              (
+                enabled: tester.widget<TextButton>(readAll).onPressed != null,
+                badge: badge.evaluate().length,
+              ),
+              (enabled: true, badge: 1),
+            );
+
+            await tester.tap(readAll);
+            await _until(
+              () => feed.sent.any(
+                (request) =>
+                    request.operationName == 'AttentionFeed' &&
+                    request.variables['view'] == 'unread' &&
+                    request.variables['search'] == null,
+              ),
+              'unfiltered Unread readback after the sweep',
+            );
+            await feed.waitForSummary(0);
+            await tester.pumpAndSettle();
+            expect(feed.readAllOperations, [
+              'AttentionMarkAllSeen',
+              'AttentionDismissAll',
+            ]);
+            expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+            expect(history.state.actionError, isNull);
+            expect(
+              tester.widget<TextField>(field).controller!.text,
+              _noUnreadMatch,
+            );
+            expect(badge, findsNothing);
+            expect(tester.takeException(), isNull);
+          } finally {
+            firstHead?.open();
+            await tester.pumpWidget(const SizedBox.shrink());
+            await services.popScope();
+          }
+        });
+        await tester.runAsync(() async {
+          await exercisePhone(hasSweepableUnread: false);
+          await exercisePhone(hasSweepableUnread: true);
+        });
+      },
+    );
+  });
 
   group('Unread count after Read all with search open', () {
     for (final (name, term, matches, sweepable, obligation) in const [
@@ -889,7 +1121,18 @@ Future<void> _until(bool Function() ready, String description) async {
   }
 }
 
-Future<void> _withFeed(Future<void> Function(_Feed) body) async {
+_HeldResponse _holdUnfilteredHistoryHead(_Feed feed) => feed.server.holdNext(
+  (request) =>
+      request.operationName == 'AttentionFeed' &&
+      request.variables['surface'] == null &&
+      request.variables['search'] == null &&
+      request.variables['cursor'] == null,
+);
+
+Future<void> _withFeed(
+  Future<void> Function(_Feed) body, {
+  bool startAccount = true,
+}) async {
   final server = _ReceiptServer();
   final sent = <WireSent>[];
   await withRemoteWire(
@@ -898,8 +1141,10 @@ Future<void> _withFeed(Future<void> Function(_Feed) body) async {
     (remote) async {
       final feed = _Feed(AttentionRepository(remote), server, sent);
       try {
-        feed.accounts.emit(_viewer);
-        await feed.waitForSummary(0);
+        if (startAccount) {
+          feed.accounts.emit(_viewer);
+          await feed.waitForSummary(0);
+        }
         await body(feed);
       } finally {
         await feed.close();
@@ -938,9 +1183,10 @@ final class _Feed {
         request.operationName,
   ];
 
-  UpdatesFeedCubit open(String destination) {
+  UpdatesFeedCubit open(String destination, {AttentionView? pinnedView}) {
     final cubit = UpdatesFeedCubit(
       destinationId: destination,
+      pinnedView: pinnedView,
       attention: attention,
       setup: NoopInviteAcceptedSetupPort(),
       realtime: sync.case_,
@@ -1058,6 +1304,7 @@ final class _DeskReceipt {
 final class _ReceiptServer {
   bool delivered = false;
   bool secondReceipt = false;
+  bool emptySearchReportsZeroUnread = false;
   bool obligation = false;
   int newerReadCount = 0;
   String receiptId = _newId;
@@ -1208,8 +1455,14 @@ final class _ReceiptServer {
             'summary': {
               '__typename': 'v2_AttentionSummary',
               'unreadTotal':
-                  (onRequestedSurface ? sweepable + (obligation ? 1 : 0) : 0) +
-                  (onDeskSurface && deskUnread ? 1 : 0),
+                  emptySearchReportsZeroUnread &&
+                      search.isNotEmpty &&
+                      items.isEmpty
+                  ? 0
+                  : (onRequestedSurface
+                            ? sweepable + (obligation ? 1 : 0)
+                            : 0) +
+                        (onDeskSurface && deskUnread ? 1 : 0),
               'needsYouTotal': onRequestedSurface && obligation ? 1 : 0,
             },
             'page': {
