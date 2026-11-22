@@ -2,9 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
+import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
@@ -94,4 +97,107 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  testWidgets(
+    'a Russian phone deep link expands and flashes the opening card',
+    (
+      tester,
+    ) async {
+      await launchApp(app.main);
+      final fixture = await bootstrapFixture(
+        runId: uniqueRunId('post-opening-link'),
+      );
+      await logout(tester);
+      await loginAs(tester, fixture.authorEmail);
+      final settings = GetIt.I<SettingsCubit>();
+      final previousLocale = settings.state.localePreference;
+      await settings.setLocalePreference(kLocalePreferenceRu);
+      addTearDown(() => settings.setLocalePreference(previousLocale));
+
+      final openingBody = uniqueRequestTitle('Начало поста');
+      final postId = await createPublishedPost(
+        body: openingBody,
+        recipientIds: [fixture.helperUserId],
+      );
+      final chat = GetIt.I<BeaconThreadsCase>();
+      for (var i = 1; i <= 20; i++) {
+        expect(
+          await chat.createMessage(beaconId: postId, body: 'Ответ $i'),
+          isNotNull,
+        );
+      }
+      final messages = await chat.fetchMessages(beaconId: postId);
+      final openingId = messages.singleWhere((m) => m.body == openingBody).id;
+      final newestId = messages.singleWhere((m) => m.body == 'Ответ 20').id;
+
+      final path = '/post/view/$postId';
+      final screen = find.byType(PostViewScreen);
+      final chatBody = find.byType(BasicChatBody);
+      final replyList = find.descendant(
+        of: chatBody,
+        matching: find.byType(ListView),
+      );
+      final newest = find.byWidgetPredicate(
+        (widget) => widget is RoomMessageTile && widget.message.id == newestId,
+      );
+      final collapsed = find.byKey(const Key('PostRootPinCard.collapsed'));
+      final expanded = find.byKey(const Key('PostRootPinCard.expanded'));
+      final openingCard = find.byType(PostRootPinCard);
+      ScrollPosition position() =>
+          tester.widget<ListView>(replyList).controller!.position;
+      String? selection() =>
+          tester.state<BasicChatBodyState>(chatBody).highlightedMessageId.value;
+
+      await goToDeepLink(tester, path);
+      await pumpUntil(
+        tester,
+        () =>
+            collapsed.evaluate().isNotEmpty &&
+            newest.hitTestable().evaluate().isNotEmpty &&
+            tester.state<BasicChatBodyState>(chatBody).isViewportScrollDone,
+        label: 'the newest reply and collapsed opening card on ordinary entry',
+      );
+      expect(
+        position().maxScrollExtent,
+        greaterThan(position().minScrollExtent),
+      );
+      expect(position().pixels, closeTo(position().maxScrollExtent, 1));
+      await goToPath(tester, kPathConversations);
+
+      await goToDeepLink(
+        tester,
+        '$path?is_deep_link=true&tab=threads&thread=general&message=$openingId',
+      );
+      await pumpUntil(
+        tester,
+        () =>
+            expanded.hitTestable().evaluate().isNotEmpty &&
+            selection() == openingId &&
+            tester.widget<PostRootPinCard>(openingCard).highlighted,
+        step: const Duration(milliseconds: 25),
+        timeout: const Duration(seconds: 15),
+        label: 'the expanded opening card to be visible and highlighted',
+      );
+      final flash = Stopwatch()..start();
+      final context = tester.element(screen);
+      expect(MediaQuery.sizeOf(context), const Size(375, 667));
+      expect(Localizations.localeOf(context).languageCode, 'ru');
+      expect(position().pixels, closeTo(position().minScrollExtent, 1));
+
+      await pumpUntil(
+        tester,
+        () =>
+            selection() == null &&
+            !tester.widget<PostRootPinCard>(openingCard).highlighted,
+        step: const Duration(milliseconds: 25),
+        timeout: const Duration(milliseconds: 1500),
+        label: 'the opening-card flash to clear',
+      );
+      expect(flash.elapsedMilliseconds, greaterThanOrEqualTo(900));
+      expect(expanded.hitTestable(), findsOneWidget);
+      expect(position().pixels, closeTo(position().minScrollExtent, 1));
+      expect(tester.takeException(), isNull);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }

@@ -597,6 +597,7 @@ class RootRouter extends RootStackRouter implements AppNavigator {
           markBrowseStackDetailColdStart(browseStack.detail),
         ]);
       }
+      if (_openPostMessageInPane(browseStack.detail)) return DeepLink.none;
       // Browser back/forward within the detail on top (e.g. a Request's
       // `tab=plan&page=history` → `tab=plan`): update it in place. Pushing
       // a fresh copy adds a history entry, so back would bounce between the
@@ -609,6 +610,22 @@ class RootRouter extends RootStackRouter implements AppNavigator {
       );
     }
     return deepLink;
+  }
+
+  bool _openPostMessageInPane(PageRouteInfo detail) {
+    if (detail is! PostViewRoute ||
+        stackData.lastOrNull?.name != HomeRoute.name ||
+        activeHomeTabIndex != HomeTabSpec.forTab(HomeTab.conversations).index) {
+      return false;
+    }
+    final args = detail.args;
+    final messageId = args?.messageId;
+    return args != null &&
+        messageId != null &&
+        GetIt.I<HomeTabReselectCubit>().openConversationMessage(
+          args.id,
+          messageId,
+        );
   }
 
   bool _isOnStack(PageRouteInfo detail) => stackData.any(
@@ -691,6 +708,9 @@ class RootRouter extends RootStackRouter implements AppNavigator {
     }
 
     final browseStack = buildBrowseDeepLinkStack(normalized);
+    if (browseStack != null && _openPostMessageInPane(browseStack.detail)) {
+      return;
+    }
     // Cold means no Home on the root stack. Home's tabs router is not the
     // test: a Home covered since a cold deep link has not built its tab shell
     // yet (#927), and replacing the stack would drop the page the person is

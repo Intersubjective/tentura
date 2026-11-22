@@ -45,7 +45,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final _scrollController = ScrollController();
 
   /// The Post open in the chat pane beside the list (wide windows only).
-  String? _selectedPostId;
+  ({String postId, String? messageId})? _selection;
+  late final VoidCallback _unregisterPane;
 
   /// Whether the last layout had room for the list and the chat side by side.
   var _canSplit = false;
@@ -54,17 +55,32 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final _listKey = GlobalKey(debugLabel: 'conversations-list');
 
   @override
+  void initState() {
+    super.initState();
+    _unregisterPane = context
+        .read<HomeTabReselectCubit>()
+        .registerConversationPane(_openMessageInPane);
+  }
+
+  @override
   void dispose() {
+    _unregisterPane();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _openPost(String id) {
     if (_canSplit) {
-      setState(() => _selectedPostId = id);
+      setState(() => _selection = (postId: id, messageId: null));
     } else {
       context.router.push(PostViewRoute(id: id));
     }
+  }
+
+  bool _openMessageInPane(String postId, String messageId) {
+    if (!_canSplit || _selection?.postId != postId) return false;
+    setState(() => _selection = (postId: postId, messageId: messageId));
+    return true;
   }
 
   void _openPostParticipants(String id) {
@@ -73,8 +89,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 
   void _closePost() {
-    if (_selectedPostId == null || !mounted) return;
-    setState(() => _selectedPostId = null);
+    if (_selection == null || !mounted) return;
+    setState(() => _selection = null);
   }
 
   void _scrollToTop() {
@@ -95,7 +111,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             prev.conversationsReselectCount != curr.conversationsReselectCount,
         listener: (_, _) => _scrollToTop(),
         child: _SelectedPostPruner(
-          selectedPostId: _selectedPostId,
+          selectedPostId: _selection?.postId,
           onGone: _closePost,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -103,11 +119,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   constraints.maxWidth >=
                   TenturaSpacing.listPaneWidth +
                       TenturaSpacing.supportingPrimaryMinWidth;
-              final selectedPostId = _canSplit ? _selectedPostId : null;
+              final selection = _canSplit ? _selection : null;
               final list = KeyedSubtree(
                 key: _listKey,
                 child: TenturaListDetailSelection(
-                  selectedId: selectedPostId ?? '',
+                  selectedId: selection?.postId ?? '',
                   child: _buildList(context, split: _canSplit),
                 ),
               );
@@ -122,9 +138,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   ),
                   const TenturaVerticalHairline(),
                   Expanded(
-                    child: selectedPostId == null
+                    child: selection == null
                         ? const _NoConversationPane()
-                        : _buildPostPane(context, selectedPostId),
+                        : _buildPostPane(context, selection),
                   ),
                 ],
               );
@@ -134,17 +150,20 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       );
 
   /// The chat starts at the list's edge rather than floating mid-pane.
-  Widget _buildPostPane(BuildContext context, String postId) =>
-      TenturaChatColumnScope(
-        alignment: AlignmentDirectional.topStart,
-        child:
-            widget.postPaneBuilder?.call(postId, _closePost) ??
-            PostViewScope(
-              id: postId,
-              myProfile: context.read<ProfileCubit>().state.profile,
-              onClose: _closePost,
-            ),
-      );
+  Widget _buildPostPane(
+    BuildContext context,
+    ({String postId, String? messageId}) selection,
+  ) => TenturaChatColumnScope(
+    alignment: AlignmentDirectional.topStart,
+    child:
+        widget.postPaneBuilder?.call(selection.postId, _closePost) ??
+        PostViewScope(
+          id: selection.postId,
+          myProfile: context.read<ProfileCubit>().state.profile,
+          onClose: _closePost,
+          messageId: selection.messageId,
+        ),
+  );
 
   Future<void> _showFilterMenu(BuildContext context, L10n l10n) async {
     final selected = await showAnchoredPopupMenu<PostsFilter>(

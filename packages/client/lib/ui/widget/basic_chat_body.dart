@@ -93,6 +93,7 @@ class BasicChatBody extends StatefulWidget {
     this.onBatonSelect,
     this.onBatonCancel,
     this.header,
+    this.headerBuilder,
     this.emptyPlaceholder,
     this.imageRepository,
     this.clipboardImageRepository,
@@ -236,6 +237,10 @@ class BasicChatBody extends StatefulWidget {
 
   final Widget? header;
 
+  /// Builds a header that can listen for the same flash as a message tile.
+  final Widget Function(ValueListenable<String?> highlightedMessageId)?
+  headerBuilder;
+
   /// Inserted as the first row of the message list (below [header]).
   final Widget? messageListHeader;
 
@@ -377,10 +382,24 @@ class BasicChatBodyState extends State<BasicChatBody> {
   /// sheet closes) so the user can keep typing without clicking.
   void focusComposer() => _composerKey.currentState?.requestComposerFocus();
 
-  /// Scrolls the reply list to the top (Post card expand, #248).
-  void scrollToTop() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+  /// Reveals the top of the chat, optionally flashing its pinned message.
+  void scrollToTop({String? highlightMessageId}) {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    }
+    if (highlightMessageId != null) {
+      // The explicit jump owns the viewport even during the first load.
+      if (!_viewportScrollDone) _markViewportScrollDone();
+      _highlightMessage(highlightMessageId);
+    }
+  }
+
+  void _highlightMessage(String id) {
+    _highlightTimer?.cancel();
+    _highlightedMessageId.value = id;
+    _highlightTimer = Timer(_highlightDuration, () {
+      _highlightedMessageId.value = null;
+    });
   }
 
   Future<bool> scrollToMessage(String id) async {
@@ -396,13 +415,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
           curve: Curves.easeOut,
           alignment: 0.12,
         );
-        _highlightTimer?.cancel();
-        _highlightedMessageId.value = id;
-        _highlightTimer = Timer(_highlightDuration, () {
-          if (_highlightedMessageId.value == id) {
-            _highlightedMessageId.value = null;
-          }
-        });
+        _highlightMessage(id);
         return true;
       }
 
@@ -702,7 +715,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.header != null) widget.header!,
+          ?(widget.headerBuilder?.call(_highlightedMessageId) ?? widget.header),
           Expanded(
             child: !showListContent
                 ? Center(child: Text(widget.errorText))

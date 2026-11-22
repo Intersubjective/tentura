@@ -23,6 +23,7 @@ class PostRootPinCard extends StatelessWidget {
     required this.onTap,
     required this.now,
     this.rootMessage,
+    this.highlighted = false,
     this.draftExcerpt = '',
     this.author,
     this.expiresAt,
@@ -41,6 +42,7 @@ class PostRootPinCard extends StatelessWidget {
   final VoidCallback? onTap;
   final DateTime now;
   final RoomMessage? rootMessage;
+  final bool highlighted;
   final String draftExcerpt;
   final Profile? author;
   final DateTime? expiresAt;
@@ -109,7 +111,9 @@ class PostRootPinCard extends StatelessWidget {
       color: tt.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(tt.cardRadius),
-        side: BorderSide(color: tt.borderSubtle),
+        side: highlighted
+            ? BorderSide(color: tt.attentionHighlight, width: 2)
+            : BorderSide(color: tt.borderSubtle),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

@@ -33,7 +33,10 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
+import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
+import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
+import 'package:tentura/features/inbox/ui/screen/conversations_screen.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../support/attention_case_factory.dart';
@@ -43,11 +46,13 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
+import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -165,9 +170,18 @@ class _Settings extends Fake implements SettingsCubit {
 
 /// Minimal router mounting the production host page and its operational child.
 class _TestRouter extends RootStackRouter {
+  _TestRouter({this.conversations});
+
+  final Widget? conversations;
+
   @override
   List<AutoRoute> get routes => [
-    AutoRoute(page: ConversationsRoute.page, path: '/conversations'),
+    AutoRoute(
+      page: conversations == null
+          ? ConversationsRoute.page
+          : PageInfo(ConversationsRoute.name, builder: (_) => conversations!),
+      path: '/conversations',
+    ),
     AutoRoute(
       page: BeaconViewRoute.page,
       path: '/beacon/view/:id',
@@ -214,6 +228,7 @@ Future<RootStackRouter> _pumpRoute(
   String? initialLocation,
   bool phoneRu = false,
   Widget? home,
+  Widget? conversations,
   UiEffectPort? effects,
 }) async {
   _requestOnlyTouches.clear();
@@ -266,7 +281,7 @@ Future<RootStackRouter> _pumpRoute(
     }
     await unregisterBeaconViewHarnessGetIt();
   });
-  final router = rootRouter ?? _TestRouter();
+  final router = rootRouter ?? _TestRouter(conversations: conversations);
   if (rootRouter != null) {
     final homePage = HomeRoute.page;
     HomeRoute.page = PageInfo(
@@ -364,6 +379,7 @@ Future<RootRouter> _pumpDetailRoot(
   Map<String, Completer<void>> lookupGates = const {},
   FakeBeaconThreadsRepository? roomRepo,
   bool phoneRu = false,
+  String? postRootMessageId,
 }) async {
   final router = RootRouter(
     Logger('PostDetailLinks'),
@@ -377,7 +393,9 @@ Future<RootRouter> _pumpDetailRoot(
     _requestId: BeaconKind.request,
   }, lookupGates: lookupGates);
   final beacons = TrackingBeaconRepository()
-    ..fetchByIdHandler = (id) async => _beacon(id, kinds.kinds[id]!);
+    ..fetchByIdHandler = (id) async => _beacon(id, kinds.kinds[id]!).copyWith(
+      postRootMessageId: id == _postId ? postRootMessageId : null,
+    );
   addTearDown(beacons.dispose);
   await _pumpRoute(
     tester,
@@ -542,7 +560,430 @@ void _expectUnfocusedChat(WidgetTester tester) {
   expect(chatState.highlightedMessageId.value, isNull);
 }
 
+const _openingMessageId = 'Mpostopening';
+const _openingBody = 'Начало поста';
+const _rootLink =
+    '$_postUrl?is_deep_link=true&tab=threads&thread=general&message=$_openingMessageId';
+const _frame = Duration(milliseconds: 16);
+
+final _expandedOpening = find.byKey(const Key('PostRootPinCard.expanded'));
+final _collapsedOpening = find.byKey(const Key('PostRootPinCard.collapsed'));
+final _openingCard = find.byType(PostRootPinCard);
+final _chat = find.byType(BasicChatBody);
+final _replyList = find.descendant(of: _chat, matching: find.byType(ListView));
+
+String _numberedReplyId(int number) =>
+    'Mpostreply${number.toString().padLeft(3, '0')}';
+
+Map<String, dynamic> _postMessageRow(String id, String body, int minute) =>
+    roomHintWireMessageRow(
+      id: id,
+      authorId: _author.id,
+      authorTitle: _author.displayName,
+      createdAt: DateTime.utc(2026, 1, 1, 12, minute).toIso8601String(),
+      body: body,
+    )..['beaconId'] = _postId;
+
+Future<_WirePostChatRepository> _wirePostRoom(
+  WidgetTester tester,
+  RoomHintWireServer server,
+) async {
+  final wire = (await tester.runAsync(() => RoomHintWire.start(server)))!;
+  addTearDown(() => tester.runAsync(wire.close));
+  return _WirePostChatRepository(wire.repository);
+}
+
+BasicChatBodyState _chatState(WidgetTester tester) =>
+    tester.state<BasicChatBodyState>(_chat);
+
+ScrollPosition _replyScroll(WidgetTester tester) =>
+    tester.widget<ListView>(_replyList).controller!.position;
+
+void _expectOnlyOpeningCard(WidgetTester tester, int replies) {
+  expect(_tile(_openingMessageId), findsNothing);
+  expect(
+    tester.widget<BasicChatBody>(_chat).messages.map((m) => m.id),
+    isNot(contains(_openingMessageId)),
+  );
+  final card = tester.widget<PostRootPinCard>(_openingCard);
+  expect(card.pin.messageId, _openingMessageId);
+  expect(card.replyCount, replies);
+}
+
+List<Object> _openingAppearance() => [
+  for (final element
+      in find
+          .descendant(
+            of: _openingCard,
+            matching: find.byWidgetPredicate((_) => true),
+          )
+          .evaluate())
+    switch (element.widget) {
+      Material(:final color, :final shape) => (color, shape),
+      DecoratedBox(:final decoration) => decoration,
+      ColoredBox(:final color) => color,
+      Ink(:final decoration) => decoration,
+      Opacity(:final opacity) => opacity,
+      RichText(:final text) => text.style,
+      _ => null,
+    },
+].whereType<Object>().toList();
+
+Future<String?> _waitForChatSelection(WidgetTester tester, String id) async {
+  for (var frame = 0; frame < 90; frame++) {
+    final selected = _chatState(tester).highlightedMessageId.value;
+    if (selected == id) return selected;
+    await tester.pump(_frame);
+  }
+  return _chatState(tester).highlightedMessageId.value;
+}
+
+Future<Duration> _remainingFlash(WidgetTester tester, String id) async {
+  final start = tester.binding.clock.now();
+  for (var frame = 0; frame < 100; frame++) {
+    if (_chatState(tester).highlightedMessageId.value == null) {
+      return tester.binding.clock.now().difference(start);
+    }
+    expect(_chatState(tester).highlightedMessageId.value, id);
+    await tester.pump(_frame);
+  }
+  fail('Message $id was still highlighted after 1600 ms');
+}
+
+class _ConversationPosts implements PostsRepositoryPort {
+  final post = PostSummary(
+    id: _postId,
+    authorId: _author.id,
+    authorName: _author.displayName,
+    rootExcerpt: _openingBody,
+    lastActivityAt: DateTime.utc(2026, 1, 1, 12),
+  );
+
+  @override
+  Future<List<PostSummary>> myPosts() async => [post];
+
+  @override
+  Future<PostSummary?> postSummary(String id) async =>
+      id == post.id ? post : null;
+}
+
 void main() {
+  group('Links to the Post opening message', () {
+    testWidgets(
+      'a phone deep link flashes the opening card above two replies',
+      (
+        tester,
+      ) async {
+        final server = RoomHintWireServer()
+          ..messageRows = [
+            _postMessageRow(_openingMessageId, _openingBody, 0),
+            _postMessageRow(_firstReply, 'Первый ответ', 1),
+            _postMessageRow(_secondReply, 'Второй ответ', 2),
+          ];
+        final repo = await _wirePostRoom(tester, server);
+        final router = await _pumpDetailRoot(
+          tester,
+          _rootLink,
+          roomRepo: repo,
+          postRootMessageId: _openingMessageId,
+          phoneRu: true,
+        );
+
+        expect(router.currentUrl, _rootLink);
+        expect(find.byType(PostViewScreen), findsOneWidget);
+        expect(server.queried, contains('RoomMessageList'));
+        expect(_expandedOpening.hitTestable(), findsOneWidget);
+        expect(_tile(_firstReply).hitTestable(), findsOneWidget);
+        expect(_tile(_secondReply).hitTestable(), findsOneWidget);
+        final card = tester.widget<PostRootPinCard>(_openingCard);
+        final l10n = L10n.of(tester.element(_openingCard))!;
+        expect(l10n.localeName, 'ru');
+        expect(
+          find
+              .descendant(
+                of: _expandedOpening,
+                matching: find.textContaining(
+                  RegExp('^$_openingBody\uFFFC?\$'),
+                ),
+              )
+              .hitTestable(),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            card.forwardPolicyOpen
+                ? l10n.postCardMetaCanShare(card.peopleCount!, 2)
+                : l10n.postCardMetaInviteOnly(card.peopleCount!, 2),
+          ),
+          findsOneWidget,
+        );
+        _expectOnlyOpeningCard(tester, 2);
+        expect(tester.takeException(), isNull);
+
+        expect(
+          await _waitForChatSelection(tester, _openingMessageId),
+          _openingMessageId,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(
+          _chatState(tester).highlightedMessageId.value,
+          _openingMessageId,
+        );
+        final flashing = _openingAppearance();
+        await _remainingFlash(tester, _openingMessageId);
+        await tester.pumpAndSettle();
+        expect(_openingAppearance(), isNot(equals(flashing)));
+        _expectOnlyOpeningCard(tester, 2);
+
+        final resting = _openingAppearance();
+        await router.navigatePath('$_postUrl?message=$_firstReply');
+        await tester.pump();
+        expect(await _waitForHighlight(tester, _firstReply), _firstReply);
+        await tester.pump(_frame);
+        expect(_openingAppearance(), equals(resting));
+        await _remainingFlash(tester, _firstReply);
+
+        await router.navigatePath('$_postUrl?message=$_unknownReply');
+        await tester.pumpAndSettle();
+        // The final GraphQL response can schedule Ferry's zero-delay cleanup
+        // without scheduling a Flutter frame.
+        await tester.pump(_frame);
+        _expectUnfocusedChat(tester);
+      },
+    );
+
+    for (final rootIsInLatestPage in [true, false]) {
+      testWidgets(
+        rootIsInLatestPage
+            ? 'a deep link opens a long Post chat at the opening card'
+            : 'a deep link opens the opening card beyond the latest reply page',
+        (tester) async {
+          final replyCount = rootIsInLatestPage ? 25 : 50;
+          final opening = _postMessageRow(_openingMessageId, _openingBody, 0);
+          final server = RoomHintWireServer()
+            ..messageRows = [
+              if (rootIsInLatestPage) opening,
+              for (var i = 1; i <= replyCount; i++)
+                _postMessageRow(_numberedReplyId(i), 'Ответ $i', i),
+            ]
+            ..messageTargets[_openingMessageId] = opening;
+          final repo = await _wirePostRoom(tester, server);
+          await _pumpDetailRoot(
+            tester,
+            _rootLink,
+            roomRepo: repo,
+            postRootMessageId: _openingMessageId,
+            phoneRu: true,
+          );
+
+          expect(find.byType(PostViewScreen), findsOneWidget);
+          expect(server.queried, contains('RoomMessageList'));
+          expect(_replyScroll(tester).maxScrollExtent, greaterThan(0));
+          expect(
+            tester.widget<BasicChatBody>(_chat).messages.map((m) => m.id),
+            containsAll([_numberedReplyId(1), _numberedReplyId(replyCount)]),
+          );
+          _expectOnlyOpeningCard(tester, replyCount);
+
+          // Read all three outcomes in one assertion, even when the card
+          // stays collapsed and the selection is missing on the baseline.
+          final selected = await _waitForChatSelection(
+            tester,
+            _openingMessageId,
+          );
+          await tester.pump(const Duration(milliseconds: 200));
+          final position = _replyScroll(tester);
+          expect(
+            (
+              atTop: (position.pixels - position.minScrollExtent).abs() < 1,
+              openingVisible: _expandedOpening
+                  .hitTestable()
+                  .evaluate()
+                  .isNotEmpty,
+              selected: selected,
+            ),
+            (atTop: true, openingVisible: true, selected: _openingMessageId),
+          );
+          expect(
+            _chatState(tester).highlightedMessageId.value,
+            _openingMessageId,
+          );
+          expect(
+            tester
+                .widgetList<RoomMessageTile>(find.byType(RoomMessageTile))
+                .where(
+                  (tile) => tile.highlightedMessageId?.value == tile.message.id,
+                ),
+            isEmpty,
+          );
+          _expectOnlyOpeningCard(tester, replyCount);
+        },
+      );
+    }
+
+    testWidgets(
+      'an open conversation pane honors a new opening-message target once',
+      (
+        tester,
+      ) async {
+        const replies = 25;
+        final repo = _postChat(
+          ids: [
+            _openingMessageId,
+            for (var i = 1; i <= replies; i++) _numberedReplyId(i),
+          ],
+        );
+        final selection = ValueNotifier<String?>(null);
+        addTearDown(selection.dispose);
+        final sync = buildTestRealtimeSync();
+        addTearDown(sync.port.dispose);
+        final posts = PostsCase(_ConversationPosts(), sync.case_);
+        final beacons = _BeaconOnlyRepository({
+          _postId: _beacon(
+            _postId,
+            BeaconKind.post,
+          ).copyWith(postRootMessageId: _openingMessageId),
+        });
+        final router = await _pumpRoute(
+          tester,
+          id: _postId,
+          kinds: _FakeBeaconKindRepository({_postId: BeaconKind.post}),
+          beacons: beacons,
+          withRequestCollaborators: true,
+          activityCase: posts,
+          roomRepo: repo,
+          conversations: ConversationsScreen(
+            postPaneBuilder: (id, onClose) => ValueListenableBuilder<String?>(
+              valueListenable: selection,
+              builder: (_, messageId, _) => PostViewScope(
+                id: id,
+                myProfile: _viewer,
+                onClose: onClose,
+                messageId: messageId,
+              ),
+            ),
+          ),
+        );
+        addTearDown(router.dispose);
+        await tester.pumpAndSettle();
+        final list = find.byKey(TenturaListDetailLayout.listPaneKey);
+        expect(list, findsOneWidget);
+        await tester.tap(
+          find.descendant(
+            of: list,
+            matching: find.byKey(const ValueKey(_postId)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final screen = tester.state(find.byType(PostViewScreen));
+        final newest = _numberedReplyId(replies);
+        // Incoming bubbles occupy the leading side of a wide reply row.
+        final newestBubble = _tile(
+          newest,
+        ).hitTestable(at: const Alignment(-0.65, 0));
+        expect(newestBubble, findsOneWidget);
+        expect(_collapsedOpening, findsOneWidget);
+        final position = _replyScroll(tester);
+        expect(position.pixels, closeTo(position.maxScrollExtent, 1));
+        _expectOnlyOpeningCard(tester, replies);
+        await tester.tap(
+          find.descendant(
+            of: _collapsedOpening,
+            matching: find.byIcon(Icons.push_pin_outlined),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(position.pixels, closeTo(position.minScrollExtent, 1));
+        expect(_expandedOpening.hitTestable(), findsOneWidget);
+
+        // Exercise the same input a new link supplies to the visible pane.
+        selection.value = newest;
+        await tester.pump();
+        expect(await _waitForChatSelection(tester, newest), newest);
+        expect(newestBubble, findsOneWidget);
+        expect(
+          tester
+              .widget<RoomMessageTile>(newestBubble)
+              .highlightedMessageId
+              ?.value,
+          newest,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        final replyFlash = await _remainingFlash(tester, newest);
+        expect(replyFlash, greaterThan(Duration.zero));
+
+        selection.value = _unknownReply;
+        await tester.pumpAndSettle();
+        expect(newestBubble, findsOneWidget);
+        expect(_chatState(tester).highlightedMessageId.value, isNull);
+        final chat = tester.widget<BasicChatBody>(_chat);
+        expect(chat.hasError, isFalse);
+        expect(chat.isLoading, isFalse);
+        expect(_collapsedOpening, findsOneWidget);
+
+        selection.value = Uri.parse(_rootLink).queryParameters['message'];
+        await tester.pump();
+        expect(tester.state(find.byType(PostViewScreen)), same(screen));
+        expect(
+          await _waitForChatSelection(tester, _openingMessageId),
+          _openingMessageId,
+        );
+        // Start the expansion animation before advancing its clock.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(position.pixels, closeTo(position.minScrollExtent, 1));
+        expect(_expandedOpening.hitTestable(), findsOneWidget);
+        expect(
+          _chatState(tester).highlightedMessageId.value,
+          _openingMessageId,
+        );
+        final openingFlash = await _remainingFlash(tester, _openingMessageId);
+        expect(
+          openingFlash.inMilliseconds,
+          closeTo(replyFlash.inMilliseconds, 16),
+        );
+        await tester.pumpAndSettle();
+        expect(_expandedOpening.hitTestable(), findsOneWidget);
+        expect(position.pixels, closeTo(position.minScrollExtent, 1));
+        _expectOnlyOpeningCard(tester, replies);
+
+        final room = tester
+            .element(find.byType(PostViewScreen))
+            .read<ThreadHostCubit>()
+            .roomCubit!;
+        expect(room.state.scrollToMessageId, isNull);
+
+        await tester.drag(_replyList, const Offset(0, -260));
+        await tester.pumpAndSettle();
+        final afterUserScroll = position.pixels;
+        expect(afterUserScroll, greaterThan(position.minScrollExtent + 12));
+        expect(afterUserScroll, lessThan(position.maxScrollExtent - 100));
+
+        final incoming = _postChat(
+          ids: [_numberedReplyId(replies + 1)],
+        ).messages.single.copyWith(createdAt: DateTime.utc(2026, 1, 1, 13, 1));
+        final highlight = _chatState(tester).highlightedMessageId;
+        final selections = <String?>[];
+        void recordSelection() => selections.add(highlight.value);
+        highlight.addListener(recordSelection);
+        repo.messages = [...repo.messages, incoming];
+        await room.reloadMessages(silent: true);
+        await tester.pumpAndSettle();
+        highlight.removeListener(recordSelection);
+        expect(
+          tester.widget<BasicChatBody>(_chat).messages.last.id,
+          incoming.id,
+        );
+        expect(position.pixels, closeTo(afterUserScroll, 1));
+        expect(_chatState(tester).highlightedMessageId.value, isNull);
+        expect(selections, isEmpty);
+        expect(room.state.scrollToMessageId, isNull);
+        _expectOnlyOpeningCard(tester, replies + 1);
+      },
+    );
+  });
+
   group(_messageLinkTests, () {
     testWidgets(
       'a deleted reply link leaves Chat loaded without highlighting or retrying the reply',

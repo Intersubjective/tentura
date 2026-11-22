@@ -11,6 +11,23 @@ export 'home_tab_reselect_state.dart';
 class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
   HomeTabReselectCubit() : super(const HomeTabReselectState());
 
+  bool Function(String postId, String messageId)? _openConversationMessage;
+
+  /// Registers the mounted Conversations pane and returns its cleanup.
+  void Function() registerConversationPane(
+    bool Function(String postId, String messageId) openMessage,
+  ) {
+    _openConversationMessage = openMessage;
+    return () {
+      if (identical(_openConversationMessage, openMessage)) {
+        _openConversationMessage = null;
+      }
+    };
+  }
+
+  bool openConversationMessage(String postId, String messageId) =>
+      _openConversationMessage?.call(postId, messageId) ?? false;
+
   void bump(HomeTab tab) => switch (tab) {
     HomeTab.inbox => emit(
       state.copyWith(

@@ -159,14 +159,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
   }
 
-  void _expandPostRootCard() {
+  void _expandPostRootCard({String? highlightMessageId}) {
     setState(() => _postRootCollapsed = false);
-    _basicChatKey.currentState?.scrollToTop();
+    _basicChatKey.currentState?.scrollToTop(
+      highlightMessageId: highlightMessageId,
+    );
   }
 
-  RoomMessage? _rootMessage(RoomState state) {
-    final rootId = widget.postRoot?.messageId;
-    if (rootId == null || rootId.isEmpty) return null;
+  RoomMessage? _rootMessage(RoomState state, String rootId) {
+    if (rootId.isEmpty) return null;
     for (final m in state.messages) {
       if (m.id == rootId) return m;
     }
@@ -212,22 +213,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
-  Widget? _postRootHeader(
+  Widget _postRootHeader(
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
     Profile myProfile,
     RoomState state,
-  ) {
-    if (!_isPostRoom || widget.postRoot?.hasStrip != true) return null;
-    final pin = widget.postRoot!;
-    final root = _rootMessage(state);
+    RoomPostRootPin pin, {
+    required String? highlightedMessageId,
+  }) {
+    final root = _rootMessage(state, pin.messageId);
     return PostRootPinCard(
       pin: pin,
       collapsed: _postRootCollapsed,
       onTap: _expandPostRootCard,
       now: _postClock(),
       rootMessage: root,
+      highlighted: root != null && root.id == highlightedMessageId,
       author: widget.beaconAuthor ?? root?.author,
       expiresAt: widget.postExpiresAt,
       archived: widget.postArchived,
@@ -421,7 +423,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       if (!mounted) return;
       final cubit = context.read<RoomCubit>();
       if (cubit.state.scrollToMessageId != id) return;
-      await _basicChatKey.currentState?.scrollToMessage(id);
+      if (_isPostRoom &&
+          cubit.state.threadItemId == null &&
+          widget.postRoot?.messageId == id) {
+        _expandPostRootCard(highlightMessageId: id);
+      } else {
+        await _basicChatKey.currentState?.scrollToMessage(id);
+      }
       if (mounted &&
           identical(context.read<RoomCubit>(), cubit) &&
           cubit.state.scrollToMessageId == id) {
@@ -561,10 +569,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     openBlocker: state.openCoordinationBlocker,
                   ) !=
                   null;
+          final postRoot = widget.postRoot;
           final showPostRoot =
               !isThreadMode &&
-              widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot &&
-              (widget.postRoot?.hasStrip ?? false);
+              _isPostRoom &&
+              postRoot != null &&
+              postRoot.hasStrip;
           final receiptIndex = RoomReceiptIndex(
             myUserId: state.myUserId,
             watermarks: {
@@ -579,11 +589,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           return BasicChatBody(
             key: _basicChatKey,
             receiptIndex: receiptIndex,
-            header: showPostRoot
-                ? _postRootHeader(context, cubit, l10n, myProfile, state)
-                : showPinnedBlocker
+            header: showPinnedBlocker
                 ? _PinnedBlockerRow(state: state)
                 : widget.header,
+            headerBuilder: showPostRoot
+                ? (highlightedMessageId) => ValueListenableBuilder<String?>(
+                    valueListenable: highlightedMessageId,
+                    builder: (context, highlightedId, _) => _postRootHeader(
+                      context,
+                      cubit,
+                      l10n,
+                      myProfile,
+                      state,
+                      postRoot,
+                      highlightedMessageId: highlightedId,
+                    ),
+                  )
+                : null,
             // #443: a Request's empty discussion says what it is for and
             // where recipients ask before helping (Questions). A Post's
             // chat keeps its one line.

@@ -165,7 +165,8 @@ class _PostViewScreenState extends State<PostViewScreen> {
           child: BeaconRoomSurface(
             host: cubit,
             roomLease: _roomLease,
-            messageId: widget.messageId,
+            // The Post identifies which message lives in the header.
+            messageId: state.isSuccess ? widget.messageId : null,
             postRoot: _postRoot(state),
             postArchived: state.beacon.isPostArchivedAt(cubit.now()),
             postExpiresAt: state.beacon.expiresAt,

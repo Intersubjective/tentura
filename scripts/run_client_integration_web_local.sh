@@ -344,6 +344,9 @@ for target in "${TARGETS[@]}"; do
       # Asserts a 375x667 app viewport for the Russian Post bud invite step.
       integration_test/post_bud_invite_phone_web_test.dart)
         browser_dimension="375x806" ;;
+      # Asserts a 375x667 Russian Post opening-message link.
+      integration_test/post_chat_message_link_test.dart)
+        browser_dimension="375x806" ;;
     esac
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"
