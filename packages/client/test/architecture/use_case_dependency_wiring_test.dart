@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,6 +41,27 @@ const _forwardDependencyTypes = [
 ];
 
 void main() {
+  test('ambient dependency scan ignores comments and reports code', () {
+    const path = 'fixture.dart';
+    final parsed = parseString(
+      path: path,
+      content: '''
+/// This case does not need a logger.
+class ExampleCase {
+  // No env is needed here.
+  /* UseCaseBase
+     /* Logger */
+  */
+  void run() => logger.info('Running');
+}
+''',
+    );
+
+    expect(_ambientNameViolations(path, parsed, _forwardAmbientNames), [
+      '$path:7 mentions logger',
+    ]);
+  });
+
   _testWiring('Use case wiring only supplies feature dependencies', {
     for (final entry in _casePaths.entries)
       if (entry.key != 'ForwardCase') entry.key: entry.value,
@@ -152,7 +174,8 @@ void _testWiring(String description, Map<String, String> casePaths) {
       final violations = <String>[];
       for (final MapEntry(key: name, value: path) in casePaths.entries) {
         final source = File(path).readAsStringSync();
-        final unit = parseString(content: source, path: path).unit;
+        final parsed = parseString(content: source, path: path);
+        final unit = parsed.unit;
         for (final directive in unit.directives.whereType<ImportDirective>()) {
           final uri = directive.uri.stringValue!;
           if (uri.endsWith('use_case_base.dart') ||
@@ -176,10 +199,9 @@ void _testWiring(String description, Map<String, String> casePaths) {
           _ => null,
         };
         if (ambientPattern != null) {
-          for (final match in ambientPattern.allMatches(source)) {
-            final line = unit.lineInfo.getLocation(match.start).lineNumber;
-            violations.add('$path:$line mentions ${match.group(0)}');
-          }
+          violations.addAll(
+            _ambientNameViolations(path, parsed, ambientPattern),
+          );
         }
         if (declaration.extendsClause?.superclass.name.lexeme ==
             'UseCaseBase') {
@@ -349,6 +371,25 @@ void _testWiring(String description, Map<String, String> casePaths) {
       );
     });
   });
+}
+
+Iterable<String> _ambientNameViolations(
+  String path,
+  ParseStringResult parsed,
+  RegExp pattern,
+) sync* {
+  for (
+    Token? token = parsed.unit.beginToken;
+    token != null && !token.isEof;
+    token = token.next
+  ) {
+    for (final match in pattern.allMatches(token.lexeme)) {
+      final line = parsed.lineInfo
+          .getLocation(token.offset + match.start)
+          .lineNumber;
+      yield '$path:$line mentions ${match.group(0)}';
+    }
+  }
 }
 
 typedef _ConstructorCall = ({
