@@ -26,15 +26,46 @@ class LiveAnalyzerInventoryTest(unittest.TestCase):
         self.addCleanup(scratch.cleanup)
         self.debt_dir = Path(scratch.name).resolve()
 
-    def run_cli(self, command, timeout=600):
+    def run_cli(self, command, timeout=600, **env_overrides):
         env = {key: value for key, value in os.environ.items()
                if not key.startswith("TENTURA_ANALYZER_")
                and key not in ("TENTURA_CUSTOM_LINT_RULES", "GENERATION_TEST_OUTPUTS")}
         env["LC_ALL"] = "C"
         env["TENTURA_ANALYZER_DEBT_DIR"] = str(self.debt_dir)
+        env.update(env_overrides)
         result = subprocess.run(command, cwd=SCRIPTS.parent, env=env,
                                 capture_output=True, text=True, timeout=timeout)
         return result.returncode, result.stdout + result.stderr
+
+    def test_checked_in_client_locations_match_the_live_analyzer(self):
+        for name in (BASELINE, INVENTORY):
+            shutil.copyfile(SCRIPTS / name, self.debt_dir / name)
+        committed_total = read_baselines(self.debt_dir / BASELINE)[CLIENT]
+        captured = self.debt_dir / "client-diagnostics.txt"
+        status, output = self.run_cli(
+            ["bash", "scripts/check-analyze-baseline.sh", CLIENT],
+            TENTURA_ANALYZER_CAPTURE=str(captured),
+        )
+        self.assertEqual(status, 0, output[-6000:])
+        live_rows = set(captured.read_text().splitlines())
+        self.assertTrue(live_rows, "The completed Flutter analysis must report diagnostics")
+        live_total = len(live_rows)
+        self.assertIn(f"{CLIENT} OK ({live_total} <= {committed_total})", output)
+        inventory_rows = set()
+        for row in (self.debt_dir / INVENTORY).read_text().splitlines():
+            key, _, diagnostic = row.partition("\t")
+            if key == CLIENT and re.match(r"^\s*(?:error|warning|info) • ", diagnostic):
+                inventory_rows.add(diagnostic)
+        stale = sorted(inventory_rows - live_rows)
+        missing = sorted(live_rows - inventory_rows)
+        if stale or missing:
+            self.fail(
+                f"Checked-in count {committed_total}, live count {live_total}.\n"
+                f"Stale inventory rows ({len(stale)}), first eight:\n"
+                + "\n".join(stale[:8])
+                + f"\nLive rows missing from the inventory ({len(missing)}), first eight:\n"
+                + "\n".join(missing[:8])
+            )
 
     def test_refresh_matches_live_diagnostics_and_baseline_zero_reports_no_new_debt(self):
         originals = {name: (SCRIPTS / name).read_bytes() for name in (BASELINE, INVENTORY)}
