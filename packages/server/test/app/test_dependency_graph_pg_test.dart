@@ -1,13 +1,36 @@
 @Tags(['pg'])
 library;
 
+import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/app/di.dart';
+import 'package:tentura_server/data/repository/fcm_remote_repository_module.dart';
+import 'package:tentura_server/data/repository/mock/data/users.dart';
+import 'package:tentura_server/data/service/fcm_service.dart';
+import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_candidate_context_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/env.dart';
 
 import '../support/disposable_pg_target.dart';
 import '../support/mocks/beacon_repository_mock.dart';
 import '../support/test_dependency_graph_expectations.dart';
+import '../support/test_di.config.dart';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -78,5 +101,123 @@ Future<void> main() async {
       );
     },
     skip: skipReason,
+  );
+  test(
+    'the live graph uses test-support repositories and retains delivery and fixtures',
+    () async {
+      addTearDown(getIt.reset);
+      await expectTestDependencyGraph(target.databaseEnv);
+
+      const mockTypes = {
+        CoordinationRepositoryPort: 'CoordinationRepositoryMock',
+        FcmRemoteRepositoryPort: 'FcmRemoteRepositoryMock',
+        FcmTokenRepositoryPort: 'FcmTokenRepositoryMock',
+        ForwardAttributionRepositoryPort: 'ForwardAttributionRepositoryMock',
+        ForwardCandidateContextRepositoryPort:
+            'ForwardCandidateContextRepositoryMock',
+        ForwardEdgeRepositoryPort: 'ForwardEdgeRepositoryMock',
+        HelpOfferAdmissionRepositoryPort: 'HelpOfferAdmissionRepositoryMock',
+        HelpOfferRepositoryPort: 'HelpOfferRepositoryMock',
+        ImageObjectGcPort: 'ImageObjectGcRepositoryMock',
+        ImageRepositoryPort: 'ImageRepositoryMock',
+        InboxRepositoryPort: 'InboxRepositoryMock',
+        InvitationRepositoryPort: 'InvitationRepositoryMock',
+      };
+      final liveTypes = {
+        for (final port in mockTypes.keys)
+          port: getIt.get<Object>(type: port).runtimeType,
+      };
+      expect(
+        liveTypes.map(
+          (port, implementation) => MapEntry(port, '$implementation'),
+        ),
+        mockTypes,
+      );
+
+      const invitationId = 'I286f94380611';
+      final invitation = await getIt<InvitationRepositoryPort>().getById(
+        invitationId: invitationId,
+      );
+      expect(invitation?.id, invitationId);
+      expect(invitation?.issuer, kUserThorin);
+
+      const beaconId = 'B20f3d51e498f';
+      final beacon = await getIt<BeaconRepositoryPort>().getBeaconById(
+        beaconId: beaconId,
+      );
+      expect(beacon.id, beaconId);
+      expect(beacon.title, 'Protect Our Forests');
+
+      final logLevel = Logger.root.level;
+      addTearDown(() => Logger.root.level = logLevel);
+      for (final environment in [Environment.dev, Environment.prod]) {
+        await _expectUnconfiguredFcmFallback(environment);
+      }
+
+      // Resolve from the generated test initializer in isolation so legacy
+      // registrations from the application initializer cannot satisfy these
+      // lookups. Compare actual Types to the repositories in the live graph.
+      final testOnly = GetIt.asNewInstance()
+        ..registerSingleton<Logger>(getIt<Logger>())
+        ..initTestMocks(environment: Environment.test);
+      addTearDown(testOnly.reset);
+      final testOnlyTypes = {
+        for (final port in mockTypes.keys)
+          port: testOnly.maybeGet<Object>(type: port)?.runtimeType,
+      };
+      expect(testOnlyTypes, liveTypes);
+    },
+    skip: skipReason,
+  );
+}
+
+class _FcmRepositoryModule extends FcmRemoteRepositoryModule {}
+
+Future<void> _expectUnconfiguredFcmFallback(String environment) async {
+  final env = Env(
+    environment: environment,
+    serverUri: Uri.parse('https://test.tentura.local'),
+    googleClientId: '',
+    logLevel: Level.WARNING,
+    fbProjectId: '',
+    fbClientEmail: '',
+    fbPrivateKey: '',
+  );
+  expect(env.isFcmConfigured, isFalse);
+
+  final logger = Logger('unconfigured FCM delivery ($environment)');
+  final warnings = <String>[];
+  final logs = logger.onRecord.listen((record) {
+    if (record.loggerName == logger.name && record.level == Level.WARNING) {
+      warnings.add(record.message);
+    }
+  });
+  addTearDown(logs.cancel);
+
+  final requests = <http.Request>[];
+  final result = await http.runWithClient(
+    () => _FcmRepositoryModule()
+        .fcmRemoteRepository(
+          env,
+          FcmService(env),
+          getIt<FcmTokenRepositoryPort>(),
+          logger,
+        )
+        .sendChatNotification(
+          fcmTokens: ['t'],
+          message: const FcmNotificationEntity(title: 'Title', body: 'Message'),
+        ),
+    () => MockClient((request) async {
+      requests.add(request);
+      return http.Response('Unexpected FCM HTTP request', 500);
+    }),
+  );
+  expect(result, isEmpty);
+  expect(requests, isEmpty);
+  expect(
+    warnings,
+    contains(
+      startsWith('[FCM] Push mocking enabled — missing server Firebase creds:'),
+    ),
   );
 }

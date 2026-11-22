@@ -161,3 +161,22 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     }
   }
 }
+
+/// Logs notifications when Firebase delivery is disabled.
+class DisabledFcmRemoteRepository implements FcmRemoteRepositoryPort {
+  DisabledFcmRemoteRepository(this._logger);
+
+  final Logger _logger;
+
+  @override
+  Future<List<Exception>> sendChatNotification({
+    required Iterable<String> fcmTokens,
+    required FcmNotificationEntity message,
+  }) async {
+    _logger.info(
+      '[FCM] mock send (Firebase creds not configured — no HTTP) '
+      'devices=${fcmTokens.length} title="${message.title}"',
+    );
+    return [];
+  }
+}

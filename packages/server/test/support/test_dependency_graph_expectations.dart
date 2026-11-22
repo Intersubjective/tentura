@@ -15,7 +15,19 @@ import 'package:tentura_server/domain/port/constellation_field_repository_port.d
 import 'package:tentura_server/domain/port/constellation_field_requests_port.dart';
 import 'package:tentura_server/domain/port/constellation_mutual_trust_port.dart';
 import 'package:tentura_server/domain/port/constellation_trust_chain_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_candidate_context_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'package:tentura_server/env.dart';
@@ -34,6 +46,18 @@ import 'mocks/constellation_field_repository_mock.dart';
 import 'mocks/constellation_field_requests_repository_mock.dart';
 import 'mocks/constellation_mutual_trust_repository_mock.dart';
 import 'mocks/constellation_trust_chain_repository_mock.dart';
+import 'mocks/coordination_repository_mock.dart';
+import 'mocks/fcm_remote_repository_mock.dart';
+import 'mocks/fcm_token_repository_mock.dart';
+import 'mocks/forward_attribution_repository_mock.dart';
+import 'mocks/forward_candidate_context_repository_mock.dart';
+import 'mocks/forward_edge_repository_mock.dart';
+import 'mocks/help_offer_admission_repository_mock.dart';
+import 'mocks/help_offer_repository_mock.dart';
+import 'mocks/image_object_gc_repository_mock.dart';
+import 'mocks/image_repository_mock.dart';
+import 'mocks/inbox_repository_mock.dart';
+import 'mocks/invitation_repository_mock.dart';
 import 'mocks/user_trust_edge_repository_mock.dart';
 import 'test_di.dart';
 
@@ -83,6 +107,30 @@ Future<void> expectTestDependencyGraph(Env env) async {
     getIt<UserTrustEdgeRepositoryPort>(),
     isA<UserTrustEdgeRepositoryMock>(),
   );
+  expect(
+    getIt<CoordinationRepositoryPort>(),
+    isA<CoordinationRepositoryMock>(),
+  );
+  expect(getIt<FcmRemoteRepositoryPort>(), isA<FcmRemoteRepositoryMock>());
+  expect(getIt<FcmTokenRepositoryPort>(), isA<FcmTokenRepositoryMock>());
+  expect(
+    getIt<ForwardAttributionRepositoryPort>(),
+    isA<ForwardAttributionRepositoryMock>(),
+  );
+  expect(
+    getIt<ForwardCandidateContextRepositoryPort>(),
+    isA<ForwardCandidateContextRepositoryMock>(),
+  );
+  expect(getIt<ForwardEdgeRepositoryPort>(), isA<ForwardEdgeRepositoryMock>());
+  expect(
+    getIt<HelpOfferAdmissionRepositoryPort>(),
+    isA<HelpOfferAdmissionRepositoryMock>(),
+  );
+  expect(getIt<HelpOfferRepositoryPort>(), isA<HelpOfferRepositoryMock>());
+  expect(getIt<ImageObjectGcPort>(), isA<ImageObjectGcRepositoryMock>());
+  expect(getIt<ImageRepositoryPort>(), isA<ImageRepositoryMock>());
+  expect(getIt<InboxRepositoryPort>(), isA<InboxRepositoryMock>());
+  expect(getIt<InvitationRepositoryPort>(), isA<InvitationRepositoryMock>());
   expect(getIt<EmailSenderPort>(), isA<LoggingEmailSender>());
   expect(getIt<UserTrustEdgeCase>(), isA<UserTrustEdgeCase>());
   await getIt.getAsync<PgNotificationService>();

@@ -1,11 +1,11 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/data/repository/mock/data/users.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 
 import 'data/invitations.dart';
-import 'data/users.dart';
 
 @Injectable(
   as: InvitationRepositoryPort,
