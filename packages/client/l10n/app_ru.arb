@@ -919,6 +919,9 @@
       }
     }
   },
+  "inviteLapsedTitle": "Запрос закрыт",
+  "inviteLapsedExistingBody": "{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт.",
+  "inviteLapsedSignupBody": "{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт. Вам по-прежнему рады в Тентуре, и теперь вы на связи с {name}.",
   "tapToChooseLocation": "Нажмите, чтобы выбрать место",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"

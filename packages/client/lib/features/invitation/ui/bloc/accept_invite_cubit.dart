@@ -149,7 +149,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
       case InviteCallerStatus.alreadyFriends:
         _finishWithMessage(const InviteAlreadyFriendsMessage());
       case InviteCallerStatus.anonymous:
-        _bounceUnauthenticated(code);
+        _bounceUnauthenticated(code, preview: preview);
       case InviteCallerStatus.existingUser:
         final inviter = preview.inviter;
         if (inviter == null || inviter.id.isEmpty) {
@@ -159,19 +159,21 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
         emit(
           state.copyWith(
             status: StateStatus.isSuccess,
-            pendingInviter: Profile(
-              id: inviter.id,
-              displayName: inviter.displayName,
-              image: switch (inviter.imageId) {
-                final String imageId => ImageEntity(id: imageId),
-                null => null,
-              },
-            ),
+            pendingInviter: _inviterProfile(inviter),
             pendingBeacon: preview.beacon,
           ),
         );
     }
   }
+
+  Profile _inviterProfile(InvitePreviewInviter inviter) => Profile(
+    id: inviter.id,
+    displayName: inviter.displayName,
+    image: switch (inviter.imageId) {
+      final String imageId => ImageEntity(id: imageId),
+      null => null,
+    },
+  );
 
   void _finishWithMessage(
     LocalizableMessage? message, {
@@ -203,18 +205,27 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
         status: const StateIsSuccess(),
         pendingInviter: null,
         pendingBeacon: null,
+        pendingSignupCode: null,
       ),
     );
   }
 
-  void _bounceUnauthenticated(String code) {
+  void _bounceUnauthenticated(String code, {InvitePreview? preview}) {
     if (kIsWeb && goToLanding(invitePath: '/invite/$code')) {
       return;
     }
+    final beacon = preview?.beacon;
+    final inviter = preview?.inviter;
+    final showLapsedNotice =
+        !kIsWeb &&
+        beacon?.lapsed == true &&
+        inviter != null &&
+        inviter.id.isNotEmpty;
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
-        pendingInviter: null,
+        pendingInviter: showLapsedNotice ? _inviterProfile(inviter) : null,
+        pendingBeacon: showLapsedNotice ? beacon : null,
         pendingSignupCode: code,
       ),
     );
@@ -222,6 +233,12 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
 
   void clearPendingSignupNavigation() {
     if (state.pendingSignupCode == null) return;
-    emit(state.copyWith(pendingSignupCode: null));
+    emit(
+      state.copyWith(
+        pendingSignupCode: null,
+        pendingInviter: null,
+        pendingBeacon: null,
+      ),
+    );
   }
 }

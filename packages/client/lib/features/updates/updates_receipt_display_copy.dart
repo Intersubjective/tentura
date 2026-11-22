@@ -102,10 +102,14 @@ String? excerptFromPresentationPayload(String presentationPayloadJson) =>
 /// The actor's display name the server stored when it wrote an offer or
 /// invite-answer receipt (#700); null on rows written before the field, or
 /// when blank.
-String? actorNameFromPresentationPayload(String presentationPayloadJson) {
-  final name = _payloadString(presentationPayloadJson, 'actorName');
+String? actorNameFromPresentationPayload(String presentationPayloadJson) =>
+    _payloadActorName(_payloadMap(presentationPayloadJson));
+
+String? _payloadActorName(Map<Object?, Object?>? payload) {
+  final value = payload?['actorName'];
+  final name = value is String ? _nonBlank(value) : null;
   // The server placeholder «New member» reads in the app language (#660).
-  return name == null || name.isEmpty ? null : localizedDisplayName(name);
+  return name == null ? null : localizedDisplayName(name);
 }
 
 /// The [BeaconStatus] a status-change event moved the Request to.
@@ -829,6 +833,20 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? postAuthorName,
   String? partnerName,
 }) {
+  if (presentationKey == 'mutual_connection_formed') {
+    final payload = _payloadMap(presentationPayloadJson);
+    if (payload case {
+      'lapsedRequestTitle': final String requestTitle,
+    } when requestTitle.trim().isNotEmpty) {
+      final name = _nonBlank(actorName) ?? _payloadActorName(payload);
+      if (name != null) {
+        return UpdatesFeedRowCopy(
+          headline: l10n.inviteLapsedSignupBody(name, requestTitle.trim()),
+          body: '',
+        );
+      }
+    }
+  }
   final shared = isPost
       ? _postRowCopy(
           title: title,

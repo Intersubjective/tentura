@@ -13,22 +13,26 @@ class InvitationAcceptDialog extends StatelessWidget {
     BuildContext context, {
     required Profile profile,
     InvitePreviewBeacon? beacon,
+    bool signup = false,
   }) => showAdaptiveDialog<bool>(
     context: context,
     builder: (_) => InvitationAcceptDialog(
       profile: profile,
       beacon: beacon,
+      signup: signup,
     ),
   );
 
   const InvitationAcceptDialog({
     required this.profile,
     this.beacon,
+    this.signup = false,
     super.key,
   });
 
   final Profile profile;
   final InvitePreviewBeacon? beacon;
+  final bool signup;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +40,13 @@ class InvitationAcceptDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final beaconTitle = beacon?.title ?? '';
     final beaconSnippet = beacon?.snippet;
+    final lapsed = beacon?.lapsed ?? false;
     return AlertDialog.adaptive(
+      scrollable: lapsed,
       title: Text(
-        beacon != null
+        lapsed
+            ? l10n.inviteLapsedTitle
+            : beacon != null
             ? l10n.inviteAcceptBeaconTitle
             : l10n.confirmFriendAccept,
       ),
@@ -55,7 +63,19 @@ class InvitationAcceptDialog extends StatelessWidget {
             style: theme.textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),
-          if (beacon != null && beaconTitle.isNotEmpty) ...[
+          if (lapsed) ...[
+            const SizedBox(height: kSpacingSmall),
+            Text(
+              signup
+                  ? l10n.inviteLapsedSignupBody(profile.shownName, beaconTitle)
+                  : l10n.inviteLapsedExistingBody(
+                      profile.shownName,
+                      beaconTitle,
+                    ),
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ] else if (beacon != null && beaconTitle.isNotEmpty) ...[
             const SizedBox(height: kSpacingSmall),
             Text(
               beaconTitle,
@@ -77,14 +97,22 @@ class InvitationAcceptDialog extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ],
-          const SizedBox(height: kSpacingSmall),
-          MutualFriendsButton(userId: profile.id),
+          if (!signup) ...[
+            const SizedBox(height: kSpacingSmall),
+            MutualFriendsButton(userId: profile.id),
+          ],
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(l10n.buttonYes),
+          child: Text(
+            signup
+                ? l10n.buttonNext
+                : lapsed
+                ? l10n.inviteAccept
+                : l10n.buttonYes,
+          ),
         ),
         TextButton(
           onPressed: Navigator.of(context).pop,
