@@ -438,6 +438,10 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     /// Wire literal `'new_account'` or `'existing_account'` on inviteAccepted.
     String? inviteOrigin,
 
+    /// The title carried by a lapsed signup invitation. This snapshot is
+    /// addressed to the two parties to the invitation and grants no access.
+    String? lapsedRequestTitle,
+
     /// The user's own words the event carries — a message, a note, the text
     /// of an ask or promise — without the Request title or any boilerplate.
     ///

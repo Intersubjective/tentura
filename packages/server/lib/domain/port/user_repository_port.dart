@@ -11,6 +11,9 @@ typedef InvitedPostForwardCreated =
       String recipientId,
     );
 
+/// Reports the title of a Request that lapsed during an otherwise valid signup.
+typedef InvitedRequestLapsed = void Function(String requestTitle);
+
 /// Persistence port for users (implemented by the server user repository).
 abstract class UserRepositoryPort {
   Future<UserEntity> create({
@@ -25,6 +28,7 @@ abstract class UserRepositoryPort {
     required String displayName,
     String? handle,
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   });
 
   /// Seedless account with a single non-device credential (e.g. OIDC).
@@ -47,6 +51,7 @@ abstract class UserRepositoryPort {
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   });
 
   Future<UserEntity> getById(String id);

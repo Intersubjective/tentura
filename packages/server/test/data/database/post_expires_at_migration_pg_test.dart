@@ -20,8 +20,6 @@ const _statusClosed = 6;
 const _kindRequest = 0;
 const _kindPost = 1;
 
-const _checkViolation = '23514';
-
 // Seeded on the pre-migration schema.
 const _postPublished10hAgo = 'Bexpiresatupg01';
 const _postPublished100hAgo = 'Bexpiresatupg02';
@@ -267,24 +265,15 @@ FROM public.beacon WHERE id = 'Bexpiresatupd02'
         );
       });
 
-      test('a Request with an expires_at is rejected', () async {
-        await expectLater(
-          writer.execute('''
+      test('a Request can carry an explicit expiry', () async {
+        final row = (await writer.execute('''
 INSERT INTO public.beacon
   (id, user_id, title, description, status, kind, expires_at)
 VALUES ('Bexpiresatck01', '$_author', 'Request', 'd', $_statusOpen,
         $_kindRequest, now() + interval '1 hour')
-'''),
-          throwsA(
-            isA<ServerException>()
-                .having((e) => e.code, 'sqlstate', _checkViolation)
-                .having(
-                  (e) => e.constraintName,
-                  'constraint',
-                  'beacon_post_expires_at_ck',
-                ),
-          ),
-        );
+RETURNING expires_at = now() + interval '1 hour', expiry_warning_eligible
+''')).single;
+        expect(row, [true, false]);
       });
 
       test('a draft Post with an expires_at is accepted', () async {

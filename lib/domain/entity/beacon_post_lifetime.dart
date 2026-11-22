@@ -1,6 +1,6 @@
 import 'beacon_status.dart';
 
-/// Lifetime rules for a Post (`beacon.kind = 1`); Requests never expire.
+/// Lifetime rules for a Post (`beacon.kind = 1`).
 abstract final class BeaconPostLifetime {
   static const minHours = 1;
 

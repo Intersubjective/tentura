@@ -274,6 +274,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     _i11.InvitedPostForwardCreated? onPostForwardCreated,
+    _i11.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvited, [], {
@@ -282,6 +283,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #displayName: displayName,
               #handle: handle,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i6.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -292,6 +294,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #displayName: displayName,
                   #handle: handle,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),
@@ -342,6 +345,7 @@ class MockUserRepositoryPort extends _i1.Mock
     Map<String, Object?>? publicData,
     List<_i12.AssertedContact>? contacts = const [],
     _i11.InvitedPostForwardCreated? onPostForwardCreated,
+    _i11.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -353,6 +357,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #publicData: publicData,
               #contacts: contacts,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i6.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -366,6 +371,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #publicData: publicData,
                   #contacts: contacts,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),

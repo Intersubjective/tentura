@@ -1375,6 +1375,7 @@ class AttentionIntentCase {
     required String actorUserId,
     required String counterpartUserId,
     required String sourceEventKey,
+    String? lapsedRequestTitle,
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
@@ -1389,9 +1390,12 @@ class AttentionIntentCase {
       priority: NotificationPriority.normal,
       kind: NotificationKind.inviteAccepted,
       title: 'New connection',
-      body: actorName.isEmpty
-          ? InviteAcceptedCopy.connected.en
-          : 'You and $actorName are now connected.',
+      body: InviteAcceptedCopy.withLapsedRequest(
+        actorName.isEmpty
+            ? InviteAcceptedCopy.connected.en
+            : 'You and $actorName are now connected.',
+        lapsedRequestTitle,
+      ),
       actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: blocked
@@ -1403,6 +1407,7 @@ class AttentionIntentCase {
                 role: AttentionRecipientRoleFacts(
                   targetEntityId: actorUserId,
                   actorUserId: actorUserId,
+                  lapsedRequestTitle: lapsedRequestTitle,
                 ),
               ),
             ],
@@ -1489,6 +1494,7 @@ class AttentionIntentCase {
   Future<AttentionDispatchIntent> inviteAccepted({
     required InviteAcceptedNotificationIntent notification,
     required String sourceEventKey,
+    String? lapsedRequestTitle,
   }) async {
     final accepterName = notification.accepterDisplayName.trim();
     final handle = notification.accepterHandle.trim();
@@ -1515,7 +1521,7 @@ class AttentionIntentCase {
       priority: NotificationPriority.normal,
       kind: NotificationKind.inviteAccepted,
       title: title,
-      body: body,
+      body: InviteAcceptedCopy.withLapsedRequest(body, lapsedRequestTitle),
       actionUrl: notification.actionUrl,
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: blocked
@@ -1528,6 +1534,7 @@ class AttentionIntentCase {
                   targetEntityId: notification.accepterUserId,
                   actorUserId: notification.accepterUserId,
                   inviteOrigin: notification.inviteOrigin,
+                  lapsedRequestTitle: lapsedRequestTitle,
                 ),
               ),
             ],

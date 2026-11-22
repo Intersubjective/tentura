@@ -597,7 +597,14 @@ class NotificationCopyRenderer {
     }
     return NotificationCopy(
       headline: headline,
-      sentence: sentence,
+      sentence: InviteAcceptedCopy.withLapsedRequest(
+        sentence,
+        switch (facts['lapsedRequestTitle']) {
+          final String title => title,
+          _ => null,
+        },
+        ru: ru,
+      ),
       excerpt: excerpt,
       entityLabel: entityScoped ? _entityLabel(identity, ru) : null,
     );

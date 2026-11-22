@@ -23,6 +23,20 @@ enum InviteAcceptedCopy {
   final String en;
   final String ru;
 
+  static String withLapsedRequest(
+    String body,
+    String? requestTitle, {
+    bool ru = false,
+  }) {
+    if (requestTitle == null) return body;
+    final title = requestTitle.trim();
+    final label = title.isEmpty ? '' : ' «$title»';
+    final outcome = ru
+        ? 'Запрос$label больше недоступен по этому приглашению.'
+        : 'The Request$label is no longer available through this invitation.';
+    return '$body $outcome';
+  }
+
   /// The variant whose English body is exactly [body], or null.
   static InviteAcceptedCopy? forStoredBody(String body) {
     for (final copy in values) {

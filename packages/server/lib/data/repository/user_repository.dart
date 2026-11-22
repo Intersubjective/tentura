@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
+import 'beacon_access_repository.dart';
 import 'beacon_hierarchy_repository.dart';
 import 'post_lock_repository.dart';
 
@@ -146,7 +147,9 @@ class UserRepository implements UserRepositoryPort {
 
   /// Signup genealogy can inherit blocks, whose trigger takes the hierarchy
   /// lock. Take it before the claim, together with the Post lock for a Post.
-  Future<BeaconEntity?> _lockInvitedSignupScope(Invitation invitation) async {
+  Future<({BeaconEntity beacon, bool canForward})?> _lockInvitedSignupScope(
+    Invitation invitation,
+  ) async {
     final beaconId = invitation.beaconId;
     if (beaconId == null) {
       await BeaconHierarchyRepository(_database).lockMutationScope();
@@ -175,12 +178,27 @@ class UserRepository implements UserRepositoryPort {
       kind: BeaconKind.fromValue(row.kind),
       forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
     );
+    final expiresAt = row.expiresAt?.dateTime;
+    final now = DateTime.timestamp();
+    if (beacon.kind == BeaconKind.request) {
+      final canForward =
+          BeaconForwardPolicy.canForward(
+            beacon: beacon,
+            senderId: invitation.userId,
+          ) &&
+          (expiresAt == null || expiresAt.isAfter(now)) &&
+          await BeaconAccessRepository(_database).canReadContent(
+            beaconId: beaconId,
+            viewerId: invitation.userId,
+          );
+      return (beacon: beacon, canForward: canForward);
+    }
     if (!beacon.allowsForward ||
         BeaconPostLifetime.isExpired(
           kind: row.kind,
           status: beacon.status,
-          expiresAt: row.expiresAt?.dateTime,
-          now: DateTime.timestamp(),
+          expiresAt: expiresAt,
+          now: now,
         )) {
       throw IdNotFoundException(id: beaconId);
     }
@@ -192,7 +210,7 @@ class UserRepository implements UserRepositoryPort {
         description: 'Forwarding is off for this post',
       );
     }
-    return beacon;
+    return (beacon: beacon, canForward: true);
   }
 
   /// Called inside the accepting transaction. Keep every ancestor locked until
@@ -222,6 +240,7 @@ class UserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -246,7 +265,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final beacon = await _lockInvitedSignupScope(invitation);
+    final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _database.managers.users.createReturning(
       (o) => o(
@@ -278,8 +297,9 @@ class UserRepository implements UserRepositoryPort {
     await _finishInvitedSignup(
       invitation,
       user,
-      beacon,
+      scope,
       onPostForwardCreated,
+      onRequestLapsed,
     );
 
     return userModelToEntity(user);
@@ -370,6 +390,7 @@ class UserRepository implements UserRepositoryPort {
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -394,7 +415,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    final beacon = await _lockInvitedSignupScope(invitation);
+    final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _createUserWithCredential(
       type: type,
@@ -428,8 +449,9 @@ class UserRepository implements UserRepositoryPort {
     await _finishInvitedSignup(
       invitation,
       descendantUser,
-      beacon,
+      scope,
       onPostForwardCreated,
+      onRequestLapsed,
     );
 
     return user;
@@ -438,14 +460,20 @@ class UserRepository implements UserRepositoryPort {
   Future<void> _finishInvitedSignup(
     Invitation invitation,
     User user,
-    BeaconEntity? beacon,
+    ({BeaconEntity beacon, bool canForward})? scope,
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   ) async {
+    final beacon = scope?.beacon;
+    var canForward = scope?.canForward ?? false;
     final parentEdgeId = invitation.parentForwardEdgeId;
-    if (beacon != null &&
+    if (canForward &&
         parentEdgeId != null &&
         !await _lockActiveInviteParentChain(parentEdgeId)) {
-      throw IdNotFoundException(id: parentEdgeId);
+      if (beacon?.kind == BeaconKind.post) {
+        throw IdNotFoundException(id: parentEdgeId);
+      }
+      canForward = false;
     }
 
     await _upsertInviteContact(
@@ -461,6 +489,7 @@ class UserRepository implements UserRepositoryPort {
         .filter((e) => e.id(invitation.userId))
         .getSingle();
     final forwardCreated =
+        canForward &&
         beacon != null &&
         await _materializeBeaconInviteForward(
           beaconId: beacon.id,
@@ -484,6 +513,8 @@ class UserRepository implements UserRepositoryPort {
     );
     if (beacon != null && forwardCreated) {
       await onPostForwardCreated?.call(beacon, user.id);
+    } else if (beacon != null && !canForward) {
+      onRequestLapsed?.call(beacon.title);
     }
   }
 
