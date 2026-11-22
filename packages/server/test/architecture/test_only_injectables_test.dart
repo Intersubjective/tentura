@@ -123,8 +123,6 @@ const _testSupportRepositories = {
   ),
 };
 
-const _unmoved = {'lib/data/service/email/logging_email_sender.dart'};
-
 void main() {
   group('Repository mocks owned by test support', () {
     final mockFiles = {
@@ -206,9 +204,6 @@ void main() {
           if (Directory(_legacyMockDirectory).existsSync())
             _legacyMockDirectory,
         ],
-        'obsolete allowlist entries': _unmoved.where(
-          (path) => path.startsWith('$_legacyMockDirectory/'),
-        ),
         'legacy path references': staleReferences,
         'imports outside test support': misplacedImports,
       }..removeWhere((_, findings) => findings.isEmpty);
@@ -378,7 +373,7 @@ void main() {
     for (final file in _dartFiles('lib')) {
       final annotations = _TestOnlyAnnotations();
       _parse(file).accept(annotations);
-      if (annotations.found && !_unmoved.contains(file.path)) {
+      if (annotations.found) {
         offenders.add(file.path);
       }
     }
@@ -388,6 +383,61 @@ void main() {
       isEmpty,
       reason: 'Move these test-only injectable registrations to test/support.',
     );
+  });
+
+  test('shared server test doubles are registered only by test DI', () {
+    final violations = <String>[];
+    if (Directory(_legacyMockDirectory).existsSync()) {
+      violations.add('Obsolete mock directory: $_legacyMockDirectory');
+    }
+    for (final file in _dartFiles('lib')) {
+      final unit = _parse(file);
+      final annotations = _TestOnlyAnnotations();
+      unit.accept(annotations);
+      if (annotations.found) {
+        violations.add('${file.path}: test-only Injectable annotation');
+      }
+      if (const [
+        '.config.dart',
+        '.freezed.dart',
+        '.g.dart',
+        '.gr.dart',
+        '.schema.dart',
+      ].any(file.path.endsWith)) {
+        continue;
+      }
+      for (final declaration
+          in unit.declarations.whereType<ClassDeclaration>()) {
+        final name = declaration.namePart.typeName.lexeme;
+        if ((name.endsWith('Mock') || file.path.endsWith('_mock.dart')) &&
+            declaration.implementsClause != null) {
+          violations.add(
+            '${file.path}: $name implements a production interface',
+          );
+        }
+      }
+    }
+
+    final config = File('lib/app/di.config.dart');
+    final graph = _GeneratedGraph(config);
+    final testDirectory = Directory('test').absolute.uri.path;
+    for (final uri in _imports(config)) {
+      if (uri.path.startsWith(testDirectory)) {
+        violations.add('${config.path}: imports ${uri.path}');
+      }
+    }
+    for (final binding in graph.bindings) {
+      if (unorderedEquals(['test']).matches(graph.environments(binding), {})) {
+        violations.add(
+          '${config.path}: test-only binding for ${_typeName(binding)}',
+        );
+      }
+      final implementation = _implementation(binding)?.group(2);
+      if (implementation != null && implementation.endsWith('Mock')) {
+        violations.add('${config.path}: registers $implementation');
+      }
+    }
+    expect([...violations, ..._testGraphViolations()]..sort(), isEmpty);
   });
 
   test(
@@ -521,6 +571,70 @@ void main() {
   );
 }
 
+List<String> _testGraphViolations() {
+  const helper = 'test/support/test_di.dart';
+  final mockDirectory = Directory(_mockDirectory).absolute.uri.path;
+  final violations = <String>[];
+  final initializerFiles = <String>[];
+  for (final file in _dartFiles('test')) {
+    final source = file.readAsStringSync();
+    if (!source.contains('Environment') && !source.contains('InjectableInit')) {
+      continue;
+    }
+    final annotations = _TestOnlyAnnotations();
+    parseString(path: file.path, content: source).unit.accept(annotations);
+    initializerFiles.addAll(List.filled(annotations.initializers, file.path));
+    if (annotations.found &&
+        !file.absolute.uri.path.startsWith(mockDirectory)) {
+      violations.add(
+        '${file.path}: test-only injectable outside test DI sources',
+      );
+    }
+  }
+  if (!orderedEquals([helper]).matches(initializerFiles, {})) {
+    violations.add(
+      'Expected a single test DI initializer in $helper. Found $initializerFiles',
+    );
+  }
+
+  final graph = _GeneratedGraph(File('test/support/test_di.config.dart'));
+  final bindings = <String?, List<String?>>{};
+  for (final binding in graph.bindings) {
+    final constructor = _implementation(binding);
+    final localSource = constructor == null
+        ? null
+        : graph.implementationFile(constructor.group(1)!)?.absolute.uri.path;
+    final port = _typeName(binding);
+    if (localSource == null ||
+        !localSource.startsWith(mockDirectory) ||
+        !unorderedEquals(['test']).matches(graph.environments(binding), {})) {
+      violations.add(
+        '${graph.file.path}: $port must bind a test-support implementation for test only',
+      );
+      continue;
+    }
+    (bindings[port] ??= []).add(constructor?.group(2));
+  }
+  final expectedMocks = {
+    for (final (implementation, port) in _testSupportRepositories.values)
+      port: '${implementation}Mock',
+    _repositoryPort: _mockClass,
+  };
+  for (final entry in expectedMocks.entries) {
+    if (!orderedEquals([entry.value]).matches(bindings[entry.key], {})) {
+      violations.add(
+        '${graph.file.path}: ${entry.key} must bind ${entry.value}',
+      );
+    }
+  }
+  if (bindings['EmailSenderPort']?.length != 1) {
+    violations.add(
+      '${graph.file.path}: missing unique test email sender binding',
+    );
+  }
+  return violations;
+}
+
 Iterable<File> _dartFiles(String directory) => Directory(directory)
     .listSync(recursive: true)
     .whereType<File>()
@@ -580,9 +694,11 @@ bool _testOnly(Annotation annotation) {
 
 class _TestOnlyAnnotations extends RecursiveAstVisitor<void> {
   bool found = false;
+  int initializers = 0;
 
   @override
   void visitAnnotation(Annotation node) {
+    if (_annotationName(node) == 'InjectableInit') initializers++;
     if (const {
           'Injectable',
           'Singleton',

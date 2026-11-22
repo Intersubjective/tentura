@@ -70,6 +70,9 @@ repositories.
 - Prod repos are env-scoped `env: [Environment.dev, Environment.prod]`;
   Mockito stubs in `packages/client/lib/data/repository/mock/client_repository_mocks.dart`
   register with `env: [Environment.test], order: 1`.
+- Server test doubles live in `packages/server/test/support/mocks/`.
+  `configureTestDependencies` in `packages/server/test/support/test_di.dart`
+  registers them through `initTestMocks` before initializing the application graph.
 - Constructor injection preferred; `@FactoryMethod()` for async init.
 - After DI changes: run build_runner; client tests need
   `flutter test --dart-define=ENV=test` (wrap with `scripts/run_with_test_cleanup.sh`, AGENTS.md § Verify).

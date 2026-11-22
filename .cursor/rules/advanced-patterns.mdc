@@ -54,15 +54,16 @@ export 'lifecycle_handler_native.dart'
 
 ## 5. Test Doubles & Mocks
 
-**Pattern**: Environment-based injection
+Keep server test doubles in `packages/server/test/support/mocks/`. Bootstrap the
+test graph with `configureTestDependencies` in
+`packages/server/test/support/test_di.dart`. It registers the doubles through
+`initTestMocks` before initializing the application graph.
+
+Bind each double to its port for the test environment.
 ```dart
-@Injectable(as: UserRepository, env: [Environment.test], order: 1)
-class UserRepositoryMock implements UserRepository { ... }
+@Injectable(as: UserRepositoryPort, env: [Environment.test], order: 1)
+class UserRepositoryMock implements UserRepositoryPort { ... }
 ```
-
-**Organization**: `data/repository/mock/`, `*_mock.dart` suffix.
-
-**Rules**: All repos have mocks, separate directory, environment-based injection, full interface implementation.
 
 ## 6. State Management
 

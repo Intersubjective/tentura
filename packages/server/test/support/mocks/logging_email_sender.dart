@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/entity/account_deletion_request_email_payl
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 
-/// Test-environment sender: logs instead of calling Resend.
+/// Logs email delivery in server tests.
 @Singleton(as: EmailSenderPort, env: [Environment.test], order: 1)
 class LoggingEmailSender implements EmailSenderPort {
   static final _log = Logger('LoggingEmailSender');

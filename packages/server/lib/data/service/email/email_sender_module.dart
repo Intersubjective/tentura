@@ -12,8 +12,7 @@ import 'test_domain_suppressing_email_sender.dart';
 /// `EMAIL_DEBUG_SINK_DIR` is set (local + automated e2e flows); test-class
 /// addresses dropped before Resend when `EMAIL_SUPPRESS_TEST_DOMAINS`; QA
 /// capture decorator outermost when `QA_AUTH_ENABLED` (remote dev agents), so
-/// QA magic links are still captured. The test environment keeps
-/// `LoggingEmailSender` via its own annotation.
+/// QA magic links are still captured.
 @module
 abstract class EmailSenderModule {
   @Singleton(env: [Environment.dev, Environment.prod], order: 1)

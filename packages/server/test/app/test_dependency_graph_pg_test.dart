@@ -11,9 +11,11 @@ import 'package:test/test.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/repository/fcm_remote_repository_module.dart';
 import 'package:tentura_server/data/service/fcm_service.dart';
+import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
@@ -30,6 +32,7 @@ import 'package:tentura_server/env.dart';
 import '../support/disposable_pg_target.dart';
 import '../support/mocks/beacon_repository_mock.dart';
 import '../support/test_dependency_graph_expectations.dart';
+import '../support/test_di.dart' show configureTestDependencies;
 import '../support/test_di.config.dart';
 import '../support/mocks/data/users.dart';
 
@@ -75,6 +78,38 @@ Future<void> main() async {
         ..initTestMocks(environment: Environment.test);
       addTearDown(testOnly.reset);
       await expectTestSupportRepositoryBindings(testOnly);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'the live test graph gets its email sender from the test initializer',
+    () async {
+      final warnAboutMultipleDatabases =
+          driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+      final logLevel = Logger.root.level;
+      // The application graph uses separate executors for its database handles.
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      addTearDown(() {
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases =
+            warnAboutMultipleDatabases;
+        Logger.root.level = logLevel;
+      });
+      addTearDown(getIt.reset);
+      await configureTestDependencies(target.databaseEnv);
+      await getIt.getAsync<PgNotificationService>();
+      final liveSender = getIt<EmailSenderPort>();
+
+      final testOnly = GetIt.asNewInstance()
+        ..registerSingleton<Logger>(getIt<Logger>());
+      addTearDown(testOnly.reset);
+      testOnly.initTestMocks(environment: Environment.test);
+
+      expect(
+        testOnly.maybeGet<EmailSenderPort>()?.runtimeType,
+        liveSender.runtimeType,
+        reason: 'The test initializer must supply the live test email sender.',
+      );
     },
     skip: skipReason,
   );

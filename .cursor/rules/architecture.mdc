@@ -161,6 +161,7 @@ See `advanced-patterns.mdc` for `RemoteRepository`, `StateBase`, and `StateStatu
 - **Injectable environments**: Production repository implementations are registered with `env: [Environment.dev, Environment.prod]` so they do not collide with `Environment.test` bindings.
 - **Mocks**: All `GetIt`-registered repositories have Mockito-based stubs in `packages/client/lib/data/repository/mock/client_repository_mocks.dart`, registered with `@Injectable(..., env: [Environment.test], order: 1)`.
 - **DI bootstrap**: `configureDependencies()` passes `Environment.test` when built with `--dart-define=ENV=test` (see CI pipeline).
+- **Server test doubles** live in `packages/server/test/support/mocks/`. Call `configureTestDependencies` from `packages/server/test/support/test_di.dart` to register them through `initTestMocks` before initializing the application graph.
 - **Remote HTTP repositories** extend `RemoteRepository` and use `requestDataOnlineOrThrow` for GraphQL/Ferry calls; UI must not import `RemoteApiService` except through data-layer types (e.g. `AppUpdateRepository` for version streams).
 
 ## Static enforcement (`tentura_lints` + CI)

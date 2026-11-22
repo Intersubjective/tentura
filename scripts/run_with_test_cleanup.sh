@@ -23,7 +23,8 @@
 # per-user runtime tmpfs ($XDG_RUNTIME_DIR, no usrquota), then /tmp, whichever
 # first has TENTURA_TEST_TMP_MIN_MB free (default 3072); if neither has, the
 # run refuses to start rather than fall back to disk. scripts/run_tests.sh
-# keeps server runs within that by running big file lists in chunks.
+# keeps server runs within that by running big file lists in chunks. The
+# wrapper also batches direct pool-size-one PostgreSQL runs with explicit files.
 # Explicit TMPDIR values (including sandbox-provided ones) are preserved.
 # The leftover sweep covers both /tmp and the effective TMPDIR.
 #
@@ -686,6 +687,53 @@ else:
 PY
 }
 
+# The pool-size-one check may pass the entire PG inventory to one dart test.
+# Only split the options whose behavior is preserved across independent runs.
+batch_pool_one_pg_tests() {
+  local -n command_args="$1"
+  local first_file=2 pg=0 file
+  local chunk_size="${TENTURA_TEST_CHUNK:-80}"
+  [[ "${TENTURA_TEST_PG_POOL_SIZE:-}" == 1 &&
+     "${command_args[0]##*/}" == dart && "${command_args[1]:-}" == test &&
+     "$chunk_size" =~ ^[1-9][0-9]*$ ]] || return 0
+  while (( first_file < ${#command_args[@]} )); do
+    case "${command_args[first_file]}" in
+      --tags) [[ "${command_args[first_file+1]:-}" == pg ]] || return 0; pg=1 ;;
+      --reporter) [[ "${command_args[first_file+1]:-}" == expanded ]] || return 0 ;;
+      -j|--concurrency|--exclude-tags) ;;
+      *) break ;;
+    esac
+    first_file=$((first_file + 2))
+  done
+  (( pg && ${#command_args[@]} - first_file > chunk_size )) || return 0
+  for file in "${command_args[@]:first_file}"; do
+    [[ "$file" == *_test.dart && "$file" != -* && -f "$file" ]] || return 0
+  done
+  command_args=("$SELF" --run-pg-batches "$chunk_size" "$first_file" "${command_args[@]}")
+}
+
+# Each compiler exits before the next batch starts, releasing its kernels.
+# The outer wrapper owns the shared lock, timeout, watchdog and cleanup.
+run_pg_batches() {
+  local chunk_size="$1" first_file="$2"
+  shift 2
+  local -a command_args=("$@")
+  local total=$(( $# - first_file )) offset=0 rc=0 batch_rc ran=0
+  local no_tests=79 # dart test's status when filters select no tests.
+  while (( offset < total )); do
+    log "PostgreSQL batch $((offset / chunk_size + 1))/$(((total + chunk_size - 1) / chunk_size))"
+    batch_rc=0
+    "${command_args[@]:0:first_file}" "${command_args[@]:first_file+offset:chunk_size}" || batch_rc=$?
+    if (( batch_rc != no_tests )); then
+      ran=1
+      if (( rc == 0 )); then rc=$batch_rc; fi
+    fi
+    offset=$((offset + chunk_size))
+  done
+  if (( ! ran )); then return "$no_tests"; fi
+  return "$rc"
+}
+
 main() {
   local timeout="$DEFAULT_TIMEOUT" sweep_only=0 use_lock=1 lock_wait="3h"
   local inactivity="${TEST_INACTIVITY_TIMEOUT:-10m}"
@@ -693,6 +741,7 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --reaper) shift; run_reaper "$@"; exit 0 ;;
+      --run-pg-batches) shift; run_pg_batches "$@"; exit 0 ;;
       --sweep-only) sweep_only=1; shift ;;
       --timeout)
         timeout="$2"
@@ -747,6 +796,8 @@ main() {
     wait_secs="$(parse_duration_seconds "$lock_wait")" || { log "invalid --lock-wait '$lock_wait'"; exit 2; }
     CMD_SUMMARY="$(pwd | sed "s|$HOME|~|"): ${cmd[*]:0:6}" acquire_test_lock "$wait_secs" || exit 75
   fi
+
+  batch_pool_one_pg_tests cmd
 
   local run_id
   run_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
