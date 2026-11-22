@@ -7,26 +7,27 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i8;
-import 'package:tentura_root/domain/enums.dart' as _i12;
+import 'package:tentura_root/domain/enums.dart' as _i13;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i3;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i7;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i4;
+import 'package:tentura_server/domain/entity/invite_acceptance.dart' as _i9;
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart'
-    as _i16;
+    as _i17;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/user_presence_entity.dart' as _i11;
+import 'package:tentura_server/domain/entity/user_presence_entity.dart' as _i12;
 import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart'
-    as _i14;
-import 'package:tentura_server/domain/port/invitation_repository_port.dart'
-    as _i9;
-import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart'
     as _i15;
-import 'package:tentura_server/domain/port/user_presence_repository_port.dart'
+import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i10;
+import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart'
+    as _i16;
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart'
+    as _i11;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i5;
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart'
-    as _i13;
+    as _i14;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -542,6 +543,25 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<_i9.InviteAcceptance> acceptRequestInvite({
+    required String? invitationId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptRequestInvite, [], {
+              #invitationId: invitationId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<_i9.InviteAcceptance>.value(
+              _i9.InviteAcceptance.accepted,
+            ),
+            returnValueForMissingStub: _i6.Future<_i9.InviteAcceptance>.value(
+              _i9.InviteAcceptance.accepted,
+            ),
+          )
+          as _i6.Future<_i9.InviteAcceptance>);
+
+  @override
   _i6.Future<bool> bindMutual({
     required String? invitationId,
     required String? userId,
@@ -565,7 +585,7 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockInvitationRepositoryPort extends _i1.Mock
-    implements _i9.InvitationRepositoryPort {
+    implements _i10.InvitationRepositoryPort {
   @override
   _i6.Future<_i4.InvitationEntity?> getById({required String? invitationId}) =>
       (super.noSuchMethod(
@@ -670,23 +690,23 @@ class MockInvitationRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUserPresenceRepositoryPort extends _i1.Mock
-    implements _i10.UserPresenceRepositoryPort {
+    implements _i11.UserPresenceRepositoryPort {
   @override
-  _i6.Future<_i11.UserPresenceEntity?> get(String? userId) =>
+  _i6.Future<_i12.UserPresenceEntity?> get(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#get, [userId]),
-            returnValue: _i6.Future<_i11.UserPresenceEntity?>.value(),
+            returnValue: _i6.Future<_i12.UserPresenceEntity?>.value(),
             returnValueForMissingStub:
-                _i6.Future<_i11.UserPresenceEntity?>.value(),
+                _i6.Future<_i12.UserPresenceEntity?>.value(),
           )
-          as _i6.Future<_i11.UserPresenceEntity?>);
+          as _i6.Future<_i12.UserPresenceEntity?>);
 
   @override
   _i6.Future<void> update(
     String? userId, {
     DateTime? lastSeenAt,
     DateTime? lastNotifiedAt,
-    _i12.UserPresenceStatus? status,
+    _i13.UserPresenceStatus? status,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
@@ -708,7 +728,7 @@ class MockUserPresenceRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookupPort extends _i1.Mock
-    implements _i13.VoteUserFriendshipLookupPort {
+    implements _i14.VoteUserFriendshipLookupPort {
   @override
   _i6.Future<Set<String>> reciprocalPositivePeerIds({
     required String? viewerId,
@@ -785,7 +805,7 @@ class MockVoteUserFriendshipLookupPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomCoParticipantLookupPort extends _i1.Mock
-    implements _i14.BeaconRoomCoParticipantLookupPort {
+    implements _i15.BeaconRoomCoParticipantLookupPort {
   @override
   _i6.Future<Set<String>> coParticipantPeerIds({
     required String? viewerId,
@@ -819,9 +839,9 @@ class MockBeaconRoomCoParticipantLookupPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockRoomMessageSnapshotLookupPort extends _i1.Mock
-    implements _i15.RoomMessageSnapshotLookupPort {
+    implements _i16.RoomMessageSnapshotLookupPort {
   @override
-  _i6.Future<_i16.RoomMessageSnapshot?> findEligibleInsert({
+  _i6.Future<_i17.RoomMessageSnapshot?> findEligibleInsert({
     required String? messageId,
     required String? beaconId,
   }) =>
@@ -830,9 +850,9 @@ class MockRoomMessageSnapshotLookupPort extends _i1.Mock
               #messageId: messageId,
               #beaconId: beaconId,
             }),
-            returnValue: _i6.Future<_i16.RoomMessageSnapshot?>.value(),
+            returnValue: _i6.Future<_i17.RoomMessageSnapshot?>.value(),
             returnValueForMissingStub:
-                _i6.Future<_i16.RoomMessageSnapshot?>.value(),
+                _i6.Future<_i17.RoomMessageSnapshot?>.value(),
           )
-          as _i6.Future<_i16.RoomMessageSnapshot?>);
+          as _i6.Future<_i17.RoomMessageSnapshot?>);
 }

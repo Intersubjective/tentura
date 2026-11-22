@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
@@ -148,7 +149,7 @@ WHERE source_event_key IN (@accepted, @mutual)
     {'accepted': 'invitation:$id:accepted', 'mutual': 'invitation:$id:mutual'},
   );
 
-  Future<bool> accept(String id) =>
+  Future<InviteAcceptance> accept(String id) =>
       invitations.accept(invitationId: id, userId: _invitee);
 
   // The exception exposes the requested ID through its public description.
@@ -163,7 +164,7 @@ WHERE source_event_key IN (@accepted, @mutual)
     final inviteId = await createInvite(beaconId: requestId);
     expect(await friendshipVotes(), isEmpty);
 
-    expect(await accept(inviteId), isTrue);
+    expect(await accept(inviteId), InviteAcceptance.accepted);
 
     final claim = await readClaim(inviteId);
     expect(claim[0], _invitee);
@@ -207,7 +208,7 @@ WHERE source_event_key IN (@accepted, @mutual)
         expect(await friendshipVotes(), isEmpty);
 
         final freshId = await createInvite();
-        expect(await accept(freshId), isTrue);
+        expect(await accept(freshId), InviteAcceptance.accepted);
         expect(
           await friendshipVotes(),
           unorderedEquals([

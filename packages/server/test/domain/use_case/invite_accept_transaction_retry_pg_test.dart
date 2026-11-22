@@ -12,6 +12,7 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -464,7 +465,7 @@ WHERE source_event_key LIKE @prefix
               expect(await friendship(), isEmpty);
               await fault.arm(invite, error.value);
 
-              expect(await accept(invite), isTrue);
+              expect(await accept(invite), InviteAcceptance.accepted);
               expect(await fault.attempts(), _attemptBudget);
               await expectInvitation(invite, _existingUser);
               expect(

@@ -12,6 +12,7 @@ import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -133,14 +134,14 @@ WHERE id = @code
     return invite.id;
   }
 
-  Future<bool> acceptAsFriend(String code) =>
+  Future<InviteAcceptance> acceptAsFriend(String code) =>
       invitations.acceptAsExisting(code: code, userId: _friend);
 
   group('Plain invites between mutual friends', () {
     test('accepting records the friend and the acceptance time', () async {
       final code = await issuePlainInvite();
 
-      expect(await acceptAsFriend(code), isTrue);
+      expect(await acceptAsFriend(code), InviteAcceptance.accepted);
 
       final accepted = await readInvite(code);
       expect(accepted.invitedId, _friend);
@@ -151,7 +152,7 @@ WHERE id = @code
       'reusing an accepted code is refused and preserves the claim',
       () async {
         final code = await issuePlainInvite();
-        expect(await acceptAsFriend(code), isTrue);
+        expect(await acceptAsFriend(code), InviteAcceptance.accepted);
         final firstClaim = await readInvite(code);
 
         await expectLater(
@@ -171,7 +172,7 @@ WHERE id = @code
         final code = await issuePlainInvite();
         expect(
           await invitations.acceptAsExisting(code: code, userId: _otherInvitee),
-          isTrue,
+          InviteAcceptance.accepted,
         );
         final firstClaim = await readInvite(code);
         expect(firstClaim.invitedId, _otherInvitee);

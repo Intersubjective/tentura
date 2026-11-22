@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 /// Called inside the signup transaction after inserting a new invite forward,
@@ -141,6 +142,12 @@ abstract class UserRepositoryPort {
   });
 
   Future<void> deleteById({required String id});
+
+  /// Consumes a Request invite and grants admission only while it can forward.
+  Future<InviteAcceptance> acceptRequestInvite({
+    required String invitationId,
+    required String userId,
+  });
 
   /// [onForwardCreated] runs inside the accepting transaction only when a
   /// beacon invite inserts a new forward edge, never for an existing edge.

@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite/invite_origin.dart';
@@ -26,6 +27,8 @@ import 'beacon_hierarchy_repository.dart';
 import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/user_entity.dart';
+
+enum _InviteAcceptanceMode { friendship, forwardOnly, requestAdmission }
 
 @Singleton(
   as: UserRepositoryPort,
@@ -168,29 +171,15 @@ class UserRepository implements UserRepositoryPort {
     }
     row = await read();
     if (row == null) throw IdNotFoundException(id: beaconId);
-    final beacon = BeaconEntity(
-      id: row.id,
-      title: row.title,
-      author: UserEntity(id: row.userId ?? ''),
-      createdAt: row.createdAt.dateTime,
-      updatedAt: row.updatedAt.dateTime,
-      status: BeaconStatus.fromSmallint(row.status),
-      kind: BeaconKind.fromValue(row.kind),
-      forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
-    );
+    final beacon = _inviteBeacon(row);
     final expiresAt = row.expiresAt?.dateTime;
     final now = DateTime.timestamp();
     if (beacon.kind == BeaconKind.request) {
-      final canForward =
-          BeaconForwardPolicy.canForward(
-            beacon: beacon,
-            senderId: invitation.userId,
-          ) &&
-          (expiresAt == null || expiresAt.isAfter(now)) &&
-          await BeaconAccessRepository(_database).canReadContent(
-            beaconId: beaconId,
-            viewerId: invitation.userId,
-          );
+      final canForward = await _canForwardRequestInvite(
+        beacon,
+        expiresAt: expiresAt,
+        issuerId: invitation.userId,
+      );
       return (beacon: beacon, canForward: canForward);
     }
     if (!beacon.allowsForward ||
@@ -212,6 +201,29 @@ class UserRepository implements UserRepositoryPort {
     }
     return (beacon: beacon, canForward: true);
   }
+
+  BeaconEntity _inviteBeacon(Beacon row) => BeaconEntity(
+    id: row.id,
+    title: row.title,
+    author: UserEntity(id: row.userId ?? ''),
+    createdAt: row.createdAt.dateTime,
+    updatedAt: row.updatedAt.dateTime,
+    status: BeaconStatus.fromSmallint(row.status),
+    kind: BeaconKind.fromValue(row.kind),
+    forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
+  );
+
+  Future<bool> _canForwardRequestInvite(
+    BeaconEntity beacon, {
+    required DateTime? expiresAt,
+    required String issuerId,
+  }) async =>
+      BeaconForwardPolicy.canForward(beacon: beacon, senderId: issuerId) &&
+      (expiresAt == null || expiresAt.isAfter(DateTime.timestamp())) &&
+      await BeaconAccessRepository(_database).canReadContent(
+        beaconId: beacon.id,
+        viewerId: issuerId,
+      );
 
   /// Called inside the accepting transaction. Keep every ancestor locked until
   /// commit so a concurrent leave cannot invalidate admission before insertion.
@@ -919,10 +931,37 @@ class UserRepository implements UserRepositoryPort {
       _database.managers.users.filter((e) => e.id(id)).delete();
 
   @override
+  Future<InviteAcceptance> acceptRequestInvite({
+    required String invitationId,
+    required String userId,
+  }) => _acceptInvite(
+    invitationId: invitationId,
+    userId: userId,
+    mode: _InviteAcceptanceMode.requestAdmission,
+  );
+
+  @override
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
+    Future<void> Function()? onForwardCreated,
+  }) async {
+    final result = await _acceptInvite(
+      invitationId: invitationId,
+      userId: userId,
+      mode: bindFriendship
+          ? _InviteAcceptanceMode.friendship
+          : _InviteAcceptanceMode.forwardOnly,
+      onForwardCreated: onForwardCreated,
+    );
+    return result.isConsumed;
+  }
+
+  Future<InviteAcceptance> _acceptInvite({
+    required String invitationId,
+    required String userId,
+    required _InviteAcceptanceMode mode,
     Future<void> Function()? onForwardCreated,
   }) => _database.withJoinedTransaction(() async {
     final invitation = await _database.managers.invitations
@@ -949,9 +988,11 @@ class UserRepository implements UserRepositoryPort {
 
     final beaconId = invitation.beaconId;
     final parentEdgeId = invitation.parentForwardEdgeId;
+    final isRequestAdmission = mode == _InviteAcceptanceMode.requestAdmission;
+    var chainIsLive = true;
     if (beaconId != null && parentEdgeId != null) {
-      // Reserve the claim before locking the chain. Record acceptance only
-      // after finding a live chain so a stale invite can still return false.
+      // Reserve the claim before locking the chain. A lapsed Request may
+      // consume its invite even when the chain is broken.
       final claim = await _database
           .customSelect(
             'SELECT id FROM public.invitation '
@@ -959,9 +1000,29 @@ class UserRepository implements UserRepositoryPort {
             variables: [Variable<String>(invitationId)],
           )
           .getSingleOrNull();
-      if (claim == null || !await _lockActiveInviteParentChain(parentEdgeId)) {
-        return false;
+      if (claim == null) return InviteAcceptance.notClaimed;
+      chainIsLive = await _lockActiveInviteParentChain(parentEdgeId);
+      if (!chainIsLive && !isRequestAdmission) {
+        return InviteAcceptance.notClaimed;
       }
+    }
+
+    var requestLapsed = false;
+    if (isRequestAdmission) {
+      if (beaconId == null) throw IdNotFoundException(id: invitationId);
+      final row = await _database.managers.beacons
+          .filter((e) => e.id.equals(beaconId))
+          .getSingleOrNull();
+      if (row == null || row.kind != BeaconKind.request.value) {
+        throw IdNotFoundException(id: invitationId);
+      }
+      requestLapsed =
+          !chainIsLive ||
+          !await _canForwardRequestInvite(
+            _inviteBeacon(row),
+            expiresAt: row.expiresAt?.dateTime,
+            issuerId: invitation.userId,
+          );
     }
 
     // Claim the row first, atomically — everything below is a side effect
@@ -979,8 +1040,9 @@ class UserRepository implements UserRepositoryPort {
               ),
             );
     if (changedRowCount == 0) {
-      return false;
+      return InviteAcceptance.notClaimed;
     }
+    if (requestLapsed) return InviteAcceptance.requestLapsed;
 
     await _upsertInviteContact(
       viewerId: invitation.userId,
@@ -997,7 +1059,7 @@ class UserRepository implements UserRepositoryPort {
           parentForwardEdgeId: parentEdgeId,
         );
 
-    if (bindFriendship) {
+    if (mode == _InviteAcceptanceMode.friendship) {
       await _applyReciprocalTrustEdges(
         invitation.userId,
         userId,
@@ -1006,7 +1068,7 @@ class UserRepository implements UserRepositoryPort {
     }
     if (forwardCreated) await onForwardCreated?.call();
 
-    return true;
+    return InviteAcceptance.accepted;
   });
 
   Future<void> _applyReciprocalTrustEdges(

@@ -28,6 +28,7 @@ import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/user_block_case.dart';
@@ -216,7 +217,7 @@ WHERE (user_id = @b AND beacon_id = @request)
         blockedId: pair.blocked,
       );
 
-  Future<bool> accept(_Pair pair) =>
+  Future<InviteAcceptance> accept(_Pair pair) =>
       invites.acceptAsExisting(code: pair.invite, userId: pair.blocked);
 
   Future<bool> acceptOrHidden(_Pair pair) async {
@@ -224,10 +225,10 @@ WHERE (user_id = @b AND beacon_id = @request)
       final accepted = await accept(pair);
       expect(
         accepted,
-        isTrue,
+        InviteAcceptance.accepted,
         reason: 'a live invite must be accepted or hidden',
       );
-      return accepted;
+      return accepted.isConsumed;
     } on IdNotFoundException {
       return false;
     }
@@ -506,7 +507,7 @@ WHERE beacon_id IN (@first, @second)
     'Blocking an invitee after acceptance removes the delivered forward and contact',
     () async {
       final pair = await seedPair();
-      expect(await accept(pair), isTrue);
+      expect(await accept(pair), InviteAcceptance.accepted);
       await expectAcceptedDelivery(pair);
 
       await block(pair);

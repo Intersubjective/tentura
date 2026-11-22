@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
@@ -161,7 +162,7 @@ VALUES (@bob, @invitee, 1), (@invitee, @bob, 1)
               code: invitation.id,
               userId: _invitee,
             ),
-            isTrue,
+            InviteAcceptance.accepted,
           );
           final firstReceipts = await receivedPosts(post.id, _invitee);
           expect(
@@ -205,7 +206,7 @@ WHERE beacon_id = @beacon AND sender_id = @bob
               code: anotherInvitation.id,
               userId: _invitee,
             ),
-            isTrue,
+            InviteAcceptance.accepted,
           );
           expect(await forwardEdgeIds(), firstEdges);
           expect(
@@ -274,7 +275,7 @@ RETURNING id
               code: invitation.id,
               userId: _invitee,
             ),
-            isTrue,
+            InviteAcceptance.accepted,
           );
           expect(await receivedPosts(post.id, _invitee), isEmpty);
           final remainingEdges = await writer.execute(

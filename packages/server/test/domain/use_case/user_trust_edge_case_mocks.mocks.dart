@@ -10,10 +10,11 @@ import 'package:mockito/src/dummies.dart' as _i7;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i3;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i6;
+import 'package:tentura_server/domain/entity/invite_acceptance.dart' as _i8;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i4;
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart'
-    as _i8;
+    as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -415,6 +416,22 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<_i8.InviteAcceptance> acceptRequestInvite({
+    required String? invitationId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptRequestInvite, [], {
+              #invitationId: invitationId,
+              #userId: userId,
+            }),
+            returnValue: _i5.Future<_i8.InviteAcceptance>.value(
+              _i8.InviteAcceptance.accepted,
+            ),
+          )
+          as _i5.Future<_i8.InviteAcceptance>);
+
+  @override
   _i5.Future<bool> bindMutual({
     required String? invitationId,
     required String? userId,
@@ -437,7 +454,7 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUserTrustEdgeRepositoryPort extends _i1.Mock
-    implements _i8.UserTrustEdgeRepositoryPort {
+    implements _i9.UserTrustEdgeRepositoryPort {
   MockUserTrustEdgeRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }

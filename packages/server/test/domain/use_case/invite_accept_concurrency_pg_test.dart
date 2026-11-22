@@ -18,6 +18,7 @@ import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -229,7 +230,7 @@ VALUES (@id, @beacon, @author, @inviter)
     return result.accountId;
   }
 
-  Future<bool> accept(String code, String user) =>
+  Future<InviteAcceptance> accept(String code, String user) =>
       invitations.acceptAsExisting(code: code, userId: user);
 
   Future<void> vote(String subject, String object, {int amount = 1}) async {
@@ -622,7 +623,7 @@ SELECT id FROM public.beacon_forward_edge WHERE beacon_id = @id AND cancelled_at
           accept(_firstInvite, _alice),
           vote(_inviter, _author).then((_) => null),
         ]);
-        expect(results.first, isTrue);
+        expect(results.first, InviteAcceptance.accepted);
       });
 
       await expectClaim(_firstInvite, _alice, 'existing_account');
@@ -648,7 +649,7 @@ SELECT id FROM public.beacon_forward_edge WHERE beacon_id = @id AND cancelled_at
         ]),
       );
 
-      expect(results, [true, true]);
+      expect(results, [InviteAcceptance.accepted, InviteAcceptance.accepted]);
       await expectClaim(_firstInvite, _alice, 'existing_account');
       await expectClaim(_secondInvite, _bob, 'existing_account');
       await expectPair(_inviter, _alice);
@@ -681,7 +682,7 @@ SELECT id FROM public.beacon_forward_edge WHERE beacon_id = @id AND cancelled_at
         ]),
       );
 
-      expect(results, [true, true]);
+      expect(results, [InviteAcceptance.accepted, InviteAcceptance.accepted]);
       await expectClaim(_firstInvite, _alice, 'existing_account');
       await expectClaim(_secondInvite, _inviter, 'existing_account');
       await expectPair(_inviter, _alice);
@@ -764,7 +765,7 @@ WHERE (subject = @inviter AND object = @user)
 
       final wins = [
         for (final (i, outcome) in outcomes.indexed)
-          if (outcome.value == true) [_alice, _bob][i],
+          if (outcome.value == InviteAcceptance.accepted) [_alice, _bob][i],
       ];
       expect(wins, hasLength(1));
       final winner = wins.single;
@@ -862,7 +863,7 @@ WHERE (subject = @inviter AND object = @loser)
           claimAvailable = await canLockNow(_probeClaim);
         },
       );
-      expect(accepted, isTrue);
+      expect(accepted, InviteAcceptance.accepted);
       await expectClaim(_firstInvite, _bob, 'existing_account');
       await expectForward(_bob);
       expect(
