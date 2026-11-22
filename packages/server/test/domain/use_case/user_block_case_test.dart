@@ -416,7 +416,7 @@ void main() {
     },
   );
 
-  test('failure during cleanup propagates from unit of work', () async {
+  test('cleanup failure propagates before the block write', () async {
     final blocks = _FakeBlocks();
     final uow = _RecordingUoW();
     final case_ = _buildCase(
@@ -434,7 +434,7 @@ void main() {
       ),
       throwsA(isA<StateError>()),
     );
-    expect(blocks.blockCalls, 1);
+    expect(blocks.blockCalls, 0);
     expect(blocks.applyWithdrawalCalls, 0);
     expect(uow.caughtError, isA<StateError>());
   });

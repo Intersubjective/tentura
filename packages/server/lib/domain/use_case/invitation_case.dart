@@ -465,6 +465,12 @@ final class InvitationCase extends UseCaseBase {
       throw IdNotFoundException(id: invitation.id);
     }
     final beacon = await _beaconUnderPostLock(beaconId);
+    // Post acceptance already holds the hierarchy lock. Request acceptance
+    // shares the sender barrier with delivery until the transaction commits.
+    if (_userBlockRepository case final UserBlockWriteLocks locks
+        when beacon.kind == BeaconKind.request) {
+      await locks.lockForRequestInviteAcceptance(invitation.issuer.id);
+    }
     if (await _userBlockRepository.isBlockedPair(
       a: userId,
       b: invitation.issuer.id,

@@ -17,6 +17,18 @@ typedef BlockReleaseSweepBatch = ({
   bool reachedTail,
 });
 
+/// Transaction locks for repositories that share storage with invite delivery.
+abstract interface class UserBlockWriteLocks {
+  /// After the hierarchy lock, protects pair cleanup against new delivery.
+  Future<void> lockForBlockCleanup({
+    required String blockerId,
+    required String blockedId,
+  });
+
+  /// Before checking the pair and claiming a Request invite.
+  Future<void> lockForRequestInviteAcceptance(String inviterId);
+}
+
 abstract class UserBlockRepositoryPort {
   Future<void> block({
     required String blockerId,

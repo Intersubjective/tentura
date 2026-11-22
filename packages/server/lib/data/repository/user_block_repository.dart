@@ -16,7 +16,8 @@ import 'post_lock_repository.dart';
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class UserBlockRepository implements UserBlockRepositoryPort {
+class UserBlockRepository
+    implements UserBlockRepositoryPort, UserBlockWriteLocks {
   UserBlockRepository(
     this._env,
     this._db, {
@@ -31,22 +32,16 @@ class UserBlockRepository implements UserBlockRepositoryPort {
   int get _cascadeMaxRows => _env.blockCascadeMaxRows;
 
   @override
-  Future<void> block({
+  Future<void> lockForBlockCleanup({
     required String blockerId,
     required String blockedId,
-    required int cascadeMode,
-  }) => _db.withJoinedTransaction(() async {
-    await _db.customStatement(
-      'SELECT public.beacon_hierarchy_acquire_mutation_lock()',
-    );
+  }) async {
     await _db.customStatement(
       r'SELECT public.user_block_pair_lock($1, $2)',
       [blockerId, blockedId],
     );
-    // Block INSERT bumps visibility_trust_generation. Lock every Post whose
-    // edges cleanup will cancel before taking that counter row, since delivery
-    // takes the Post before trust projection. The pair barriers keep this edge
-    // inventory stable; hierarchy serializes blocks that lock multiple Posts.
+    // Delivery takes the sender barrier before the Post lock. Take both users'
+    // barriers before reading the edge inventory and keep them through commit.
     final posts = await _db
         .customSelect(
           r'''
@@ -65,6 +60,23 @@ ORDER BY b.id
     for (final post in posts) {
       await postLock.lockForPostMutation(post.read<String>('id'));
     }
+  }
+
+  @override
+  Future<void> lockForRequestInviteAcceptance(String inviterId) =>
+      PostLockRepository(_db).lockSenderBlockBarrier(inviterId);
+
+  @override
+  Future<void> block({
+    required String blockerId,
+    required String blockedId,
+    required int cascadeMode,
+  }) => _db.withJoinedTransaction(() async {
+    // Standalone callers need the hierarchy lock before touching the intent.
+    // The user_block insert trigger also acquires the pair barriers.
+    await _db.customStatement(
+      'SELECT public.beacon_hierarchy_acquire_mutation_lock()',
+    );
     // Mode 0 has nothing to materialize — store status=2 (done) so the
     // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(

@@ -27,12 +27,15 @@ class PostLockRepository implements PostLockPort {
     String beaconId, {
     required String senderId,
   }) async {
-    await _database.customStatement(
-      r'SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))',
-      ['tentura.user_block.v1:$senderId'],
-    );
+    await lockSenderBlockBarrier(senderId);
     await _lockPost(beaconId);
   }
+
+  Future<void> lockSenderBlockBarrier(String senderId) =>
+      _database.customStatement(
+        r'SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))',
+        ['tentura.user_block.v1:$senderId'],
+      );
 
   Future<void> _lockPost(String beaconId) async {
     await _database.customStatement(
