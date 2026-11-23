@@ -83,6 +83,11 @@ void main() {
   late PageInfo workPage;
   late PageInfo acceptInvitePage;
   late PageInfo authRegisterPage;
+  late PageInfo conversationsPage;
+  late PageInfo inboxPage;
+  late PageInfo constellationPage;
+  late PageInfo friendsPage;
+  late PageInfo profilePage;
 
   const testEnv = Env(needInviteCode: true);
 
@@ -91,6 +96,11 @@ void main() {
     workPage = MyWorkRoute.page;
     acceptInvitePage = AcceptInviteRoute.page;
     authRegisterPage = AuthRegisterRoute.page;
+    conversationsPage = ConversationsRoute.page;
+    inboxPage = InboxRoute.page;
+    constellationPage = ConstellationRoute.page;
+    friendsPage = FriendsRoute.page;
+    profilePage = ProfileRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -139,6 +149,11 @@ void main() {
     MyWorkRoute.page = workPage;
     AcceptInviteRoute.page = acceptInvitePage;
     AuthRegisterRoute.page = authRegisterPage;
+    ConversationsRoute.page = conversationsPage;
+    InboxRoute.page = inboxPage;
+    ConstellationRoute.page = constellationPage;
+    FriendsRoute.page = friendsPage;
+    ProfileRoute.page = profilePage;
   });
 
   setUp(() async {
