@@ -25,6 +25,7 @@ import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
 import 'beacon_access_repository.dart';
 import 'beacon_hierarchy_repository.dart';
+import 'closure_repository.dart';
 import 'post_lock_repository.dart';
 
 export 'package:tentura_server/domain/entity/user_entity.dart';
@@ -992,7 +993,14 @@ class UserRepository implements UserRepositoryPort {
 
     final beaconId = invitation.beaconId;
     final parentEdgeId = invitation.parentForwardEdgeId;
-    final isRequestAdmission = mode == _InviteAcceptanceMode.requestAdmission;
+    final requestId = mode == _InviteAcceptanceMode.requestAdmission
+        ? beaconId ?? (throw IdNotFoundException(id: invitationId))
+        : null;
+    if (requestId != null) {
+      // Share closure's lock through the status check and forward insert.
+      await ClosureRepository(_database).lockRequest(requestId);
+    }
+
     var chainIsLive = true;
     if (beaconId != null && parentEdgeId != null) {
       // Reserve the claim before locking the chain. A lapsed Request may
@@ -1006,16 +1014,15 @@ class UserRepository implements UserRepositoryPort {
           .getSingleOrNull();
       if (claim == null) return InviteAcceptance.notClaimed;
       chainIsLive = await _lockActiveInviteParentChain(parentEdgeId);
-      if (!chainIsLive && !isRequestAdmission) {
+      if (!chainIsLive && requestId == null) {
         return InviteAcceptance.notClaimed;
       }
     }
 
     var requestLapsed = false;
-    if (isRequestAdmission) {
-      if (beaconId == null) throw IdNotFoundException(id: invitationId);
+    if (requestId != null) {
       final row = await _database.managers.beacons
-          .filter((e) => e.id.equals(beaconId))
+          .filter((e) => e.id.equals(requestId))
           .getSingleOrNull();
       if (row == null || row.kind != BeaconKind.request.value) {
         throw IdNotFoundException(id: invitationId);
