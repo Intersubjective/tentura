@@ -910,6 +910,12 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
+  "inviteAcceptBeaconAccessBody": "Принятие приглашения даст вам доступ только к этому запросу и добавит его в «Активность».",
+  "@inviteAcceptBeaconAccessBody": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptPostTitle": "Принять приглашение к просмотру поста?",
+  "inviteAcceptPostAccessBody": "Принятие приглашения даст вам доступ к этому посту.",
   "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот запрос в «Активность».",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",

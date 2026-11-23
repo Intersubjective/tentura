@@ -238,7 +238,10 @@ class InvitationRepository implements InvitationAcceptPort {
     }
   }
 
-  /// Befriend issuer as an already-authenticated user (V2 REST).
+  /// Accept an invitation for an existing account (V2 REST).
+  ///
+  /// An open Request invite grants admission, and a Post invite shares the
+  /// Post. Only a plain invite can connect the account with the inviter.
   @override
   Future<void> acceptExistingInvite(String code) async {
     try {

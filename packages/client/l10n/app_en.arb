@@ -965,6 +965,12 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
+  "inviteAcceptBeaconAccessBody": "Accepting only gives you access to this request and adds it to your Activity.",
+  "@inviteAcceptBeaconAccessBody": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptPostTitle": "Accept invitation to view the post?",
+  "inviteAcceptPostAccessBody": "Accepting gives you access to this post.",
   "inviteAcceptBeaconBody": "Accepting connects you with {name} and adds this request to your Activity.",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",

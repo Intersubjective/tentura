@@ -38,18 +38,18 @@ class InvitationAcceptDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final beacon = this.beacon;
     final beaconTitle = beacon?.title ?? '';
     final beaconSnippet = beacon?.snippet;
     final lapsed = beacon?.lapsed ?? false;
     return AlertDialog.adaptive(
       scrollable: lapsed,
-      title: Text(
-        lapsed
-            ? l10n.inviteLapsedTitle
-            : beacon != null
-            ? l10n.inviteAcceptBeaconTitle
-            : l10n.confirmFriendAccept,
-      ),
+      title: Text(switch (beacon) {
+        null => l10n.confirmFriendAccept,
+        InvitePreviewBeacon(lapsed: true) => l10n.inviteLapsedTitle,
+        InvitePreviewBeacon(isPost: true) => l10n.inviteAcceptPostTitle,
+        _ => l10n.inviteAcceptBeaconTitle,
+      }),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -92,7 +92,11 @@ class InvitationAcceptDialog extends StatelessWidget {
             ],
             const SizedBox(height: kSpacingSmall),
             Text(
-              l10n.inviteAcceptBeaconBody(profile.shownName),
+              signup
+                  ? l10n.inviteAcceptBeaconBody(profile.shownName)
+                  : beacon.isPost
+                  ? l10n.inviteAcceptPostAccessBody
+                  : l10n.inviteAcceptBeaconAccessBody,
               style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),

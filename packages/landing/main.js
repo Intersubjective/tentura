@@ -737,13 +737,29 @@ function renderExistingUser(p) {
   setState('existing-user');
   const name = inviterName(p);
   setPageTitle(t('{name} invited you — Tentura', { name }));
-  const lapsedNotice = lapsedRequestNotice(p, name);
+  let heading = lapsedRequestNotice(p, name);
+  let body = null;
+  if (heading === null) {
+    switch (p.beacon?.kind) {
+      case 'request':
+        heading = t('{name} shared a request with you', { name });
+        body = t('Accepting the invite in the app only gives you access to this request.');
+        break;
+      case 'post':
+        heading = t('{name} shared a post with you', { name });
+        body = t('Accept the invite in the app to open the post.');
+        break;
+      default:
+        heading = t('{name} wants to connect', { name });
+        body = t('Accept the invite in the app to become friends.');
+    }
+  }
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, lapsedNotice ?? t('{name} wants to connect', { name })),
-    lapsedNotice ? null : el('p', {}, t('Accept the invite in the app to become friends.')),
+    el('h1', {}, heading),
+    body === null ? null : el('p', {}, body),
     ctaOpenAcceptInvite(),
   );
 }
