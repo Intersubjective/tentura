@@ -630,7 +630,8 @@ FOR EACH ROW EXECUTE FUNCTION public.test_reject_poisoned_member()
         setUp(() async {
           await insertManyUsers(bulk, 1000);
           tag = await createTag('Full');
-          await writer.execute(
+          await writer.executeWithOwnerScopes(
+            [_owner],
             Sql.named(
               'INSERT INTO public.person_tag_member '
               '(tag_id, owner_id, person_id, source) '
@@ -913,16 +914,22 @@ INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
 VALUES ('Bptmembond001', '$bonded', 1, 0)
 ''');
           // A pinned person on the owner's Field.
-          await writer.execute('''
+          await writer.executeWithOwnerScopes(
+            [_owner],
+            '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id)
 VALUES ('$_owner')
-''');
-          await writer.execute('''
+''',
+          );
+          await writer.executeWithOwnerScopes(
+            [_owner],
+            '''
 INSERT INTO public.constellation_anchor
   (id, viewer_id, person_id, x_units, y_units,
    coordinate_space_version, revision, placed_at)
 VALUES ('Aptmempin0001', '$_owner', '$pinned', 0, 0, 1, 1, now())
-''');
+''',
+          );
           await block(_owner, blockedStranger);
         });
 

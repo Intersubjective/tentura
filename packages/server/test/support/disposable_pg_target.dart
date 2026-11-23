@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -279,7 +280,7 @@ final class DisposablePgTarget {
     try {
       await withDisposablePgLifecycleLock(adminEnv, () async {
         await _ensureTemplateUnlocked(adminEnv, templateEnv);
-        await _recreateFromTemplateUnlocked();
+        await _recreateUnlocked(template: templateDatabaseName);
       });
     } on Object {
       await _releaseMeritRankSuiteLock(this);
@@ -297,13 +298,11 @@ final class DisposablePgTarget {
     }
   }
 
-  /// Clones the prebuilt template instead of running the schema build.
+  /// Recreates the test database and sets defaults before opening test sessions.
   ///
-  /// `CREATE DATABASE … TEMPLATE` is a file copy: no migration, and crucially
-  /// no `pg_advisory_lock('tentura_schema_upgrade')`, which is cluster-wide and
-  /// which 95 test files were otherwise serializing on for the length of a full
-  /// schema build each.
-  Future<void> _recreateFromTemplateUnlocked() async {
+  /// Cloning the template avoids the cluster-wide schema migration lock.
+  /// A database built without a template gets its timeouts after migration.
+  Future<void> _recreateUnlocked({String? template}) async {
     final connection = await Connection.open(
       adminEnv.pgEndpoint,
       settings: adminEnv.pgEndpointSettings,
@@ -312,10 +311,16 @@ final class DisposablePgTarget {
       await connection.execute(
         'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
       );
+      final templateClause = template == null ? '' : ' TEMPLATE "$template"';
       await connection.execute(
-        'CREATE DATABASE "$databaseName" TEMPLATE "$templateDatabaseName"',
+        'CREATE DATABASE "$databaseName"$templateClause',
       );
-      await _applySessionBackstops(connection);
+      await connection.execute(
+        'ALTER DATABASE "$databaseName" SET tentura.owner_scope_enforce = on',
+      );
+      if (template != null) {
+        await _applySessionBackstops(connection);
+      }
     } finally {
       await connection.close();
     }
@@ -333,21 +338,6 @@ final class DisposablePgTarget {
       'ALTER DATABASE "$databaseName" SET idle_in_transaction_session_timeout '
       "= '$disposablePgIdleInTransactionTimeoutSetting'",
     );
-  }
-
-  Future<void> _recreateUnlocked() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
   }
 
   Future<void> _dropUnlocked() async {
@@ -467,7 +457,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
       // since the template is at head by construction.
       if (lastInclusiveVersion == null) {
         await _ensureTemplateUnlocked(target.adminEnv, target.templateEnv);
-        await target._recreateFromTemplateUnlocked();
+        await target._recreateUnlocked(template: templateDatabaseName);
       } else {
         await target._recreateUnlocked();
       }
@@ -586,4 +576,29 @@ Future<void> tearDownDisposablePgWriter({
   } finally {
     await _releaseMeritRankSuiteLock(session.target);
   }
+}
+
+/// Seeds raw SQL fixtures under a transaction-local owner scope.
+Future<T> withPgOwnerScopes<T>(
+  Connection connection,
+  Iterable<String> ownerIds,
+  Future<T> Function(TxSession) seed,
+) => connection.runTx((tx) async {
+  await tx.execute(
+    Sql.named("SELECT set_config('tentura.owner_scopes', @owners, true)"),
+    parameters: {'owners': jsonEncode(ownerIds.toList())},
+  );
+  return seed(tx);
+});
+
+extension PgOwnerScopeFixtureSql on Connection {
+  Future<Result> executeWithOwnerScopes(
+    Iterable<String> ownerIds,
+    Object query, {
+    Object? parameters,
+  }) => withPgOwnerScopes(
+    this,
+    ownerIds,
+    (tx) => tx.execute(query, parameters: parameters),
+  );
 }

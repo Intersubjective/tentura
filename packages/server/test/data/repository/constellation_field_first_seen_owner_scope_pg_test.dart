@@ -319,14 +319,20 @@ FROM public.person_field_first_seen WHERE viewer_id = @viewer
       'returns the newcomer before their inherited tag membership commits',
       () async {
         await backfill();
-        await writer.execute('''
+        await writer.executeWithOwnerScopes(
+          [_viewer],
+          '''
 INSERT INTO public.person_tag (id, owner_id, name, glyph, color, ord)
 VALUES ('$_tag', '$_viewer', 'Contacts', 'C', 0, 0)
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [_viewer],
+          '''
 INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
 VALUES ('$_tag', '$_viewer', '$_firstPeer', $kPersonTagSourceManual)
-''');
+''',
+        );
         await writer.execute('''
 INSERT INTO public.invite_genealogy (
   descendant_node_key, ancestor_node_key, descendant_user_id, ancestor_user_id,

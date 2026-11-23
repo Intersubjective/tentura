@@ -110,29 +110,33 @@ VALUES ('$beaconId', '$viewer', 'offer', 0, '2026-01-01T00:00:00Z', '2026-01-01T
 ON CONFLICT (beacon_id, user_id) DO NOTHING
 ''');
 
-  Future<void> pinBeacon(String id, double x) => anchorRepository.applyAnchorUpsert(
-    viewerId: viewer,
-    context: ctx,
-    target: ConstellationAnchorTarget.beacon(id),
-    position: ConstellationAnchorPosition(
-      xUnits: x,
-      yUnits: 1,
-      coordinateSpaceVersion: 1,
-    ),
-  );
+  Future<void> pinBeacon(String id, double x) =>
+      anchorRepository.applyAnchorUpsert(
+        viewerId: viewer,
+        context: ctx,
+        target: ConstellationAnchorTarget.beacon(id),
+        position: ConstellationAnchorPosition(
+          xUnits: x,
+          yUnits: 1,
+          coordinateSpaceVersion: 1,
+        ),
+      );
 
   /// Pins a beacon the viewer can no longer read, e.g. one pinned while it
   /// was readable. [pinBeacon] refuses such targets, so the row is written
   /// directly.
   Future<void> pinUnreadableBeacon(String id, double x) =>
-      db.customStatement('''
+      writer.executeWithOwnerScopes(
+        [viewer],
+        '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, beacon_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
 ) VALUES (
   'CA$id', '$viewer', '$id', $x, 1, 1, 0, 'epoch'::timestamptz
 )
-''');
+''',
+      );
 
   Future<int> readabilityCalls(String beaconId) async {
     final rows = await writer.execute(

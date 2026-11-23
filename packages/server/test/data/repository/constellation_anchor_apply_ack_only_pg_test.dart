@@ -220,10 +220,13 @@ VALUES ('$openBeacon', '$trustedPeer', '$openBeacon', 'anchor fixture',
         0, true, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z',
         '2026-01-01T00:00:00Z')
 ''');
-    await writer.execute('''
+    await writer.executeWithOwnerScopes(
+      [viewer],
+      '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id, revision)
 VALUES ('$viewer', 0)
-''');
+''',
+    );
     observations.clear();
     profiles.loads = 0;
   });

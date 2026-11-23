@@ -110,7 +110,8 @@ VALUES (@viewer, @peer, 1), (@peer, @viewer, 1)
       String peer,
       String age, {
       String viewer = _viewer,
-    }) => writer.execute(
+    }) => writer.executeWithOwnerScopes(
+      [viewer],
       Sql.named('''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id, first_seen_at)
 VALUES (@viewer, @peer, now() - CAST(@age AS interval))
@@ -230,7 +231,8 @@ WHERE table_schema = 'public' AND table_name = 'person_field_first_seen'
     }
 
     test('a backfilled person is never new', () async {
-      await writer.execute(
+      await writer.executeWithOwnerScopes(
+        [_viewer],
         Sql.named('''
 UPDATE public.person_field_first_seen SET first_seen_at = '-infinity'
 WHERE viewer_id = @viewer AND peer_id = @peer

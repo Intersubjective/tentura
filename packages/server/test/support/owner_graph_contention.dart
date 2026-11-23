@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:postgres/postgres.dart';
+import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:test/test.dart';
 
@@ -72,6 +73,10 @@ SELECT EXISTS (
 Future<void> enforceOwnerScope(DisposablePgWriterSession session) async {
   final database = session.target.databaseName;
   final writer = session.writer;
+  final setting = await writer.execute(
+    "SELECT current_setting('tentura.owner_scope_enforce', true)",
+  );
+  if (setting.single.single == 'on') return;
   await writer.execute(
     "ALTER DATABASE $database SET tentura.owner_scope_enforce = 'on'",
   );
@@ -79,5 +84,18 @@ Future<void> enforceOwnerScope(DisposablePgWriterSession session) async {
     () => writer.execute(
       'ALTER DATABASE $database RESET tentura.owner_scope_enforce',
     ),
+  );
+}
+
+Future<void> expectDefaultOwnerScopeEnforcement(TenturaDb database) async {
+  final row = await database
+      .customSelect(
+        "SELECT current_setting('tentura.owner_scope_enforce', true) AS setting",
+      )
+      .getSingle();
+  expect(
+    row.readNullable<String>('setting'),
+    'on',
+    reason: 'Repository connections must enforce owner scopes by default.',
   );
 }

@@ -63,7 +63,8 @@ Future<void> main() async {
       String glyph = 'F',
       int color = 0,
       int ord = 1,
-    }) => writer.execute(
+    }) => writer.executeWithOwnerScopes(
+      [owner],
       Sql.named('''
 INSERT INTO public.person_tag (id, owner_id, name, glyph, color, ord)
 VALUES (@id, @owner, @name, @glyph, @color, @ord)
@@ -83,7 +84,8 @@ VALUES (@id, @owner, @name, @glyph, @color, @ord)
       String owner = _owner,
       String person = _person,
       int source = 0,
-    }) => writer.execute(
+    }) => writer.executeWithOwnerScopes(
+      [owner],
       Sql.named('''
 INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
 VALUES (@tag, @owner, @person, @source)
@@ -317,26 +319,41 @@ VALUES ('$doomed', 'd', 'pk-$doomed', '2026-01-01T00:00:00Z', '2026-01-01T00:00:
           tagId: 'Towner0000001',
           owner: doomed,
         );
-        await writer.execute('''
+        await writer.executeWithOwnerScopes(
+          [doomed],
+          '''
 INSERT INTO public.person_auto_tag_pref (owner_id, kind, show_in_filters)
 VALUES ('$doomed', 1, true)
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [doomed],
+          '''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id)
 VALUES ('$doomed', '$_person')
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [doomed],
+          '''
 INSERT INTO public.person_tag_suggestion_state (owner_id)
 VALUES ('$doomed')
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [doomed],
+          '''
 INSERT INTO public.person_tag_op_log (owner_id, client_op_id, fingerprint, result)
 VALUES ('$doomed', 'op-1', 'fp', '{}'::jsonb)
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [doomed],
+          '''
 INSERT INTO public.person_tag_revision (owner_id)
 VALUES ('$doomed')
-''');
+''',
+        );
 
         await writer.execute(
           'DELETE FROM public."user" WHERE id = \'$doomed\'',
@@ -362,10 +379,13 @@ VALUES ('$doomed')
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES ('$peer', 'p', 'pk-$peer', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ''');
-          await writer.execute('''
+          await writer.executeWithOwnerScopes(
+            [_owner],
+            '''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id)
 VALUES ('$_owner', '$peer')
-''');
+''',
+          );
 
           await writer.execute(
             'DELETE FROM public."user" WHERE id = \'$peer\'',
@@ -378,29 +398,38 @@ VALUES ('$_owner', '$peer')
 
     group('per-owner state tables', () {
       test('an auto-tag preference is one row per owner and kind', () async {
-        Future<void> insertPref(int kind) => writer.execute('''
+        Future<void> insertPref(int kind) => writer.executeWithOwnerScopes(
+          [_owner],
+          '''
 INSERT INTO public.person_auto_tag_pref (owner_id, kind, show_in_filters)
 VALUES ('$_owner', $kind, false)
-''');
+''',
+        );
         await insertPref(2);
         await insertPref(3);
         await expectLater(insertPref(2), _throwsSqlState(_uniqueViolation));
       });
 
       test('first-seen is one row per viewer and peer', () async {
-        Future<void> insertSeen() => writer.execute('''
+        Future<void> insertSeen() => writer.executeWithOwnerScopes(
+          [_other],
+          '''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id)
 VALUES ('$_other', '$_person')
-''');
+''',
+        );
         await insertSeen();
         await expectLater(insertSeen(), _throwsSqlState(_uniqueViolation));
       });
 
       test('suggestion state defaults to not skipped, not disabled', () async {
-        await writer.execute('''
+        await writer.executeWithOwnerScopes(
+          [_owner],
+          '''
 INSERT INTO public.person_tag_suggestion_state (owner_id)
 VALUES ('$_owner')
-''');
+''',
+        );
         final rows = await writer.execute('''
 SELECT consecutive_skips, silenced_until, disabled
 FROM public.person_tag_suggestion_state WHERE owner_id = '$_owner'
@@ -409,19 +438,25 @@ FROM public.person_tag_suggestion_state WHERE owner_id = '$_owner'
         expect(rows.single[1], isNull);
         expect(rows.single[2], isFalse);
         await expectLater(
-          writer.execute('''
+          writer.executeWithOwnerScopes(
+            [_owner],
+            '''
 INSERT INTO public.person_tag_suggestion_state (owner_id)
 VALUES ('$_owner')
-'''),
+''',
+          ),
           _throwsSqlState(_uniqueViolation),
         );
       });
 
       test('the op log rejects a repeated (owner, client op id)', () async {
-        Future<void> insertOp() => writer.execute('''
+        Future<void> insertOp() => writer.executeWithOwnerScopes(
+          [_owner],
+          '''
 INSERT INTO public.person_tag_op_log (owner_id, client_op_id, fingerprint, result)
 VALUES ('$_owner', 'op-dup', 'fp', '{"ok":true}'::jsonb)
-''');
+''',
+        );
         await insertOp();
         await expectLater(insertOp(), _throwsSqlState(_uniqueViolation));
       });

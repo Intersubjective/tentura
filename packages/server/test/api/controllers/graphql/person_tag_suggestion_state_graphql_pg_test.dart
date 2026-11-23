@@ -172,7 +172,8 @@ Future<void> main() async {
 
       test('stay off while the silenced time is still in the future', () async {
         await skip(3);
-        await writer.execute(
+        await writer.executeWithOwnerScopes(
+          [_owner],
           'UPDATE public.person_tag_suggestion_state SET silenced_until = '
           "now() + interval '1 minute' WHERE owner_id = '$_owner'",
         );
@@ -186,7 +187,8 @@ Future<void> main() async {
       test('resume suggesting once the silenced time has passed', () async {
         await skip(3);
         expect((await state())['canSuggest'], isFalse);
-        await writer.execute(
+        await writer.executeWithOwnerScopes(
+          [_owner],
           'UPDATE public.person_tag_suggestion_state SET silenced_until = '
           "now() - interval '1 second' WHERE owner_id = '$_owner'",
         );
@@ -199,7 +201,8 @@ Future<void> main() async {
 
       test('start a fresh streak after the silence has expired', () async {
         await skip(3);
-        await writer.execute(
+        await writer.executeWithOwnerScopes(
+          [_owner],
           'UPDATE public.person_tag_suggestion_state SET silenced_until = '
           "now() - interval '1 second' WHERE owner_id = '$_owner'",
         );
@@ -288,7 +291,8 @@ Future<void> main() async {
         () async {
           await skip(3);
           await record('disabled');
-          await writer.execute(
+          await writer.executeWithOwnerScopes(
+            [_owner],
             'UPDATE public.person_tag_suggestion_state SET silenced_until = '
             "now() - interval '1 second' WHERE owner_id = '$_owner'",
           );

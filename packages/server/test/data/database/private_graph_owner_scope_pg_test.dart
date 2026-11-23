@@ -111,15 +111,18 @@ VALUES ($1, $1, $2)
           [id, 'pk-$id'],
         );
       }
-      for (final viewer in [_ownerA, _ownerC, _deletedOwner]) {
-        await _execute(
-          writer,
-          r'''
+      const viewers = [_ownerA, _ownerC, _deletedOwner];
+      await withPgOwnerScopes(writer, viewers, (tx) async {
+        for (final viewer in viewers) {
+          await _execute(
+            tx,
+            r'''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ($1)
 ''',
-          [viewer],
-        );
-      }
+            [viewer],
+          );
+        }
+      });
     });
 
     test('rejects unscoped tag inserts only when enforcement is on', () async {
@@ -128,12 +131,16 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ($1)
         settings: target.databaseEnv.pgEndpointSettings,
       );
       addTearDown(fresh.close);
-      await _execute(
-        fresh,
-        _insertTag,
-        ['default-enforcement', _ownerA],
+      await expectLater(
+        _execute(fresh, _insertTag, ['default-enforcement', _ownerA]),
+        throwsA(
+          isA<ServerException>().having(
+            (error) => error.message,
+            'message',
+            contains('Owner scope required for INSERT on public.person_tag'),
+          ),
+        ),
       );
-      expect(await tagOwner('default-enforcement'), _ownerA);
 
       await fresh.runTx((tx) async {
         await tx.execute(_disableEnforcement);

@@ -263,7 +263,8 @@ Future<void> main() async {
       'delete returns the snapshot and restore recreates the same id',
       () async {
         final tag = await create('Friends', glyph: 'Q', color: 3);
-        await writer.execute(
+        await writer.executeWithOwnerScopes(
+          [_owner],
           Sql.named(
             'INSERT INTO public.person_tag_member '
             '(tag_id, owner_id, person_id, source) '

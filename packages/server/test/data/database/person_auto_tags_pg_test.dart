@@ -112,10 +112,14 @@ INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
 VALUES ('$beaconId', '$from', '$to')
 ''');
 
-    Future<void> firstSeen(String peer, String ago) => sql('''
+    Future<void> firstSeen(String peer, String ago) =>
+        writer.executeWithOwnerScopes(
+          [_viewer],
+          '''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id, first_seen_at)
 VALUES ('$_viewer', '$peer', now() - interval '$ago')
-''');
+''',
+        );
 
     /// peer -> kind -> (n, direction)
     Future<Map<String, Map<int, ({int n, int direction})>>> tags({

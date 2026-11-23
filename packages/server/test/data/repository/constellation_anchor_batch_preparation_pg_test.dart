@@ -258,9 +258,12 @@ INSERT INTO public.beacon_help_offer
 VALUES ('$closedBeacon', '$viewer', 0,
         '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ''');
-    await writer.execute('''
+    await writer.executeWithOwnerScopes(
+      [viewer],
+      '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
-''');
+''',
+    );
     clearObservations();
   });
 
@@ -581,7 +584,7 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
           var completed = false;
           int? commitsBeforeRelease;
           try {
-            await foreign.runTx((tx) async {
+            await withPgOwnerScopes(foreign, [viewer], (tx) async {
               final blockerPid =
                   ((await tx.execute('SELECT pg_backend_pid()')).single.single!)
                       as int;

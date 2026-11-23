@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:convert';
+
 import 'package:postgres/postgres.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
@@ -48,6 +50,7 @@ Future<void> main() async {
 
   late DisposablePgWriterSession session;
   late OwnerGraphTransactionPort graph;
+  late TenturaDb db;
   late PeopleTagsRepositoryPort tags;
   late ConstellationTagMagnetRepositoryPort magnets;
 
@@ -77,13 +80,21 @@ VALUES (@id, @id, @key)
       );
     }
     // This fact gives the automatic tag a filter row even before it is edited.
-    await session.writer.execute(
-      Sql.named('''
+    await session.writer.runTx((tx) async {
+      await tx.execute(
+        Sql.named("SELECT set_config('tentura.owner_scopes', @scope, true)"),
+        parameters: {
+          'scope': jsonEncode([_owner]),
+        },
+      );
+      await tx.execute(
+        Sql.named('''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id)
 VALUES (@owner, @person)
 '''),
-      parameters: {'owner': _owner, 'person': _person},
-    );
+        parameters: {'owner': _owner, 'person': _person},
+      );
+    });
   });
 
   setUp(() async {
@@ -94,7 +105,7 @@ TRUNCATE public.person_tag, public.person_tag_op_log,
   public.constellation_anchor_cursor, public.constellation_anchor_op_log,
   public.constellation_anchor_target_watermark CASCADE
 ''');
-    final db = openDatabase();
+    db = openDatabase();
     tags = PeopleTagsRepository(db);
     magnets = ConstellationTagMagnetRepository(db);
   });
@@ -352,6 +363,67 @@ SELECT client_op_id FROM public.person_tag_op_log WHERE owner_id = @owner
       },
     );
   });
+
+  test(
+    'tag changes, magnets and filter preferences persist with database defaults',
+    () async {
+      final tag = await create(tags, 'Friends', 'create-tag');
+      expect((await tags.list(_owner)).single, tag);
+
+      final renamed = await tags.update(
+        ownerId: _owner,
+        id: tag.id,
+        clientOpId: 'rename-tag',
+        fingerprint: 'rename:Close friends',
+        name: 'Close friends',
+      );
+      expect(renamed.name, 'Close friends');
+      expect((await tags.list(_owner)).single.name, 'Close friends');
+
+      await addMember(tags, tag.id);
+      expect(await tags.tagIdsOf(_owner, _person), [tag.id]);
+
+      await tags.recordSuggestion(
+        ownerId: _owner,
+        clientOpId: 'disable-suggestions',
+        fingerprint: 'suggestion:disabled',
+        outcome: 'disabled',
+      );
+      expect((await tags.suggestionState(_owner)).disabled, isTrue);
+      expect(
+        await tagReceipts(),
+        unorderedEquals([
+          'create-tag',
+          'add-member',
+          'rename-tag',
+          'disable-suggestions',
+        ]),
+      );
+
+      await placeMagnet(magnets, tag.id);
+      final placed = (await magnets.list(_owner)).single;
+      expect(
+        (placed.tagId, placed.xUnits, placed.yUnits),
+        (tag.id, 2.5, -1.25),
+      );
+
+      await tags.setAutoTagPref(
+        ownerId: _owner,
+        kind: _autoKind,
+        showInFilters: true,
+      );
+      final preferences = await session.writer.execute(
+        Sql.named('''
+SELECT show_in_filters FROM public.person_auto_tag_pref
+WHERE owner_id = @owner AND kind = @kind
+'''),
+        parameters: {'owner': _owner, 'kind': _autoKind},
+      );
+      expect(preferences.single.single, isTrue);
+
+      await expectDefaultOwnerScopeEnforcement(db);
+    },
+  );
 
   group('People graph writes with owner scope enforcement enabled', () {
     Future<TenturaDb> enforcedDatabase() async {

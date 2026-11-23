@@ -285,7 +285,8 @@ VALUES (@blocker, @blocked, @blocker)
       await apply([memberOp(tagId, _carol, 'keep')], opId: 'keep-once');
       // Make Carol inherited again behind the API; a replayed op must not
       // touch her, a fresh op would.
-      await writer.execute(
+      await writer.executeWithOwnerScopes(
+        [_owner],
         Sql.named(
           'UPDATE public.person_tag_member SET source = 4 '
           'WHERE tag_id = @tag AND person_id = @carol',

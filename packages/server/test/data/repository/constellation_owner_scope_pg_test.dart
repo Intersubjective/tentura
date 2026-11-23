@@ -527,6 +527,59 @@ WHERE viewer_id = $1 AND target_kind = 'PERSON' AND target_id = $2
     );
   });
 
+  test(
+    'anchor placement, layout changes and reset persist with database defaults',
+    () async {
+      final pinned = await pin(_viewer, 'place-pin', _initialPosition);
+      expect(await positions(_viewer), {_person: _initialPosition});
+      expect(
+        await anchors.readWatermark(_viewer),
+        pinned.resultingTargetRevision,
+      );
+
+      final original = await save('save-layout');
+      expect(savedPositions(original), {_person: _initialPosition});
+      await pin(_viewer, 'move-pin', _movedPosition);
+      await save(
+        'set-favourite',
+        kind: ConstellationLayoutSnapshotKind.favourite,
+      );
+      await snapshots.restoreFavourite(
+        viewerId: _viewer,
+        snapshotId: original.id,
+        clientOpId: 'restore-favourite',
+      );
+      final favourite = (await snapshots.list(_viewer)).singleWhere(
+        (snapshot) =>
+            snapshot.kind == ConstellationLayoutSnapshotKind.favourite,
+      );
+      expect(savedPositions(favourite), {_person: _initialPosition});
+      expect(await positions(_viewer), {_person: _movedPosition});
+
+      await snapshots.restore(
+        viewerId: _viewer,
+        snapshotId: original.id,
+        clientOpId: 'restore-layout',
+      );
+      expect(await positions(_viewer), {_person: _initialPosition});
+
+      final reset = await anchors.resetAll(
+        viewerId: _viewer,
+        clientOpId: 'reset-layout',
+        saveHistory: true,
+      );
+      expect(reset.clearedCount, 1);
+      expect(await positions(_viewer), isEmpty);
+      final undo = (await snapshots.list(_viewer)).singleWhere(
+        (snapshot) =>
+            snapshot.reason == ConstellationLayoutSnapshotReason.reset,
+      );
+      expect(savedPositions(undo), {_person: _initialPosition});
+
+      await expectDefaultOwnerScopeEnforcement(db);
+    },
+  );
+
   group('Constellation writes with owner scope enforcement enabled', () {
     Future<TenturaDb> enforcedDatabase() async {
       await enforceOwnerScope(session);

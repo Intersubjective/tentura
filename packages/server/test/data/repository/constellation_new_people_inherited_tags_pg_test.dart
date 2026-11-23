@@ -362,7 +362,8 @@ SELECT 'nk-' || d.id, 'nk-' || a.id, d.id, a.id, a.created_at, d.created_at
         ),
         parameters: {'p': bulk},
       );
-      await writer.execute(
+      await writer.executeWithOwnerScopes(
+        [_viewer],
         Sql.named(
           'INSERT INTO public.person_tag_member '
           '(tag_id, owner_id, person_id, source) '

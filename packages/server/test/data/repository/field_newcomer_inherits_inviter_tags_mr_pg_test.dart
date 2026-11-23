@@ -18,11 +18,13 @@ import 'package:tentura_server/domain/entity/constellation_anchor_projection.dar
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/use_case/constellation_new_people_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/people_tags_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/owner_graph_contention.dart';
 import '../../support/pg_test_public_keys.dart';
 
 const _anna = 'Uinhmranna01';
@@ -208,55 +210,80 @@ SELECT first_seen_at::text FROM public.person_field_first_seen
     return rows.isEmpty ? null : rows.single.single! as String;
   }
 
+  Future<String> expectNewcomerInheritsTag() async {
+    final earlier = await readField(_anna);
+    expect(
+      earlier.peers.map((p) => p.id),
+      contains(_boris),
+      reason: 'precondition: Anna has met Boris on her Field before',
+    );
+    final tagT = (await getIt<PeopleTagsCase>().create(
+      ownerId: _anna,
+      name: 'T',
+      clientOpId: nextOp(),
+    )).id;
+    await getIt<PeopleTagsCase>().applyMembers(
+      ownerId: _anna,
+      clientOpId: nextOp(),
+      ops: [
+        {
+          'tagId': tagT,
+          'personId': _boris,
+          'op': 'add',
+          'source': kPersonTagSourceManual,
+        },
+      ],
+    );
+
+    final invitation = await getIt<InvitationCase>().create(
+      userId: _boris,
+      addresseeName: 'Nova',
+    );
+    final nova = (await getIt<AuthCase>().signUp(
+      authRequestToken: _signUpRequest(invitation.id),
+      displayName: 'Nova',
+    )).sub;
+    await publishPendingTrust();
+
+    final meets = await readField(_anna);
+
+    final novaPeer = meets.peers.where((p) => p.id == nova);
+    expect(
+      novaPeer,
+      hasLength(1),
+      reason: "Nova reaches Anna's Field through Boris",
+    );
+    expect(novaPeer.single.isNew, isTrue);
+    expect(await firstSeenOf(_anna, nova), isNot(anyOf(isNull, '-infinity')));
+    expect(await membershipsOf(_anna, nova), [(tagT, _inherited)]);
+    return nova;
+  }
+
   test(
     "a newcomer reaching the viewer's Field only through their inviter "
     "joins the viewer's tag that holds the inviter, marked inherited",
+    expectNewcomerInheritsTag,
+  );
+
+  test(
+    'an MR-discovered newcomer inherits tags and can be acknowledged '
+    'with database defaults',
     () async {
-      final earlier = await readField(_anna);
-      expect(
-        earlier.peers.map((p) => p.id),
-        contains(_boris),
-        reason: 'precondition: Anna has met Boris on her Field before',
-      );
-      final tagT = (await getIt<PeopleTagsCase>().create(
-        ownerId: _anna,
-        name: 'T',
-        clientOpId: nextOp(),
-      )).id;
-      await getIt<PeopleTagsCase>().applyMembers(
-        ownerId: _anna,
-        clientOpId: nextOp(),
-        ops: [
-          {
-            'tagId': tagT,
-            'personId': _boris,
-            'op': 'add',
-            'source': kPersonTagSourceManual,
-          },
-        ],
+      final nova = await expectNewcomerInheritsTag();
+      await getIt<ConstellationNewPeopleCase>().acknowledge(
+        viewerId: _anna,
+        peerIds: [nova],
       );
 
-      final invitation = await getIt<InvitationCase>().create(
-        userId: _boris,
-        addresseeName: 'Nova',
+      final rows = await writer.execute(
+        Sql.named('''
+SELECT acknowledged_at IS NOT NULL FROM public.person_field_first_seen
+WHERE viewer_id = @viewer AND peer_id = @peer
+'''),
+        parameters: {'viewer': _anna, 'peer': nova},
       );
-      final nova = (await getIt<AuthCase>().signUp(
-        authRequestToken: _signUpRequest(invitation.id),
-        displayName: 'Nova',
-      )).sub;
-      await publishPendingTrust();
-
-      final meets = await readField(_anna);
-
-      final novaPeer = meets.peers.where((p) => p.id == nova);
-      expect(
-        novaPeer,
-        hasLength(1),
-        reason: "Nova reaches Anna's Field through Boris",
-      );
-      expect(novaPeer.single.isNew, isTrue);
-      expect(await firstSeenOf(_anna, nova), isNot(anyOf(isNull, '-infinity')));
-      expect(await membershipsOf(_anna, nova), [(tagT, _inherited)]);
+      expect(rows.single.single, isTrue);
+      await expectDefaultOwnerScopeEnforcement(getIt<TenturaDb>());
     },
   );
 }

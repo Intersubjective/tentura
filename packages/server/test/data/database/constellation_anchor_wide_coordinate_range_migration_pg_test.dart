@@ -94,7 +94,9 @@ Future<void> main() async {
       required String x,
       required String y,
       String version = '1',
-    }) => w.execute('''
+    }) => w.executeWithOwnerScopes(
+      [_viewer],
+      '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
@@ -104,7 +106,8 @@ INSERT INTO public.constellation_anchor (
 ON CONFLICT (viewer_id, person_id) WHERE person_id IS NOT NULL
 DO UPDATE SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units,
   coordinate_space_version = EXCLUDED.coordinate_space_version
-''');
+''',
+    );
 
     Future<void> clearProbeRow() => w.execute(
       "DELETE FROM public.constellation_anchor WHERE id LIKE 'CAwidenew%'",
@@ -181,7 +184,8 @@ ORDER BY id
           parameters: {'id': id, 'pk': 'pk-$id'},
         );
       }
-      await w.execute(
+      await w.executeWithOwnerScopes(
+        [_viewer],
         'INSERT INTO public.constellation_anchor_cursor (viewer_id) '
         "VALUES ('$_viewer') ON CONFLICT DO NOTHING",
       );

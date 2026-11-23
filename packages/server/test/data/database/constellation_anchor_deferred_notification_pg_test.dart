@@ -216,10 +216,13 @@ FROM unnest(ARRAY[${[
       ].map((id) => "'$id'").join(', ')}]) AS id
 ON CONFLICT (id) DO NOTHING
 ''');
-      await writer.execute('''
+      await writer.executeWithOwnerScopes(
+        [viewer, otherViewer],
+        '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id)
 VALUES ('$viewer'), ('$otherViewer')
-''');
+''',
+      );
       await writer.execute('TRUNCATE public.anchor_publisher_probe');
       await settle();
       notifications.clear();
@@ -238,7 +241,7 @@ VALUES ('$viewer'), ('$otherViewer')
       'mixed insert, update and delete batch delivers one hint with the '
       'committed cursor revision',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [viewer], (tx) async {
           await insertAnchor(tx, viewerId: viewer, personTarget: person);
           await insertAnchor(tx, viewerId: viewer, beaconTarget: beacon);
           await tx.execute(
@@ -291,7 +294,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
     test(
       'deleting several pinned targets retains tombstones and delivers one committed hint',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [viewer], (tx) async {
           await insertAnchor(tx, viewerId: viewer, beaconTarget: beacon);
           await insertAnchor(tx, viewerId: viewer, personTarget: personId(0));
           await insertAnchor(tx, viewerId: viewer, personTarget: personId(1));
@@ -356,7 +359,7 @@ WHERE id IN ('${personId(0)}', '${personId(1)}')
       final before = await cursorRevision(viewer);
 
       await expectLater(
-        writer.runTx((tx) async {
+        withPgOwnerScopes(writer, [viewer], (tx) async {
           await insertAnchor(tx, viewerId: viewer, personTarget: person);
           await insertAnchor(tx, viewerId: viewer, beaconTarget: beacon);
           throw StateError('abort batch');
@@ -373,7 +376,7 @@ WHERE id IN ('${personId(0)}', '${personId(1)}')
     test(
       'batch of 64 anchor operations makes exactly one publisher call',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [viewer], (tx) async {
           for (var i = 0; i < personCount; i++) {
             await insertAnchor(
               tx,
@@ -405,7 +408,7 @@ WHERE id IN ('${personId(0)}', '${personId(1)}')
     test(
       'one transaction touching two viewers publishes once per viewer',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [viewer, otherViewer], (tx) async {
           await insertAnchor(tx, viewerId: viewer, personTarget: person);
           await insertAnchor(tx, viewerId: viewer, beaconTarget: beacon);
           await insertAnchor(tx, viewerId: otherViewer, personTarget: person);
@@ -432,11 +435,15 @@ WHERE id IN ('${personId(0)}', '${personId(1)}')
     test(
       'separate committed transactions each deliver their own hint',
       () async {
-        await writer.runTx(
+        await withPgOwnerScopes(
+          writer,
+          [viewer],
           (tx) => insertAnchor(tx, viewerId: viewer, personTarget: person),
         );
         final first = await cursorRevision(viewer);
-        await writer.runTx(
+        await withPgOwnerScopes(
+          writer,
+          [viewer],
           (tx) => insertAnchor(tx, viewerId: viewer, beaconTarget: beacon),
         );
         final second = await cursorRevision(viewer);
@@ -455,14 +462,14 @@ WHERE id IN ('${personId(0)}', '${personId(1)}')
     test(
       'deleting the viewer publishes nothing for the removed viewer',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [otherViewer], (tx) async {
           await insertAnchor(tx, viewerId: otherViewer, personTarget: person);
         });
         await settle();
         notifications.clear();
         await writer.execute('TRUNCATE public.anchor_publisher_probe');
 
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [viewer], (tx) async {
           await insertAnchor(tx, viewerId: viewer, personTarget: person);
           await tx.execute(
             '''DELETE FROM public."user" WHERE id = '$viewer' ''',

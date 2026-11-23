@@ -186,6 +186,16 @@ Future<void> main() async {
       );
 
       test(
+        'child placement and receipt persist with database defaults',
+        () async {
+          await sweep.runDue().timeout(ownerGraphWriteLimit);
+
+          await expectInherited();
+          await expectDefaultOwnerScopeEnforcement(database);
+        },
+      );
+
+      test(
         'commits the child placement and receipt with enforcement enabled',
         () async {
           await enforceOwnerScope(session);

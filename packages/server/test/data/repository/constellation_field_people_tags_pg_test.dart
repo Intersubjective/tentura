@@ -60,15 +60,21 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
   }
 
   Future<void> tag(String tagId, String ownerId, List<String> people) async {
-    await db.customStatement('''
+    await session.writer.executeWithOwnerScopes(
+      [ownerId],
+      '''
 INSERT INTO public.person_tag (id, owner_id, name, glyph, color, ord)
 VALUES ('$tagId', '$ownerId', 'name-$tagId', 'g', 0, 0)
-''');
+''',
+    );
     for (final person in people) {
-      await db.customStatement('''
+      await session.writer.executeWithOwnerScopes(
+        [ownerId],
+        '''
 INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
 VALUES ('$tagId', '$ownerId', '$person', 0)
-''');
+''',
+      );
     }
   }
 
