@@ -24,7 +24,8 @@ abstract interface class ConstellationLayoutSnapshotRepositoryPort {
     required String clientOpId,
   });
 
-  /// Favourite-only write: leaves live anchors untouched.
+  /// Applies the current favourite to the live layout. A history snapshot
+  /// replaces the favourite for undo, and an empty ID clears the favourite.
   Future<void> restoreFavourite({
     required String viewerId,
     required String snapshotId,

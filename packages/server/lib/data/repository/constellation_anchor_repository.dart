@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
+import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
@@ -16,40 +17,108 @@ import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'constellation_layout_snapshot_repository.dart'
     show insertConstellationLayoutSnapshot;
 import 'constellation_viewer_tx.dart';
+import 'owner_graph_unit_of_work.dart';
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements ScopedConstellationAnchorRepositoryPort {
   /// Attempts within the existing five-second transaction retry budget.
   static const int applyBatchMaxAttempts = 10;
 
   ConstellationAnchorRepository(
     this._db, [
     @ignoreParam ConstellationDbAdmissionPort? _,
-  ]);
+  ]) : _ownerGraph = OwnerGraphUnitOfWork(_db);
 
   @FactoryMethod()
   ConstellationAnchorRepository.injected(
-    this._db, [
+    TenturaDb db, [
     @ignoreParam ConstellationDbAdmissionPort? _,
-  ]);
+  ]) : this(db);
 
   final TenturaDb _db;
+  final OwnerGraphTransactionPort _ownerGraph;
+
+  @override
+  Future<void> upsertScoped({
+    required OwnerGraphScope scope,
+    required String viewerId,
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorPosition position,
+    required Set<ConstellationAnchorTarget> additionalWatermarkTargets,
+  }) async {
+    requireOwnerGraphScope(_db, scope, viewerId);
+    final targets = {target, ...additionalWatermarkTargets};
+    await lockConstellationViewerCursor(_db, viewerId);
+    // An INSERT attempted against an existing anchor would still fire the
+    // BEFORE INSERT revision trigger. Insert only when the row is absent.
+    await _db.customStatement(
+      r'''
+WITH named_targets AS (
+  SELECT * FROM unnest($8::text[], $9::text[]) AS t(kind, id)
+), moved AS (
+  UPDATE public.constellation_anchor AS a
+  SET person_id = CASE WHEN $3 = 'PERSON' THEN $4 END,
+      beacon_id = CASE WHEN $3 = 'BEACON' THEN $4 END,
+      tombstone_at = NULL,
+      x_units = $5, y_units = $6, coordinate_space_version = $7
+  WHERE a.viewer_id = $1 AND a.target_kind = $3 AND a.target_id = $4
+    AND (a.tombstone_at IS NOT NULL
+      OR (a.x_units, a.y_units, a.coordinate_space_version)
+         IS DISTINCT FROM ($5, $6, $7)
+      OR EXISTS (
+        SELECT 1 FROM named_targets t
+        LEFT JOIN public.constellation_anchor_target_watermark w
+          ON w.viewer_id = $1 AND w.target_kind = t.kind AND w.target_id = t.id
+        WHERE w.revision IS DISTINCT FROM a.revision
+      ))
+  RETURNING revision
+), placed AS (
+  INSERT INTO public.constellation_anchor (
+    id, viewer_id, person_id, beacon_id,
+    x_units, y_units, coordinate_space_version, revision, placed_at
+  )
+  SELECT $2, $1,
+         CASE WHEN $3 = 'PERSON' THEN $4 END,
+         CASE WHEN $3 = 'BEACON' THEN $4 END,
+         $5, $6, $7, 0, 'epoch'::timestamptz
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.constellation_anchor
+    WHERE viewer_id = $1 AND target_kind = $3 AND target_id = $4
+  )
+  RETURNING revision
+)
+INSERT INTO public.constellation_anchor_target_watermark
+  (viewer_id, target_kind, target_id, revision)
+SELECT $1, t.kind, t.id, saved.revision
+FROM named_targets t
+CROSS JOIN (SELECT revision FROM moved UNION ALL SELECT revision FROM placed) saved
+ON CONFLICT (viewer_id, target_kind, target_id)
+DO UPDATE SET revision = EXCLUDED.revision
+''',
+      [
+        viewerId,
+        generateId('CA'),
+        target.kind.wireValue,
+        target.id,
+        position.xUnits,
+        position.yUnits,
+        position.coordinateSpaceVersion,
+        TypedValue(Type.textArray, [for (final t in targets) t.kind.wireValue]),
+        TypedValue(Type.textArray, [for (final t in targets) t.id]),
+      ],
+    );
+  }
 
   @override
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-  }) => _applyBatchInTx(viewerId: viewerId, ops: ops);
-
-  Future<AnchorApplyBatchResult> _applyBatchInTx({
-    required String viewerId,
-    required List<AnchorApplyOp> ops,
-  }) => _db.withMutatingRepeatableRead(
+  }) => _ownerGraph.runRepeatableRead(
+    viewerId,
     viewerId,
     maxAttempts: applyBatchMaxAttempts,
-    () async {
-      await lockConstellationViewerBatch(_db, viewerId);
+    (_) async {
       final (
         watermark: before,
         :resetRevision,
@@ -455,11 +524,11 @@ WHERE viewer_id = $1
     required String viewerId,
     required String clientOpId,
     bool saveHistory = false,
-  }) => _db.withMutatingRepeatableRead(
+  }) => _ownerGraph.runRepeatableRead(
+    viewerId,
     viewerId,
     maxAttempts: applyBatchMaxAttempts,
-    () async {
-      await lockConstellationViewerBatch(_db, viewerId);
+    (_) async {
       final (
         watermark: before,
         resetRevision: _,

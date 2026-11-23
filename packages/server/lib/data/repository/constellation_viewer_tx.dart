@@ -1,16 +1,7 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 
-import '../database/postgres_advisory_lock.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
-
-/// Serializes this viewer's batches (lock-first order). Waiting means the
-/// previous holder committed after this transaction's snapshot, so the
-/// cursor lock would fail with 40001 after a wasted preparation: fail now.
-Future<void> lockConstellationViewerBatch(
-  TenturaDb db,
-  String viewerId,
-) => lockAdvisoryScopeForSnapshot(db, 'constellation_anchor_apply:$viewerId');
 
 Future<
   ({

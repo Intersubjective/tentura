@@ -20,6 +20,7 @@ abstract interface class OwnerGraphTransactionPort {
   Future<T> runRepeatableRead<T>(
     String ownerId,
     String actorUserId,
-    Future<T> Function(OwnerGraphScope scope) body,
-  );
+    Future<T> Function(OwnerGraphScope scope) body, {
+    int maxAttempts = 3,
+  });
 }
