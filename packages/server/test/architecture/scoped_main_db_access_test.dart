@@ -295,6 +295,21 @@ void main() {
       );
     });
 
+    test('the owner-graph unit of work has reviewed transaction entries', () {
+      final ownerGraphEntries = _transactionEntryPoints().where(
+        (key) => key.split(' | ')[1].startsWith('OwnerGraphUnitOfWork.'),
+      );
+      expect(
+        ownerGraphEntries,
+        isNotEmpty,
+        reason: 'The owner-graph unit of work must own a transaction boundary.',
+      );
+      final reviewed = _inventoryLines(inventoryFile).map(
+        (line) => _inventoryFields(line).take(3).join(' | '),
+      );
+      expect(reviewed, containsAll(ownerGraphEntries));
+    });
+
     test('the inventory lists no entry point that no longer exists', () {
       expect(inventoryFile.existsSync(), isTrue);
       final reviewed = _countKeys([

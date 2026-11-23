@@ -375,9 +375,19 @@ class TenturaDb extends _$TenturaDb {
 
   /// Whether an action is running inside [withMutatingUser] or
   /// [withMutatingSystem] on this database (including nested re-entry).
-  bool get isInAmbientMutatingTransaction {
+  bool get isInAmbientMutatingTransaction => _mutatingTransaction != null;
+
+  /// Identifies the current mutating transaction on this database's scope.
+  Object? get mutatingTransactionIdentity =>
+      resolvedEngine.executor is TransactionExecutor
+      ? _mutatingTransaction
+      : null;
+
+  _MutatingTransactionContext? get _mutatingTransaction {
     final current = Zone.current[_mutatingTransactionZoneKey];
-    return current is _MutatingTransactionContext && _sharesScope(current.db);
+    return current is _MutatingTransactionContext && _sharesScope(current.db)
+        ? current
+        : null;
   }
 
   /// The connector's per-backend `mr_rpc_attempts()` counter on the connection
@@ -394,12 +404,19 @@ class TenturaDb extends _$TenturaDb {
   /// [userId]. Realtime publishers attach this actor context to invalidations;
   /// router compatibility policy, not this transaction boundary, decides
   /// whether the actor's sessions receive the hint.
+  /// With [acquireLocks], the locks precede actor setup and this call must own
+  /// the transaction and connection lease.
   Future<T> withMutatingUser<T>(
     String userId,
-    Future<T> Function() action,
-  ) async {
-    final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
+    Future<T> Function() action, {
+    Future<void> Function()? acquireLocks,
+  }) async {
+    if (acquireLocks != null) {
+      final error = _newTransactionError('a lock-first mutation');
+      if (error != null) throw error;
+    }
+    final current = _mutatingTransaction;
+    if (current != null) {
       if (current.actorUserId != userId) {
         throw StateError(
           'Nested mutating actor mismatch: '
@@ -409,22 +426,31 @@ class TenturaDb extends _$TenturaDb {
       return action();
     }
     return withTransaction(() async {
-      // `customStatement` binds raw Dart values; do not pass drift `Variable`
-      // here (unlike `customSelect`).
-      await customStatement(
-        r"SELECT set_config('tentura.mutating_user_id', $1, true)",
-        [userId],
-      );
-      return runZoned(
-        action,
-        zoneValues: {
-          _mutatingTransactionZoneKey: _MutatingTransactionContext(
-            this,
-            userId,
-          ),
-        },
-      );
+      if (acquireLocks != null) await acquireLocks();
+      return _runAsMutatingUser(userId, action);
     }, actorUserId: userId);
+  }
+
+  Future<T> _runAsMutatingUser<T>(
+    String userId,
+    Future<T> Function() action, {
+    int? statementTimeoutMs,
+  }) async {
+    const actorSetting =
+        r"SELECT set_config('tentura.mutating_user_id', $1, true)";
+    const timeoutSetting = r"set_config('statement_timeout', $2, true)";
+    await customStatement(
+      statementTimeoutMs == null
+          ? actorSetting
+          : '$actorSetting, $timeoutSetting',
+      [userId, if (statementTimeoutMs != null) '$statementTimeoutMs'],
+    );
+    return runZoned(
+      action,
+      zoneValues: {
+        _mutatingTransactionZoneKey: _MutatingTransactionContext(this, userId),
+      },
+    );
   }
 
   /// Like [withMutatingUser] but in a REPEATABLE READ READ WRITE transaction,
@@ -442,30 +468,10 @@ class TenturaDb extends _$TenturaDb {
     Duration deadline = const Duration(seconds: 5),
     int maxAttempts = 3,
     Future<void> Function(Duration)? sleep,
+    Future<void> Function()? acquireLocks,
   }) {
-    final engine = resolvedEngine;
-    // Any database's live lease counts, not only this pool's: a backoff would
-    // hold it all the same. Drift's exclusive and intercepted executors also
-    // run inside the scope zone, so check the zone, not the engine's type.
-    final scope = Zone.current[_connectionScopeZoneKey];
-    final leased = scope is _ScopedDatabaseUser && scope.isActive;
-    final innermost = Zone.current[_driftZoneRootUserKey];
-    if (engine.executor is TransactionExecutor ||
-        (leased &&
-            innermost is DatabaseConnectionUser &&
-            innermost.executor is TransactionExecutor)) {
-      return Future.error(
-        StateError('Cannot enter repeatable read inside an open transaction'),
-      );
-    }
-    if (leased) {
-      return Future.error(
-        StateError(
-          'Cannot enter repeatable read inside a leased connection scope: '
-          'a retry backoff would sleep while holding the connection',
-        ),
-      );
-    }
+    final error = _newTransactionError('repeatable read');
+    if (error != null) return Future.error(error);
     final clock = Stopwatch()..start();
     var attempt = 0;
     return withPostgresBoundedRetry(
@@ -475,26 +481,40 @@ class TenturaDb extends _$TenturaDb {
         await customStatement(
           'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ WRITE',
         );
-        await customStatement(
-          r"SELECT set_config('tentura.mutating_user_id', $1, true), "
-          r"set_config('statement_timeout', $2, true)",
-          [userId, '$budgetMs'],
-        );
-        return runZoned(
-          action,
-          zoneValues: {
-            _mutatingTransactionZoneKey: _MutatingTransactionContext(
-              this,
-              userId,
-              repeatableRead: true,
-            ),
-          },
-        );
+        if (acquireLocks == null) {
+          return _runAsMutatingUser(
+            userId,
+            action,
+            statementTimeoutMs: budgetMs,
+          );
+        }
+        // SET LOCAL sets the wait budget without taking the MVCC snapshot.
+        await customStatement('SET LOCAL statement_timeout = $budgetMs');
+        await acquireLocks();
+        return _runAsMutatingUser(userId, action);
       }, actorUserId: userId),
       deadline: deadline,
       maxAttempts: maxAttempts,
       sleep: sleep,
     );
+  }
+
+  StateError? _newTransactionError(String operation) {
+    final innermost = Zone.current[_driftZoneRootUserKey];
+    if (resolvedEngine.executor is TransactionExecutor ||
+        (innermost is DatabaseConnectionUser &&
+            innermost.executor is TransactionExecutor)) {
+      return StateError('Cannot enter $operation inside an open transaction');
+    }
+    // A retry would keep even another database's ambient lease occupied.
+    final scope = Zone.current[_connectionScopeZoneKey];
+    if (scope is _ScopedDatabaseUser && scope.isActive) {
+      return StateError(
+        'Cannot enter $operation inside a leased connection scope: '
+        'a retry backoff would sleep while holding the connection',
+      );
+    }
+    return null;
   }
 
   /// System-owned mutation transaction with an explicitly empty actor scope.
@@ -543,8 +563,8 @@ class TenturaDb extends _$TenturaDb {
     Future<T> Function() action, {
     MainDbWorkKind? kind,
   }) {
-    final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
+    final current = _mutatingTransaction;
+    if (current != null) {
       if (current.actorUserId != null) {
         throw StateError(
           'Cannot enter a system mutation inside an actor mutation',
@@ -576,15 +596,10 @@ class TenturaDb extends _$TenturaDb {
 }
 
 final class _MutatingTransactionContext {
-  const _MutatingTransactionContext(
-    this.db,
-    this.actorUserId, {
-    this.repeatableRead = false,
-  });
+  const _MutatingTransactionContext(this.db, this.actorUserId);
 
   final TenturaDb db;
   final String? actorUserId;
-  final bool repeatableRead;
 }
 
 final class _ScopedDatabaseUser extends DatabaseConnectionUser {

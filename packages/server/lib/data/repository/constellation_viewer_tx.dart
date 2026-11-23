@@ -1,7 +1,7 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 
-import '../database/postgres_serialization_retry.dart';
+import '../database/postgres_advisory_lock.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 
 /// Serializes this viewer's batches (lock-first order). Waiting means the
@@ -10,25 +10,7 @@ import '../database/tentura_db.dart' hide ConstellationAnchor;
 Future<void> lockConstellationViewerBatch(
   TenturaDb db,
   String viewerId,
-) async {
-  const key = r"hashtextextended('constellation_anchor_apply:' || $1, 4242)";
-  final acquired = await db
-      .customSelect(
-        'SELECT pg_try_advisory_xact_lock($key) AS acquired',
-        variables: [Variable<String>(viewerId)],
-      )
-      .getSingle();
-  if (acquired.read<bool>('acquired')) return;
-  await db
-      .customSelect(
-        'SELECT pg_advisory_xact_lock($key) IS NULL AS waited',
-        variables: [Variable<String>(viewerId)],
-      )
-      .getSingle();
-  throw PostgresSnapshotUnavailableException(
-    StateError('waited for the viewer batch lock; snapshot predates it'),
-  );
-}
+) => lockAdvisoryScopeForSnapshot(db, 'constellation_anchor_apply:$viewerId');
 
 Future<
   ({
