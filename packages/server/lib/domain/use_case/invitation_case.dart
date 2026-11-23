@@ -248,6 +248,13 @@ final class InvitationCase extends UseCaseBase {
     BeaconEntity beacon;
     try {
       beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    } on OwnerlessRequest catch (request) {
+      return codeStatus == InviteCodeStatus.available
+          ? InvitePreviewBeacon.lapsedRequest(
+              id: beaconId,
+              title: request.title,
+            )
+          : null;
     } catch (_) {
       return null;
     }
@@ -355,8 +362,8 @@ final class InvitationCase extends UseCaseBase {
 
     final beaconId = invitation.beaconId;
     if (beaconId != null) {
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-      if (beacon.kind == BeaconKind.request) {
+      final kind = await _inviteBeaconKind(beaconId);
+      if (kind == BeaconKind.request) {
         return _acceptAndRecord(
           invitation: invitation,
           userId: userId,
@@ -407,6 +414,14 @@ final class InvitationCase extends UseCaseBase {
         return InviteAcceptance.fromClaim(claimed: claimed);
       },
     );
+  }
+
+  Future<BeaconKind> _inviteBeaconKind(String beaconId) async {
+    try {
+      return (await _beaconRepository.getBeaconById(beaconId: beaconId)).kind;
+    } on OwnerlessRequest {
+      return BeaconKind.request;
+    }
   }
 
   Future<InviteAcceptance> _acceptRequestInvite(

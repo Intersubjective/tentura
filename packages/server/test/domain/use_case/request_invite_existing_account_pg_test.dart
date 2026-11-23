@@ -13,6 +13,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
@@ -304,6 +305,139 @@ WHERE beacon_id = @request AND recipient_id = @account
       },
     );
   }
+
+  group('Invites to Requests whose author account was deleted', () {
+    Future<String> issueInviteBeforeAuthorDeletion(BeaconStatus status) async {
+      await publishRequest(withParentChain: true);
+      final invite = await issueInvite('Existing member');
+      if (status == BeaconStatus.deleted) {
+        await changeStatus(status);
+      } else {
+        // The migrated schema requires open Requests to have an owner.
+        // Lift that check only in this disposable database to exercise the
+        // application's handling of an open row after account deletion.
+        await writer.execute(
+          'ALTER TABLE public.beacon DROP CONSTRAINT beacon_owner_or_deleted_ck',
+        );
+        addTearDown(() async {
+          await changeStatus(BeaconStatus.deleted);
+          await writer.execute('''
+ALTER TABLE public.beacon ADD CONSTRAINT beacon_owner_or_deleted_ck
+CHECK (user_id IS NOT NULL OR status = ${BeaconStatus.deleted.smallintValue})
+''');
+        });
+      }
+      await query('DELETE FROM public."user" WHERE id = @author', {
+        'author': _author,
+      });
+      expect(
+        await query(
+          '''
+SELECT beacon.user_id, beacon.status, beacon.kind, invitation.user_id,
+  invitation.invited_id, invitation.accepted_at
+FROM public.invitation AS invitation
+JOIN public.beacon AS beacon ON beacon.id = invitation.beacon_id
+WHERE invitation.id = @invite AND beacon.id = @request
+''',
+          {'invite': invite, 'request': _request},
+        ),
+        [
+          [
+            null,
+            status.smallintValue,
+            BeaconKind.request.value,
+            _issuer,
+            null,
+            null,
+          ],
+        ],
+        reason:
+            'The unused invite still points to the Request without an author',
+      );
+      return invite;
+    }
+
+    for (final (status, label) in [
+      (BeaconStatus.deleted, 'a deleted Request'),
+      (BeaconStatus.open, 'an open Request'),
+    ]) {
+      test('offers account acceptance and shows $label as lapsed', () async {
+        final invite = await issueInviteBeforeAuthorDeletion(status);
+
+        final preview = (await invitations.preview(
+          code: invite,
+          callerUserId: _acceptingAccount,
+        )).toJson();
+        expect(preview, containsPair('codeStatus', 'available'));
+        expect(preview, containsPair('callerStatus', 'existing-user'));
+        expect(preview, containsPair('suggestedAction', 'accept-as-existing'));
+        expect(
+          preview,
+          containsPair(
+            'beacon',
+            allOf(
+              containsPair('id', _request),
+              containsPair('kind', 'request'),
+              containsPair('lapsed', true),
+            ),
+          ),
+        );
+      });
+
+      for (final path in _AcceptancePath.values) {
+        group(path.label, () {
+          test(
+            'consumes the invite to $label without granting access or creating a connection',
+            () async {
+              final invite = await issueInviteBeforeAuthorDeletion(status);
+
+              expect(
+                await path.accept(invitations, invite, _acceptingAccount),
+                InviteAcceptance.requestLapsed,
+              );
+              await expectConsumedInvite(invite, account: _acceptingAccount);
+            },
+          );
+        });
+      }
+    }
+
+    test('shows a deleted Request as lapsed before sign-in', () async {
+      final invite = await issueInviteBeforeAuthorDeletion(
+        BeaconStatus.deleted,
+      );
+
+      final preview = (await invitations.preview(code: invite)).toJson();
+      expect(preview, containsPair('codeStatus', 'available'));
+      expect(preview, containsPair('callerStatus', 'anonymous'));
+      expect(preview, containsPair('beacon', containsPair('lapsed', true)));
+    });
+
+    test(
+      'rejects reuse of a lapsed invite code and preserves the original claim',
+      () async {
+        final invite = await issueInviteBeforeAuthorDeletion(
+          BeaconStatus.deleted,
+        );
+
+        expect(
+          await invitations.acceptAsExisting(
+            code: invite,
+            userId: _acceptingAccount,
+          ),
+          InviteAcceptance.requestLapsed,
+        );
+        await expectConsumedInvite(invite, account: _acceptingAccount);
+        final firstClaim = await readClaim(invite);
+
+        await expectLater(
+          invitations.acceptAsExisting(code: invite, userId: _liveAccount),
+          throwsA(isA<IdNotFoundException>()),
+        );
+        expect(await readClaim(invite), firstClaim);
+      },
+    );
+  });
 
   group('Invite preview before joining', () {
     for (final gate in _LapseGate.values) {

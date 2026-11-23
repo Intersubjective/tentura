@@ -1028,6 +1028,7 @@ class UserRepository implements UserRepositoryPort {
         throw IdNotFoundException(id: invitationId);
       }
       requestLapsed =
+          row.userId == null ||
           !chainIsLive ||
           !await _canForwardRequestInvite(
             _inviteBeacon(row),

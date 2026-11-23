@@ -568,18 +568,29 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         .getSingleOrNull();
     if (beacon == null) throw IdNotFoundException(id: beaconId);
 
-    final images = await _getBeaconImages(beaconId);
     final ownerId = beacon.userId;
     if (ownerId == null) {
+      final isRequest = beacon.kind == BeaconKind.request.value;
       if (beacon.status == BeaconStatus.deleted.smallintValue) {
-        throw BeaconStructuralOnlyException(beaconId: beaconId);
+        throw isRequest
+            ? DeletedOwnerlessRequestException(
+                beaconId: beaconId,
+                title: beacon.title,
+              )
+            : BeaconStructuralOnlyException(beaconId: beaconId);
       }
-      throw IdNotFoundException(
-        id: beaconId,
-        description: 'Request owner missing for [$beaconId]',
-      );
+      throw isRequest
+          ? OwnerlessRequestNotFoundException(
+              beaconId: beaconId,
+              title: beacon.title,
+            )
+          : IdNotFoundException(
+              id: beaconId,
+              description: 'Request owner missing for [$beaconId]',
+            );
     }
 
+    final images = await _getBeaconImages(beaconId);
     final authorRow = await _database.managers.users
         .filter((e) => e.id.equals(ownerId))
         .getSingleOrNull();
