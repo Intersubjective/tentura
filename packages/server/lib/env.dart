@@ -104,8 +104,8 @@ Duration? _parseEnvDuration(String? raw) {
 /// and Request titles in notifications, `relatedBeaconTitle` on
 /// `AttentionReceipt`).
 /// Raised to 7.63.0 for the released baton-together partner role and mutations.
-/// Raised to 7.64.0 for the coordinated #781 release.
-const kDefaultMinClientVersion = '7.64.0';
+/// Raised for the coordinated #781 release.
+const kDefaultMinClientVersion = '7.65.0';
 
 class Env {
   Env({

@@ -23,6 +23,54 @@ void main() {
 
   group('web bootstrap versions are assigned at build time', () {
     test(
+      'the coordinated client release stamps its version into the built bootstrap URL',
+      () async {
+        final packageVersion = Pubspec.parse(
+          _sourcePubspec.readAsStringSync(),
+        ).version.toString();
+        expect(
+          _bootstrapVersion(_sourceIndex.readAsStringSync()),
+          _sourceVersion,
+        );
+        final sourceManifest =
+            jsonDecode(
+                  File(
+                    '${_clientRoot.path}/web/manifest.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        expect(sourceManifest.containsKey('version'), isFalse);
+
+        final fixture = _WebBuildFixture.create(
+          work,
+          'coordinated-release',
+          version: packageVersion,
+        );
+        await fixture.compileWebApp(buildId: '');
+        for (final tool in [
+          'trim_web_deploy_artifact',
+          'apply_versioned_web_assets',
+          'generate_wasm_preload_artifacts',
+        ]) {
+          _expectSuccess(await fixture.runDart(['tool/$tool.dart']));
+        }
+        _expectSuccess(
+          await fixture.runDart([
+            'tool/verify_web_version_consistency.dart',
+            'build/web',
+          ]),
+        );
+        expect(
+          _bootstrapVersion(
+            fixture.file('build/web/index.html').readAsStringSync(),
+          ),
+          '7.65.0',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+
+    test(
       'the source entry point carries a release-independent placeholder',
       () {
         expect(
