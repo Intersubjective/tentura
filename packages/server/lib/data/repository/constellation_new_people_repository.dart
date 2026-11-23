@@ -45,23 +45,26 @@ ON CONFLICT DO NOTHING
 @LazySingleton(as: ConstellationNewPeopleRepositoryPort)
 final class ConstellationNewPeopleRepository
     implements ConstellationNewPeopleRepositoryPort {
-  ConstellationNewPeopleRepository(this._database);
+  ConstellationNewPeopleRepository(this._database)
+    : _ownerGraph = OwnerGraphUnitOfWork(_database);
 
   final TenturaDb _database;
+  final OwnerGraphUnitOfWork _ownerGraph;
 
   @override
   Future<void> recordFirstSeen({
     required String viewerId,
     required List<String> peerIds,
     required bool backfill,
+    void Function()? onScopeWait,
   }) async {
     if (peerIds.isEmpty) return;
-    await _database.withMutatingSystem(() async {
+    await _ownerGraph.run({viewerId}, viewerId, (_) async {
       final inserted = await _database.customWriteReturning(
         r'''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id, first_seen_at)
 SELECT $1, p, CASE WHEN $3::boolean THEN '-infinity'::timestamptz
-                     ELSE now() END
+                     ELSE statement_timestamp() END
 FROM unnest($2::text[]) AS p
 ON CONFLICT DO NOTHING
 RETURNING peer_id
@@ -76,7 +79,7 @@ RETURNING peer_id
       await _inheritInviterTags(viewerId, {
         for (final r in inserted) r.read<String>('peer_id'),
       });
-    });
+    }, onLockWait: onScopeWait);
   }
 
   /// Newcomers inherit level by level, each after their inviter when the
@@ -103,7 +106,6 @@ SELECT descendant_user_id, ancestor_user_id FROM public.invite_genealogy
         ),
     };
     if (inviterOf.isEmpty) return;
-    await OwnerGraphUnitOfWork.lockOwnerScope(_database, viewerId);
     // invite_genealogy__chronology keeps the chain acyclic, so every round
     // finds a newcomer whose inviter is not still pending.
     var pending = inviterOf.keys.toSet();
@@ -128,7 +130,7 @@ SELECT descendant_user_id, ancestor_user_id FROM public.invite_genealogy
     required List<String> peerIds,
   }) async {
     if (peerIds.isEmpty) return;
-    await _database.withMutatingUser(viewerId, () async {
+    await _ownerGraph.run({viewerId}, viewerId, (_) async {
       await _database.customUpdate(
         r'''
 UPDATE public.person_field_first_seen

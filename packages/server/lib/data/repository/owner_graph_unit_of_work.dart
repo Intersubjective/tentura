@@ -20,8 +20,9 @@ final class OwnerGraphUnitOfWork implements OwnerGraphTransactionPort {
   Future<T> run<T>(
     Set<String> ownerIds,
     String actorUserId,
-    Future<T> Function(OwnerGraphScope scope) body,
-  ) async {
+    Future<T> Function(OwnerGraphScope scope) body, {
+    void Function()? onLockWait,
+  }) async {
     final owners = Set<String>.unmodifiable(ownerIds);
     final held = Zone.current[_scopeKey];
     if (held is _HeldOwnerGraph && held.isActiveOn(_database)) {
@@ -42,7 +43,11 @@ final class OwnerGraphUnitOfWork implements OwnerGraphTransactionPort {
         () => _runWithScope(owners, body),
         acquireLocks: () async {
           for (final owner in sortedOwners) {
-            await lockOwnerScope(_database, owner);
+            await lockAdvisoryScope(
+              _database,
+              _ownerKey(owner),
+              onWait: onLockWait,
+            );
           }
         },
       ),
@@ -81,10 +86,6 @@ final class OwnerGraphUnitOfWork implements OwnerGraphTransactionPort {
       held.isActive = false;
     }
   }
-
-  /// Shares the lock with first-seen tag inheritance in its existing transaction.
-  static Future<void> lockOwnerScope(TenturaDb database, String ownerId) =>
-      lockAdvisoryScope(database, _ownerKey(ownerId));
 
   static String _ownerKey(String ownerId) => 'owner_graph:$ownerId';
 }

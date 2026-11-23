@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
@@ -8,8 +11,8 @@ import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
-import 'package:tentura_server/domain/port/constellation_new_people_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 
 import '../database/tentura_db.dart';
 import 'constellation_field_snapshot_reader.dart';
@@ -106,10 +109,10 @@ final class ConstellationFieldRepository
     @ignoreParam ConstellationDbAdmissionPort? _,
   ]) : _snapshotOpenProbe = null;
 
+  static final _log = Logger('ConstellationFieldRepository');
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
-  late final ConstellationNewPeopleRepositoryPort _newPeople =
-      ConstellationNewPeopleRepository(_database);
+  late final _newPeople = ConstellationNewPeopleRepository(_database);
   final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   @override
@@ -117,15 +120,65 @@ final class ConstellationFieldRepository
     required String viewerId,
     required String context,
     required ConstellationFieldReadParams params,
-  }) {
-    return _database.withConnectionScope(
-      () => _readSnapshotInTx(viewerId, context, params),
+  }) async {
+    final reader = ConstellationFieldSnapshotReader(
+      _database,
+      _profiles,
+      snapshotOpenProbe: _snapshotOpenProbe,
+    );
+    final snapshot = await _database.withConnectionScope(
+      () => _readSnapshotInTx(reader, viewerId, context, params),
       actorUserId: viewerId,
       kind: MainDbWorkKind.full,
     );
+    if (reader.unseenPeerIds.isNotEmpty) {
+      await _recordFirstSeen(viewerId, reader);
+    }
+    return snapshot;
+  }
+
+  Future<void> _recordFirstSeen(
+    String viewerId,
+    ConstellationFieldSnapshotReader reader,
+  ) async {
+    // Keep the uncontended write synchronous. If the viewer's scope is held,
+    // return the snapshot while the same write waits in its own transaction.
+    final waiting = Completer<void>();
+    Future<void> write() => _newPeople.recordFirstSeen(
+      viewerId: viewerId,
+      peerIds: reader.unseenPeerIds,
+      backfill: reader.firstSeenBackfill,
+      onScopeWait: () {
+        if (!waiting.isCompleted) waiting.complete();
+      },
+    );
+
+    // A deferred write can outlive the HTTP response and its cancellation.
+    final request = RequestContext.current;
+    request?.check();
+    final writeContext = request == null
+        ? null
+        : (RequestContext(requestId: request.requestId)..actor = viewerId);
+    final recorded = writeContext == null
+        ? write()
+        : writeContext.run(write).whenComplete(writeContext.dispose);
+    await Future.any([
+      waiting.future,
+      recorded.onError<Object>((error, stackTrace) {
+        if (!waiting.isCompleted) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        _log.warning(
+          'Deferred Field first-seen write failed',
+          error,
+          stackTrace,
+        );
+      }),
+    ]);
   }
 
   Future<ConstellationFieldSnapshot> _readSnapshotInTx(
+    ConstellationFieldSnapshotReader reader,
     String viewerId,
     String context,
     ConstellationFieldReadParams params,
@@ -141,12 +194,7 @@ final class ConstellationFieldRepository
           ],
         )
         .get();
-    final reader = ConstellationFieldSnapshotReader(
-      _database,
-      _profiles,
-      snapshotOpenProbe: _snapshotOpenProbe,
-    );
-    final snapshot = await _database.withReadSnapshot(() async {
+    return _database.withReadSnapshot(() async {
       await _database.freezeVisibilityMemo();
       return reader.read(
         viewerId: viewerId,
@@ -154,17 +202,6 @@ final class ConstellationFieldRepository
         params: params,
       );
     });
-    // Only a read that met new people writes, in one short transaction of its own
-    // after the snapshot: the first rows ever recorded for a viewer go in at
-    // -infinity so nobody is New right after deploy.
-    if (reader.unseenPeerIds.isNotEmpty) {
-      await _newPeople.recordFirstSeen(
-        viewerId: viewerId,
-        peerIds: reader.unseenPeerIds,
-        backfill: reader.firstSeenBackfill,
-      );
-    }
-    return snapshot;
   }
 
   @override
