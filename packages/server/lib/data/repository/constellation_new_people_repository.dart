@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/use_case/people_tags_case.dart'
     show kPersonTagSourceInherited;
 
 import '../database/tentura_db.dart';
+import 'owner_graph_unit_of_work.dart';
 import 'people_tags_repository.dart';
 
 /// Copies the viewer's own tag rows on each newcomer's direct inviter to the
@@ -102,7 +103,7 @@ SELECT descendant_user_id, ancestor_user_id FROM public.invite_genealogy
         ),
     };
     if (inviterOf.isEmpty) return;
-    await PeopleTagsRepository.lockOwner(_database, viewerId);
+    await OwnerGraphUnitOfWork.lockOwnerScope(_database, viewerId);
     // invite_genealogy__chronology keeps the chain acyclic, so every round
     // finds a newcomer whose inviter is not still pending.
     var pending = inviterOf.keys.toSet();

@@ -42,7 +42,7 @@ final class OwnerGraphUnitOfWork implements OwnerGraphTransactionPort {
         () => _runWithScope(owners, body),
         acquireLocks: () async {
           for (final owner in sortedOwners) {
-            await lockAdvisoryScope(_database, _ownerKey(owner));
+            await lockOwnerScope(_database, owner);
           }
         },
       ),
@@ -81,6 +81,10 @@ final class OwnerGraphUnitOfWork implements OwnerGraphTransactionPort {
       held.isActive = false;
     }
   }
+
+  /// Shares the lock with first-seen tag inheritance in its existing transaction.
+  static Future<void> lockOwnerScope(TenturaDb database, String ownerId) =>
+      lockAdvisoryScope(database, _ownerKey(ownerId));
 
   static String _ownerKey(String ownerId) => 'owner_graph:$ownerId';
 }

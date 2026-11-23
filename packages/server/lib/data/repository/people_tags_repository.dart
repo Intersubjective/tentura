@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 import 'package:tentura_server/consts/people_tag_consts.dart'
     show
@@ -17,6 +18,7 @@ import 'package:tentura_server/consts/people_tag_consts.dart'
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'owner_graph_unit_of_work.dart';
 
 const _maxTags = 50;
 const _colors = 8;
@@ -58,28 +60,21 @@ UPDATE public.person_tag_suggestion_state
 
 /// `person_tag`, `person_tag_member`, `person_tag_revision` and
 /// `person_tag_op_log` (m0261). Each mutation is one transaction under a
-/// per-owner advisory lock, so replays and order changes never interleave.
+/// shared owner-graph scope, so replays and order changes never interleave.
 @Injectable(
   as: PeopleTagsRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
 class PeopleTagsRepository implements PeopleTagsRepositoryPort {
-  const PeopleTagsRepository(this._database);
+  PeopleTagsRepository(this._database)
+    : _ownerGraph = OwnerGraphUnitOfWork(_database);
 
   /// The most people one tag can hold.
   static const maxMembers = 1000;
 
-  /// Serialises every change to [ownerId]'s tags until the transaction ends.
-  static Future<void> lockOwner(
-    TenturaDb database,
-    String ownerId,
-  ) => database.customStatement(
-    r"SELECT pg_advisory_xact_lock(hashtextextended('person_tags:' || $1, 4242))",
-    [ownerId],
-  );
-
   final TenturaDb _database;
+  final OwnerGraphTransactionPort _ownerGraph;
 
   @override
   Future<List<PersonTag>> list(String ownerId) =>
@@ -493,7 +488,7 @@ SELECT a.kind::int AS kind, count(*)::int AS count, p.show_in_filters
     required String ownerId,
     required int kind,
     required bool showInFilters,
-  }) => _database.withMutatingUser(ownerId, () async {
+  }) => _ownerGraph.run({ownerId}, ownerId, (_) async {
     await _database.customStatement(
       'INSERT INTO public.person_auto_tag_pref '
       r'(owner_id, kind, show_in_filters) VALUES ($1, $2, $3) '
@@ -620,8 +615,7 @@ VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
     required T Function(Map<String, dynamic>) decode,
     required Future<T> Function() run,
     required Map<String, dynamic> Function(T) encode,
-  }) => _database.withMutatingUser(ownerId, () async {
-    await lockOwner(_database, ownerId);
+  }) => _ownerGraph.run({ownerId}, ownerId, (_) async {
     final logged = await _database
         .customSelect(
           'SELECT fingerprint, result::text AS result '
