@@ -336,7 +336,7 @@ WHERE a.viewer_id = @viewer AND a.beacon_id = @child
               '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.id = \$2
 ''',
               variables: [

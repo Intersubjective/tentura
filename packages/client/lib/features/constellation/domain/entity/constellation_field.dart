@@ -146,6 +146,7 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     @Default(0) int helpOfferCount,
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
     ImageEntity? coverThumb,
+    ImageEntity? coverImage,
 
     /// The Post this Request budded from, when the viewer can read it.
     String? parentBeaconId,

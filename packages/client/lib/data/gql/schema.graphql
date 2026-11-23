@@ -8420,6 +8420,7 @@ type v2_ConstellationRequest {
   authorId: String!
   coverSource: Int!
   coverThumb: v2_image
+  coverImage: v2_image
   endAt: String
   forwardedById: String
   forwardedByName: String

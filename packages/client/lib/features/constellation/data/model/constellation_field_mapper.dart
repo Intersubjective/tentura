@@ -1,4 +1,5 @@
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura/data/gql/_g/image_model_v2.data.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
 
@@ -37,6 +38,7 @@ List<ConstellationRequest> mapConstellationFieldRequestsFetch(
       helpOfferCount: request.helpOfferCount,
       coverSource: request.coverSource,
       coverThumb: request.coverThumb as ImageModelV2?,
+      coverImage: request.coverImage,
       parentBeaconId: request.parentBeaconId,
       hasUnread: request.has_unread ?? false,
     ),
@@ -232,6 +234,7 @@ ConstellationRequest _mapRequestFields({
   String? lastActivityAt,
   String? addressLabel,
   ImageModelV2? coverThumb,
+  GImageModelV2? coverImage,
   String? parentBeaconId,
   bool hasUnread = false,
 }) => ConstellationRequest(
@@ -244,7 +247,9 @@ ConstellationRequest _mapRequestFields({
   primaryNeedSlug: primaryNeedSlug,
   startAt: startAt == null ? null : DateTime.parse(startAt),
   endAt: endAt == null ? null : DateTime.parse(endAt),
-  lastActivityAt: lastActivityAt == null ? null : DateTime.parse(lastActivityAt),
+  lastActivityAt: lastActivityAt == null
+      ? null
+      : DateTime.parse(lastActivityAt),
   addressLabel: addressLabel,
   hasCoordinates: hasCoordinates,
   isMine: isMine,
@@ -259,6 +264,7 @@ ConstellationRequest _mapRequestFields({
   helpOfferCount: helpOfferCount,
   coverSource: BeaconCoverSource.fromWireOrPhoto(coverSource),
   coverThumb: coverThumb?.asEntity,
+  coverImage: coverImage == null ? null : ImageModelV2(coverImage).asEntity,
   parentBeaconId: parentBeaconId,
   hasUnread: hasUnread,
 );
@@ -287,6 +293,7 @@ ConstellationRequest _mapFieldFetchRequest(
   helpOfferCount: request.helpOfferCount,
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
+  coverImage: request.coverImage,
   parentBeaconId: request.parentBeaconId,
   hasUnread: request.has_unread ?? false,
 );
@@ -315,6 +322,7 @@ ConstellationRequest _mapAnchorsFetchRequest(
   helpOfferCount: request.helpOfferCount,
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
+  coverImage: request.coverImage,
   parentBeaconId: request.parentBeaconId,
 );
 
@@ -367,6 +375,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
         helpOfferCount: request.helpOfferCount,
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
+        coverImage: request.coverImage,
         parentBeaconId: request.parentBeaconId,
         hasUnread: request.has_unread ?? false,
       ),
@@ -432,6 +441,7 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
         helpOfferCount: request.helpOfferCount,
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
+        coverImage: request.coverImage,
         parentBeaconId: request.parentBeaconId,
       ),
   ],

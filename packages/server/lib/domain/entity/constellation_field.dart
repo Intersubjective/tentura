@@ -330,6 +330,7 @@ class ConstellationRequestRecord {
     this.kind = 0,
     this.coverSource = 0,
     this.coverThumb,
+    this.coverImage,
     this.viewerParticipates,
     this.pinState,
     this.parentBeaconId,
@@ -363,6 +364,7 @@ class ConstellationRequestRecord {
        kind = 0,
        coverSource = 0,
        coverThumb = null,
+       coverImage = null,
        viewerParticipates = null,
        parentBeaconId = null,
        hasUnread = false,
@@ -393,6 +395,9 @@ class ConstellationRequestRecord {
   /// Wire: 0 = photo, 1 = symbol (matches `beacon.cover_source`).
   final int coverSource;
   final ImagePublicRecord? coverThumb;
+
+  /// The selected gallery image, independent of any cropped thumb.
+  final ImagePublicRecord? coverImage;
 
   /// When set (pinned batch load), full C2 participation predicate; otherwise null.
   final bool? viewerParticipates;
@@ -437,6 +442,7 @@ class ConstellationRequestRecord {
           other.kind == kind &&
           other.coverSource == coverSource &&
           other.coverThumb == coverThumb &&
+          other.coverImage == coverImage &&
           other.viewerParticipates == viewerParticipates &&
           other.pinState == pinState &&
           other.parentBeaconId == parentBeaconId &&
@@ -464,6 +470,7 @@ class ConstellationRequestRecord {
     kind,
     coverSource,
     coverThumb,
+    coverImage,
     viewerParticipates,
     pinState,
     parentBeaconId,

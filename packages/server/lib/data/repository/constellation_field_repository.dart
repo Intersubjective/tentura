@@ -31,6 +31,13 @@ final constellationPinnedItemSelectColumns = _constellationRequestSelectColumns(
   includePosts: true,
 );
 
+/// Both cover images for the selected Request alias `b`.
+const constellationRequestCoverJoins = '''
+LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+LEFT JOIN public.beacon_image gallery_link
+  ON gallery_link.beacon_id = b.id AND gallery_link.image_id = b.cover_image_id
+LEFT JOIN public.image gallery_cover ON gallery_cover.id = gallery_link.image_id''';
+
 String _constellationRequestSelectColumns({bool includePosts = false}) =>
     '''
   b.id,
@@ -81,6 +88,12 @@ String _constellationRequestSelectColumns({bool includePosts = false}) =>
   cover.width AS cover_thumb_width,
   cover.author_id AS cover_thumb_author_id,
   cover.created_at AS cover_thumb_created_at,
+  gallery_cover.id::text AS gallery_cover_id,
+  gallery_cover.hash AS gallery_cover_hash,
+  gallery_cover.height AS gallery_cover_height,
+  gallery_cover.width AS gallery_cover_width,
+  gallery_cover.author_id AS gallery_cover_author_id,
+  gallery_cover.created_at AS gallery_cover_created_at,
   (
     SELECT parent.id FROM public.beacon parent
     WHERE parent.id = b.parent_beacon_id
@@ -287,7 +300,7 @@ ORDER BY src, dst, tier
           '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.user_id = \$1
   AND b.kind = 0
   AND b.status IN (0, 7, 8)
@@ -317,7 +330,7 @@ ORDER BY b.id
 SELECT $constellationRequestSelectColumns
 FROM public.person_visible_peers_symmetric(\$1, \$2) p
 INNER JOIN public.beacon b ON b.user_id = p.peer_id::text
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.user_id <> \$1
   AND b.is_discoverable
   AND b.kind = 0
@@ -374,21 +387,6 @@ ConstellationRequestRecord readConstellationRequestRow(
   bool? viewerParticipates,
   String? pinState,
 }) {
-  ImagePublicRecord? coverThumb;
-  final coverId = row.readNullable<String>('cover_thumb_id');
-  if (coverId != null) {
-    coverThumb = ImagePublicRecord(
-      id: coverId,
-      hash: row.read<String>('cover_thumb_hash'),
-      height: row.read<int>('cover_thumb_height'),
-      width: row.read<int>('cover_thumb_width'),
-      authorId: row.read<String>('cover_thumb_author_id'),
-      createdAt: readCustomSelectTimestamptz(
-        row.data['cover_thumb_created_at'],
-      )!,
-    );
-  }
-
   final needsRaw = row.read<String>('needs');
   final needs = needsRaw.isEmpty
       ? const <String>[]
@@ -422,9 +420,27 @@ ConstellationRequestRecord readConstellationRequestRow(
     hasUnread: row.read<bool>('has_unread'),
     lastActivityAt: readCustomSelectTimestamptz(row.data['last_activity_at']),
     coverSource: row.read<int>('cover_source'),
-    coverThumb: coverThumb,
+    coverThumb: _readRequestCover(row, 'cover_thumb'),
+    coverImage: _readRequestCover(row, 'gallery_cover'),
     viewerParticipates: viewerParticipates,
     pinState: pinState,
     parentBeaconId: row.readNullable<String>('parent_beacon_id'),
+  );
+}
+
+ImagePublicRecord? _readRequestCover(QueryRow row, String prefix) {
+  final id = row.readNullable<String>('${prefix}_id');
+  if (id == null) return null;
+  return ImagePublicRecord(
+    id: id,
+    hash: row.read<String>('${prefix}_hash'),
+    height: row.read<int>('${prefix}_height'),
+    width: row.read<int>('${prefix}_width'),
+    authorId: row.read<String>('${prefix}_author_id'),
+    createdAt:
+        readCustomSelectTimestamptz(row.data['${prefix}_created_at']) ??
+        (throw const FormatException(
+          'Request cover image has no creation time',
+        )),
   );
 }

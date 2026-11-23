@@ -1223,6 +1223,7 @@ final gqlTypeConstellationRequest =
         field('kind', graphQLInt),
         field('coverSource', graphQLInt),
         field('coverThumb', gqlTypeImagePublic),
+        field('coverImage', gqlTypeImagePublic),
         field('pinState', graphQLString),
         field('parentBeaconId', graphQLString),
       ]);

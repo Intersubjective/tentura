@@ -339,7 +339,7 @@ ORDER BY peer_id, direction, beacon_id
           '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
   AND b.status = ANY(\$3::int[])
   AND public.field_item_visible(\$1, b.kind, b.id)
@@ -815,7 +815,7 @@ SELECT EXISTS (
           '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.user_id = \$1
   AND public.field_item_visible(\$1, b.kind, b.id)
   AND b.kind = 0
@@ -915,7 +915,7 @@ LIMIT \$5
             '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
 ORDER BY last_activity_at DESC, b.id
 ''',
