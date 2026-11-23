@@ -105,33 +105,39 @@ void main() {
     );
   });
 
-  test('200 {ok: true} when a friend claims an available invite', () async {
-    stubInvitation(invitation());
-    when(
-      friendshipLookup.isReciprocalSubscribe(
-        viewerId: 'Ujoiner',
-        peerId: _issuerId,
-      ),
-    ).thenAnswer((_) async => true);
-    when(
-      userRepo.bindMutual(
-        invitationId: 'Iabc',
-        userId: 'Ujoiner',
-        bindFriendship: false,
-      ),
-    ).thenAnswer((_) async => true);
+  test(
+    '200 with a non-lapsed outcome when a friend claims an available invite',
+    () async {
+      stubInvitation(invitation());
+      when(
+        friendshipLookup.isReciprocalSubscribe(
+          viewerId: 'Ujoiner',
+          peerId: _issuerId,
+        ),
+      ).thenAnswer((_) async => true);
+      when(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ujoiner',
+          bindFriendship: false,
+        ),
+      ).thenAnswer((_) async => true);
 
-    final r = await controller.handler(request());
+      final r = await controller.handler(request());
 
-    expect(r.statusCode, 200);
-    expect(jsonDecode(await r.readAsString()), {'ok': true});
-    verifyNever(
-      userRepo.bindMutual(
-        invitationId: anyNamed('invitationId'),
-        userId: anyNamed('userId'),
-      ),
-    );
-  });
+      expect(r.statusCode, 200);
+      expect(jsonDecode(await r.readAsString()), {
+        'ok': true,
+        'requestLapsed': false,
+      });
+      verifyNever(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+    },
+  );
 
   test('400 with the exception body is not logged', () async {
     stubInvitation(invitation());

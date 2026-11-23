@@ -23,7 +23,14 @@ final class OidcCase extends UseCaseBase {
   /// Resolve or create the account for a verified Google OIDC identity (login).
   /// Returns the account id, the linked credential id (session attribution),
   /// and whether a brand-new account was created (drives post-signup UX).
-  Future<({String accountId, String? credentialId, bool isNewAccount})>
+  Future<
+    ({
+      String accountId,
+      String? credentialId,
+      bool isNewAccount,
+      bool? requestLapsed,
+    })
+  >
   completeGoogle(
     OidcIdentity identity, {
     String? inviteId,
@@ -33,6 +40,7 @@ final class OidcCase extends UseCaseBase {
       rawEmail: identity.email,
       providerEmailVerified: identity.emailVerified,
     );
+    var requestLapsed = false;
     final resolved = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.oidcGoogle,
       identifier: identity.sub,
@@ -40,6 +48,7 @@ final class OidcCase extends UseCaseBase {
       inviteId: inviteId,
       publicData: identity.publicData,
       assertedContacts: contacts,
+      onRequestLapsed: () => requestLapsed = true,
     );
     final credentialId = await _userRepository.findCredentialId(
       type: CredentialType.oidcGoogle,
@@ -49,6 +58,7 @@ final class OidcCase extends UseCaseBase {
       accountId: resolved.accountId,
       credentialId: credentialId,
       isNewAccount: resolved.isNewAccount,
+      requestLapsed: resolved.isNewAccount ? requestLapsed : null,
     );
   }
 

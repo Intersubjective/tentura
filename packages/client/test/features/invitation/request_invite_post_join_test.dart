@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,8 +9,15 @@ import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/auth/data/repository/auth_remote_repository.dart';
+import 'package:tentura/features/auth/domain/use_case/account_case.dart';
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/auth/ui/bloc/register_invite_cubit.dart';
 import 'package:tentura/features/auth/ui/screen/auth_register_screen.dart';
@@ -22,6 +30,7 @@ import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/features/invitation/ui/screen/accept_invite_screen.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -34,6 +43,7 @@ import 'package:tentura/ui/util/ui_utils.dart';
 import '../../data/service/_session_account_test_harness.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../auth/auth_test_helpers.dart';
 
 const _code = 'I806d29daebbe';
 const _requestId = 'B1';
@@ -97,6 +107,123 @@ void main() {
       },
     );
   }
+
+  group('Request invite completion uses the server outcome', () {
+    test(
+      'confirmation opens Activity only when the Request remains open',
+      () async {
+        for (final requestLapsed in [false, true]) {
+          final wire = _InviteHttp(
+            lapsed: false,
+            existingAccount: true,
+            completionLapsed: requestLapsed,
+          );
+          await wire.run((repository) async {
+            final effects = FakeUiEffectPort();
+            final postJoin = _ObservedPostJoin();
+            final cubit = AcceptInviteCubit(repository, effects, postJoin);
+            addTearDown(cubit.close);
+
+            await cubit.start(_code);
+            expect(cubit.state.needsConfirmation, isTrue);
+            expect(cubit.state.pendingBeacon?.lapsed, isFalse);
+            expect(cubit.state.pendingBeacon?.id, _requestId);
+            await cubit.confirmAccept();
+
+            expect(wire.inviteRequests, [
+              'GET $_previewPath',
+              'POST $_acceptPath',
+            ]);
+            expect(effects.emitted.whereType<ShowError>(), isEmpty);
+            final messages = effects.emitted.whereType<ShowMessage>().map(
+              (effect) => effect.message,
+            );
+            expect(messages.whereType<BeaconInviteAcceptedMessage>(), isEmpty);
+            expect(messages.whereType<InviteAcceptedMessage>(), isEmpty);
+            expect(
+              {
+                'destinations registered': postJoin.handoffs,
+                'destination': postJoin.takeDestination(),
+                'navigation': effects.emitted
+                    .whereType<NavigateReplace>()
+                    .map((effect) => effect.target)
+                    .toList(),
+              },
+              {
+                'destinations registered': requestLapsed ? 0 : 1,
+                'destination': requestLapsed ? isNull : _openRequestDestination,
+                'navigation': [
+                  if (requestLapsed)
+                    NavigateReplaceTarget.home
+                  else
+                    NavigateReplaceTarget.homeInboxTab,
+                ],
+              },
+              reason: 'accept response requestLapsed=$requestLapsed',
+            );
+          });
+        }
+      },
+    );
+
+    for (final requestLapsed in [false, true]) {
+      testWidgets(
+        requestLapsed
+            ? 'registration leaves the closed Request and its snackbar behind'
+            : 'registration confirms the Request is open and shows its snackbar',
+        (tester) async {
+          await usePhoneSurface(tester);
+          addTearDown(_replaceUnrelatedPages());
+          final wire = _InviteHttp(
+            lapsed: false,
+            existingAccount: false,
+            completionLapsed: requestLapsed,
+          );
+          await wire.run((repository) async {
+            final auth = (await tester.runAsync(
+              () => _signupAuth(wire.remote),
+            ))!;
+            final app = await _openInviteLink(
+              tester,
+              repository: repository,
+              existingAccount: false,
+              signupAuth: auth,
+            );
+            expect(find.byType(AuthRegisterScreen), findsOneWidget);
+            expect(app.register.state.preview?.beacon?.lapsed, isFalse);
+            expect(app.register.state.preview?.beacon?.id, _requestId);
+            expect(app.postJoin.handoffs, 0);
+            final l10n = lookupL10n(_ru);
+            final name = find.widgetWithText(
+              TextFormField,
+              l10n.labelDisplayName,
+            );
+            await tester.enterText(name, 'New member');
+            final submit = find.widgetWithText(FilledButton, l10n.buttonCreate);
+            await tester.ensureVisible(submit);
+            // Ferry and HTTP callbacks may settle between rendered frames.
+            await tester.runAsync(() async {
+              await tester.tap(submit);
+              await waitUntil(
+                'The signup result did not authenticate the new member',
+                () => auth.state.currentAccountId == _accountId,
+              );
+            });
+            await _pumpPage(tester);
+
+            expect(wire.signupQueries, hasLength(1));
+            expect(auth.state.currentAccountId, _accountId);
+            expect(find.byType(AuthRegisterScreen), findsNothing);
+            expect(tester.takeException(), isNull);
+            _expectHomeOutcome(app, opensRequest: !requestLapsed);
+            expect(app.postJoin.handoffs, requestLapsed ? 0 : 1);
+            expect(wire.signupQueries.single, contains('requestLapsed'));
+          });
+        },
+        timeout: const Timeout(Duration(seconds: 15)),
+      );
+    }
+  });
 
   group('after opening a Request invite link', () {
     late void Function() restorePages;
@@ -214,16 +341,23 @@ Iterable<BeaconInviteAcceptedMessage> _requestMessages(
     .whereType<BeaconInviteAcceptedMessage>();
 
 class _InviteHttp {
-  _InviteHttp({required this.lapsed, required this.existingAccount});
+  _InviteHttp({
+    required this.lapsed,
+    required this.existingAccount,
+    this.completionLapsed,
+  });
 
   final bool lapsed;
   final bool existingAccount;
+  final bool? completionLapsed;
+  late final RemoteApiService remote;
+  final signupQueries = <String>[];
   final inviteRequests = <String>[];
 
   Future<void> run(Future<void> Function(InvitationRepository) body) =>
       http.runWithClient(
         () async {
-          final remote = testRealtimeClient();
+          remote = testRealtimeClient();
           final repository = InvitationRepository(remote);
           addTearDown(remote.close);
           addTearDown(repository.dispose);
@@ -239,6 +373,26 @@ class _InviteHttp {
               'subject': _accountId,
               'access_token': 'invite-test-token',
               'expires_in': 3600,
+            });
+          }
+          if (path.endsWith('/graphql')) {
+            final query = jsonDecode(request.body) as Map;
+            expect(request.method, 'POST');
+            expect(query['operationName'], 'SignUp');
+            expect(
+              query['variables'],
+              containsPair('displayName', 'New member'),
+            );
+            final selection = query['query'] as String;
+            signupQueries.add(selection);
+            return _json({
+              'data': {
+                'signUp': {
+                  'subject': _accountId,
+                  if (selection.contains('requestLapsed'))
+                    'requestLapsed': completionLapsed,
+                },
+              },
             });
           }
           inviteRequests.add('${request.method} $path');
@@ -261,7 +415,10 @@ class _InviteHttp {
                 'lapsed': lapsed,
               },
             }),
-            ('POST', _acceptPath) => http.Response('', 204),
+            ('POST', _acceptPath) =>
+              completionLapsed == null
+                  ? http.Response('', 204)
+                  : _json({'ok': true, 'requestLapsed': completionLapsed}),
             _ => throw StateError(
               'Unexpected invite request ${request.method} $path',
             ),
@@ -275,6 +432,68 @@ class _InviteHttp {
     headers: {'content-type': 'application/json'},
   );
 }
+
+Future<AuthCubit> _signupAuth(RemoteApiService remote) {
+  const env = Env(needInviteCode: true);
+  final log = Logger('RequestInviteSignup');
+  final local = _SignupLocal();
+  addTearDown(local.dispose);
+  final repository = AuthRemoteRepository(remoteApiService: remote, log: log);
+  final profiles = _SignupProfiles();
+  return AuthCubit.hydrated(
+    env,
+    AuthCase(
+      local,
+      repository,
+      TestDevicePush(),
+      _NativeAuthCleanup(),
+      TestSettingsRepository(),
+      env: env,
+      logger: log,
+    ),
+    AccountCase(
+      local,
+      repository,
+      _SignupPlatform(),
+      profiles,
+      env: env,
+      logger: log,
+    ),
+    profiles,
+    FakeUiEffectPort(),
+  );
+}
+
+class _SignupLocal extends EmptyAuthLocal {
+  final _accountChanges = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> currentAccountChanges() => _accountChanges.stream;
+
+  @override
+  Future<void> setCurrentAccountId(String? id) async {
+    _accountChanges.add(id ?? '');
+  }
+
+  @override
+  Future<void> retainOnlyAccount(String keepId) =>
+      Future<void>.delayed(Duration.zero);
+
+  @override
+  Future<void> dispose() => _accountChanges.close();
+}
+
+class _NativeAuthCleanup extends TestAuthPlatformCleanup {
+  @override
+  bool get skipSessionCookieBootstrap => true;
+}
+
+class _SignupProfiles extends Fake implements ProfileRepositoryPort {
+  @override
+  Stream<RepositoryEvent<Profile>> get changes => const Stream.empty();
+}
+
+class _SignupPlatform extends Fake implements PlatformRepositoryPort {}
 
 class _Auth extends Cubit<AuthState> implements AuthCubit {
   _Auth({required bool authenticated})
@@ -306,6 +525,26 @@ class _NativeHandoff implements PostJoinBeaconHandoffPort {
 
 class _ObservedPostJoin extends PostJoinNavigationCubit {
   final destinations = <PostJoinDestination>[];
+
+  int handoffs = 0;
+
+  @override
+  void setFromBeaconInvite({
+    required String beaconId,
+    required String beaconTitle,
+    String inviterName = '',
+    bool showSnackbar = true,
+    bool isPost = false,
+  }) {
+    handoffs++;
+    super.setFromBeaconInvite(
+      beaconId: beaconId,
+      beaconTitle: beaconTitle,
+      inviterName: inviterName,
+      showSnackbar: showSnackbar,
+      isPost: isPost,
+    );
+  }
 
   @override
   PostJoinDestination? takeDestination() {
@@ -342,8 +581,10 @@ Future<_InviteApp> _openInviteLink(
   WidgetTester tester, {
   required InvitationRepository repository,
   required bool existingAccount,
+  AuthCubit? signupAuth,
 }) async {
-  final auth = _Auth(authenticated: existingAccount);
+  final fakeAuth = _Auth(authenticated: existingAccount);
+  final auth = signupAuth ?? fakeAuth;
   final postJoin = _ObservedPostJoin();
   final effects = FakeUiEffectPort();
   final screen = ScreenCubit(effects);
@@ -375,7 +616,8 @@ Future<_InviteApp> _openInviteLink(
     tester.binding.platformDispatcher.clearDefaultRouteNameTestValue();
     await GetIt.I.reset();
     router.dispose();
-    await auth.close();
+    await fakeAuth.close();
+    await signupAuth?.dispose();
     await screen.close();
     if (!accept.isClosed) await accept.close();
     if (!register.isClosed) await register.close();
@@ -406,7 +648,7 @@ Future<_InviteApp> _openInviteLink(
   await _pumpPage(tester);
   return (
     router: router,
-    auth: auth,
+    auth: fakeAuth,
     accept: accept,
     register: register,
     postJoin: postJoin,

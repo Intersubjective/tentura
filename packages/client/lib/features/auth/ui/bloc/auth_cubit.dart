@@ -499,7 +499,7 @@ class AuthCubit extends Cubit<AuthState> {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async {
+  }) => _duringAuthTransition(() async {
     if (_env.needInviteCode && invitationCode.length < kIdLength) {
       return _effects.emit(
         const ShowError(InvitationCodeIsWrongException()),
@@ -511,25 +511,27 @@ class AuthCubit extends Cubit<AuthState> {
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      final result = await _authCase.signUp(
+        invitationCode: invitationCode,
+        displayName: displayName,
+        handle: handle,
+      );
       final newProfile = AccountEntity(
-        id: await _authCase.signUp(
-          invitationCode: invitationCode,
-          displayName: displayName,
-          handle: handle,
-        ),
+        id: result.accountId,
         displayName: displayName,
       );
       emit(
         AuthState(
           accounts: [newProfile],
           currentAccountId: newProfile.id,
+          signupRequestLapsed: result.requestLapsed,
           updatedAt: DateTime.timestamp(),
         ),
       );
     } catch (e) {
       _emitSnackError(e);
     }
-  }
+  });
 
   //
   //

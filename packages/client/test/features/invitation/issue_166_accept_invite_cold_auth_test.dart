@@ -42,7 +42,10 @@ void main() {
         repo.previewResult = existingUserPreview;
         await cubit.start(code);
         expect(cubit.state.needsConfirmation, isTrue);
-        expect(cubit.state.pendingInviter, const Profile(id: 'Uinviter', displayName: 'Inviter'));
+        expect(
+          cubit.state.pendingInviter,
+          const Profile(id: 'Uinviter', displayName: 'Inviter'),
+        );
         expect(repo.previewCalls, 1);
       },
     );
@@ -63,7 +66,8 @@ void main() {
         await _waitFor(
           () => cubit.state.needsConfirmation,
           timeout: const Duration(seconds: 2),
-          onTimeout: () => 'Expected accept-invite to reach confirmation after '
+          onTimeout: () =>
+              'Expected accept-invite to reach confirmation after '
               'session becomes ready (no F5). Last state: pendingSignup=${cubit.state.pendingSignupCode}, '
               'previewCalls=${repo.previewCalls}, status=${cubit.state.status}',
         );
@@ -113,7 +117,8 @@ class _RecordingInvitationAcceptPort implements InvitationAcceptPort {
   }
 
   @override
-  Future<void> acceptExistingInvite(String code) async {
+  Future<ExistingInviteAcceptance> acceptExistingInvite(String code) async {
     acceptCalls++;
+    return ExistingInviteAcceptance.accepted;
   }
 }

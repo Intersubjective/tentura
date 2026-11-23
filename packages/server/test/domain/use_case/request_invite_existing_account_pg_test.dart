@@ -30,6 +30,7 @@ const _liveAccount = 'U1a95ea4e0005';
 const _request = 'B1a95ea4e0001';
 const _ancestor = 'F1a95ea4e0001';
 const _parent = 'F1a95ea4e0002';
+const _post = 'B1a95ea4e0002';
 const _origin = 'http://127.0.0.1:2080';
 
 enum _AcceptancePath {
@@ -199,6 +200,41 @@ VALUES (@author, @issuer, 1), (@issuer, @author, 1)
     return invite.id;
   }
 
+  Future<String> issuePostInvite() async {
+    const root = 'M1a95ea4e0001';
+    await query(
+      '''
+INSERT INTO public.beacon (id, user_id, title, description, status, kind,
+forward_policy, is_discoverable, published_at)
+VALUES (@post, @author, '', '', @status, @kind, @policy, false, now())
+''',
+      {
+        'post': _post,
+        'author': _author,
+        'status': BeaconStatus.open.smallintValue,
+        'kind': BeaconKind.post.value,
+        'policy': BeaconForwardPolicyValue.open.value,
+      },
+    );
+    await query(
+      '''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES (@root, @post, @author, 'Updates from the garden')
+''',
+      {'root': root, 'post': _post, 'author': _author},
+    );
+    await query(
+      'UPDATE public.beacon SET post_root_message_id = @root WHERE id = @post',
+      {'root': root, 'post': _post},
+    );
+    final invite = await invitations.create(
+      userId: _author,
+      addresseeName: 'New member',
+      beaconId: _post,
+    );
+    return invite.id;
+  }
+
   Future<void> changeStatus(BeaconStatus status) async {
     await query(
       'UPDATE public.beacon SET status = @status WHERE id = @request',
@@ -295,14 +331,20 @@ WHERE beacon_id = @request AND recipient_id = @account
     );
 
     expect(
-      {'claim': claim, 'votes': votes, 'forwards': forwards},
+      {'claim': claim, 'votes': votes},
       {
         'claim': [
           [account, isNotNull],
         ],
         'votes': isEmpty,
-        'forwards': [?liveForward],
       },
+    );
+    expect(
+      forwards,
+      liveForward == null ? isEmpty : equals([liveForward]),
+      reason: liveForward == null
+          ? 'A lapsed invite creates no Request forward for $account'
+          : 'An open Request invite creates the expected forward for $account',
     );
   }
 
@@ -539,47 +581,16 @@ WHERE invitation.id = @invite AND beacon.id = @request
     );
 
     test('never marks a Post as lapsed, even after it closes', () async {
-      const post = 'B1a95ea4e0002';
-      const root = 'M1a95ea4e0001';
-      await query(
-        '''
-INSERT INTO public.beacon (id, user_id, title, description, status, kind,
-  forward_policy, is_discoverable, published_at)
-VALUES (@post, @author, '', '', @status, @kind, @policy, false, now())
-''',
-        {
-          'post': post,
-          'author': _author,
-          'status': BeaconStatus.open.smallintValue,
-          'kind': BeaconKind.post.value,
-          'policy': BeaconForwardPolicyValue.open.value,
-        },
-      );
-      await query(
-        '''
-INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
-VALUES (@root, @post, @author, 'Updates from the garden')
-''',
-        {'root': root, 'post': post, 'author': _author},
-      );
-      await query(
-        'UPDATE public.beacon SET post_root_message_id = @root WHERE id = @post',
-        {'root': root, 'post': post},
-      );
-      final invite = await invitations.create(
-        userId: _author,
-        addresseeName: 'New member',
-        beaconId: post,
-      );
-      final open = (await invitations.preview(code: invite.id)).toJson();
+      final invite = await issuePostInvite();
+      final open = (await invitations.preview(code: invite)).toJson();
       expect(open, containsPair('codeStatus', 'available'));
       expect(open['beacon'], containsPair('kind', 'post'));
 
       await query(
         'UPDATE public.beacon SET status = @status WHERE id = @post',
-        {'status': BeaconStatus.closed.smallintValue, 'post': post},
+        {'status': BeaconStatus.closed.smallintValue, 'post': _post},
       );
-      final closed = (await invitations.preview(code: invite.id)).toJson();
+      final closed = (await invitations.preview(code: invite)).toJson();
       expect(closed, containsPair('codeStatus', 'available'));
       expect(closed, isNot(contains('beacon')));
       expect(open['beacon'], containsPair('lapsed', false));
@@ -652,6 +663,74 @@ VALUES (@root, @post, @author, 'Updates from the garden')
 
     expect(await readClaim(invite), firstClaim);
     await expectConsumedInvite(invite, account: _acceptingAccount);
+  });
+
+  group('Existing account invite acceptance reports Request lapse', () {
+    for (final (label, kind, closesAfterPreview) in [
+      ('a Request that closes after preview', BeaconKind.request, true),
+      ('a Request that remains open', BeaconKind.request, false),
+      ('a plain invite', null, false),
+      ('a Post invite', BeaconKind.post, false),
+    ]) {
+      test('returns the acceptance outcome for $label', () async {
+        final String invite;
+        switch (kind) {
+          case BeaconKind.request:
+            await publishRequest(withParentChain: true);
+            invite = await issueInvite('Existing member');
+          case BeaconKind.post:
+            invite = await issuePostInvite();
+          case null:
+            invite = (await invitations.create(
+              userId: _issuer,
+              addresseeName: 'Existing member',
+            )).id;
+        }
+
+        final api = (await getIt.getAsync<RootRouter>()).routeHandler();
+        final token = getIt<AuthCase>().issueAccessToken(_acceptingAccount);
+        final headers = {'authorization': 'Bearer ${token.rawToken}'};
+        final preview = await api(
+          Request(
+            'GET',
+            Uri.parse('$_origin/api/v2/invite/$invite/preview'),
+            headers: headers,
+          ),
+        );
+        expect(preview.statusCode, 200);
+        final before = jsonDecode(await preview.readAsString()) as Map;
+        expect(before, containsPair('suggestedAction', 'accept-as-existing'));
+        if (kind == BeaconKind.request) {
+          expect(before['beacon'], containsPair('lapsed', false));
+        }
+        if (closesAfterPreview) await changeStatus(BeaconStatus.closed);
+
+        final response = await api(
+          Request(
+            'POST',
+            Uri.parse('$_origin/api/v2/invite/$invite/accept-as-existing'),
+            headers: headers,
+          ),
+        );
+        final body = await response.readAsString();
+        expect(response.statusCode, 200, reason: body);
+        final result = jsonDecode(body) as Map;
+        expect(result, containsPair('ok', true));
+        if (closesAfterPreview) {
+          // The claim must succeed without forwarding this Request to the account.
+          await expectConsumedInvite(invite, account: _acceptingAccount);
+          expect(
+            await query(
+              'SELECT 1 FROM public.user_contact '
+              'WHERE viewer_id = @account OR subject_id = @account',
+              {'account': _acceptingAccount},
+            ),
+            isEmpty,
+          );
+        }
+        expect(result, containsPair('requestLapsed', closesAfterPreview));
+      });
+    }
   });
 
   group('Closing a Request after an invite is issued', () {

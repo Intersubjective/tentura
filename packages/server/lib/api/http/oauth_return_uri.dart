@@ -23,6 +23,7 @@ String sanitizeOAuthReturnTo({
 String appendSignedInIfInvite(
   String destination, {
   bool isNewAccount = false,
+  bool? requestLapsed,
 }) {
   final uri = Uri.parse(destination);
   final segments = uri.pathSegments;
@@ -35,6 +36,8 @@ String appendSignedInIfInvite(
             ...uri.queryParameters,
             'signed_in': '1',
             if (isNewAccount) 'new': '1',
+            if (isNewAccount && requestLapsed != null)
+              'requestLapsed': requestLapsed.toString(),
           },
         )
         .toString();
@@ -46,6 +49,7 @@ String destinationAfterOAuthCallback({
   required String returnTo,
   required String publicOrigin,
   bool isNewAccount = false,
+  bool? requestLapsed,
 }) {
   if (returnTo.isEmpty) {
     // New account with no return target: `/` would route into WASM
@@ -59,9 +63,11 @@ String destinationAfterOAuthCallback({
           )
           .toString();
     }
-    return publicOrigin.endsWith('/')
-        ? publicOrigin
-        : '$publicOrigin/';
+    return publicOrigin.endsWith('/') ? publicOrigin : '$publicOrigin/';
   }
-  return appendSignedInIfInvite(returnTo, isNewAccount: isNewAccount);
+  return appendSignedInIfInvite(
+    returnTo,
+    isNewAccount: isNewAccount,
+    requestLapsed: requestLapsed,
+  );
 }

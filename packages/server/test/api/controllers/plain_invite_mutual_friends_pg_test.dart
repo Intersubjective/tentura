@@ -228,7 +228,7 @@ UPDATE public.invitation SET created_at = @createdAt WHERE id = @code
       final first = await postAccept();
       final firstBody = await first.readAsString();
       expect(first.statusCode, 200, reason: firstBody);
-      expect(jsonDecode(firstBody), {'ok': true});
+      expect(jsonDecode(firstBody), {'ok': true, 'requestLapsed': false});
 
       final repeat = await postAccept();
       expect(repeat.statusCode, 404, reason: await repeat.readAsString());

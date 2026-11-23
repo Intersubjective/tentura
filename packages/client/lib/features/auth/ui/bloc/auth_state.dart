@@ -13,6 +13,7 @@ abstract class AuthState extends StateBase with _$AuthState {
     @Default([]) List<AccountEntity> accounts,
     @Default(StateIsSuccess()) StateStatus status,
     @Default(false) bool isBootstrapping,
+    @Default(false) bool signupRequestLapsed,
     @Default(false) bool authRecoveryNeeded,
 
     /// The account's stored seed can't be read on this device (it is kept).

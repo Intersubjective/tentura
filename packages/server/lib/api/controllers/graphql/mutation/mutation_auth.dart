@@ -43,12 +43,14 @@ final class MutationAuth extends GqlNodeBase {
       _handleField.fieldNullable,
     ],
     resolve: (_, args) async {
+      var requestLapsed = false;
       final jwt = await _authCase.signUp(
         authRequestToken: _authRequestTokenInput.fromArgsNonNullable(args),
         displayName: InputFieldDisplayName.fromArgsNonNullable(args),
         handle: _handleField.fromArgs(args),
+        onRequestLapsed: () => requestLapsed = true,
       );
-      return jwt.asOauth2Map;
+      return {...jwt.asOauth2Map, 'requestLapsed': requestLapsed};
     },
   );
 

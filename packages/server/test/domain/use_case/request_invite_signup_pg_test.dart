@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
@@ -12,6 +13,7 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/api/controllers/session_controller.dart';
+import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -82,6 +84,11 @@ Future<void> main() async {
   );
 
   setUpAll(() async {
+    final warnSetting = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    addTearDown(() {
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = warnSetting;
+    });
     session = await setUpDisposablePgWriter(target: target);
     writer = session.writer;
     final db = target.databaseEnv;
@@ -256,6 +263,151 @@ VALUES (@author, @issuer, 1), (@issuer, @author, 1)
     );
     return invite.id;
   }
+
+  group('New account signup reports Request lapse', () {
+    const origin = 'http://127.0.0.1:2080';
+
+    for (final method in _SignupMethod.values) {
+      for (final closesAfterPreview in [false, true]) {
+        test(
+          '${method.label} reports a Request that '
+          '${closesAfterPreview ? 'closes after preview' : 'remains open'}',
+          () async {
+            final invite = await issueInvite();
+            final api = (await getIt.getAsync<RootRouter>()).routeHandler();
+            final preview = await api(
+              Request(
+                'GET',
+                Uri.parse('$origin/api/v2/invite/$invite/preview'),
+              ),
+            );
+            expect(preview.statusCode, 200);
+            final before = jsonDecode(await preview.readAsString()) as Map;
+            expect(before, containsPair('suggestedAction', 'accept-as-new'));
+            expect(before['beacon'], containsPair('lapsed', false));
+            if (closesAfterPreview) {
+              await query(
+                'UPDATE public.beacon SET status = @status WHERE id = @request',
+                {
+                  'status': BeaconStatus.closed.smallintValue,
+                  'request': _request,
+                },
+              );
+            }
+
+            switch (method) {
+              case _SignupMethod.deviceKey:
+                Future<Map<String, Object?>> graphql(
+                  String operation, {
+                  Map<String, Object?> variables = const {},
+                }) async {
+                  final response = await api(
+                    Request(
+                      'POST',
+                      Uri.parse('$origin/api/v2/graphql'),
+                      headers: {'content-type': 'application/json'},
+                      body: jsonEncode({
+                        'query': operation,
+                        'variables': variables,
+                      }),
+                    ),
+                  );
+                  final body = await response.readAsString();
+                  expect(response.statusCode, 200, reason: body);
+                  final payload = jsonDecode(body) as Map<String, Object?>;
+                  expect(
+                    payload['errors'],
+                    anyOf(isNull, isEmpty),
+                    reason: body,
+                  );
+                  return payload['data']! as Map<String, Object?>;
+                }
+
+                final schema = await graphql(
+                  '{ __type(name: "AuthResponse") { fields { name } } }',
+                );
+                final fields = (schema['__type']! as Map)['fields'] as List;
+                // Select fields the server exposes so signup also executes on
+                // a server that has yet to publish the lapse outcome.
+                final lapseField =
+                    fields.any(
+                      (field) => (field as Map)['name'] == 'requestLapsed',
+                    )
+                    ? 'requestLapsed'
+                    : '';
+                final token =
+                    JWT({
+                      AuthRequestIntent.keyPublicKey: devicePublicKey,
+                      AuthRequestIntentSignUp.keyCode: invite,
+                    }).sign(
+                      EdDSAPrivateKey.fromPEM(
+                        Env.kJwtPrivateKey.replaceAll(r'\n', '\n'),
+                      ),
+                      algorithm: JWTAlgorithm.EdDSA,
+                      expiresIn: const Duration(minutes: 5),
+                    );
+                final data = await graphql(
+                  r'mutation SignUp($token: String!, $name: String!) {'
+                  r'  signUp(authRequestToken: $token, displayName: $name) {'
+                  '    subject $lapseField'
+                  '  } }',
+                  variables: {'token': token, 'name': _joinerName},
+                );
+                final signup = data['signUp']! as Map;
+                expect(signup['subject'], isNotEmpty);
+                expect(
+                  await query(
+                    'SELECT invited_id FROM public.invitation WHERE id = @id',
+                    {'id': invite},
+                  ),
+                  [
+                    [signup['subject']],
+                  ],
+                );
+                expect(
+                  signup,
+                  containsPair('requestLapsed', closesAfterPreview),
+                );
+
+              case _SignupMethod.emailCredential:
+                final token = await getIt<EmailAuthTransactionRepositoryPort>()
+                    .create(
+                      normalizedEmail: _email,
+                      inviteCode: invite,
+                      expiresIn: const Duration(minutes: 5),
+                      userAgentHash: EmailAuthCase.hashFingerprint(
+                        'test browser',
+                      ),
+                      ipHash: EmailAuthCase.hashFingerprint('test IP'),
+                    );
+                final response = await api(
+                  Request(
+                    'POST',
+                    Uri.parse('$origin/auth/email/verify'),
+                    headers: {
+                      'content-type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 't=${Uri.encodeQueryComponent(token)}',
+                  ),
+                );
+                expect(
+                  response.statusCode,
+                  302,
+                  reason: await response.readAsString(),
+                );
+                final landing = Uri.parse(response.headers['location']!);
+                expect(landing.path, '/invite/$invite');
+                expect(landing.queryParameters, containsPair('new', '1'));
+                expect(
+                  landing.queryParameters,
+                  containsPair('requestLapsed', '$closesAfterPreview'),
+                );
+            }
+          },
+        );
+      }
+    }
+  });
 
   Future<String> signUp(_SignupMethod method, String invite) async {
     final auth = getIt<AuthCase>();

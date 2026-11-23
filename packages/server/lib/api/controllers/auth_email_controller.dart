@@ -8,6 +8,7 @@ import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/email_auth_failure_page.dart';
 import 'package:tentura_server/api/http/json_body.dart';
+import 'package:tentura_server/api/http/oauth_return_uri.dart';
 import 'package:tentura_server/app/sentry/auth_telemetry.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
@@ -90,7 +91,7 @@ final class AuthEmailController extends BaseController {
       );
       final redirectUrl = _redirectAfterVerify(
         inviteCode,
-        isNewAccount: result.isNewAccount,
+        requestLapsed: result.requestLapsed,
       );
       return Response.ok(
         jsonEncode({
@@ -98,6 +99,7 @@ final class AuthEmailController extends BaseController {
           'immediate': true,
           'redirectUrl': redirectUrl,
           'isNewAccount': result.isNewAccount,
+          'requestLapsed': ?result.requestLapsed,
         }),
         headers: withSetCookie(
           {
@@ -223,10 +225,13 @@ final class AuthEmailController extends BaseController {
         EmailAuthLoginConfirmed(
           :final sessionToken,
           :final inviteCode,
-          :final isNewAccount,
+          :final requestLapsed,
         ) =>
           Response.found(
-            _redirectAfterVerify(inviteCode, isNewAccount: isNewAccount),
+            _redirectAfterVerify(
+              inviteCode,
+              requestLapsed: requestLapsed,
+            ),
             headers: withSetCookie(
               {kHeaderCacheControl: kCacheControlNoStore},
               buildSetCookie(
@@ -396,35 +401,17 @@ final class AuthEmailController extends BaseController {
 
   String _redirectAfterVerify(
     String? inviteCode, {
-    required bool isNewAccount,
-  }) {
-    if (inviteCode != null && inviteCode.isNotEmpty) {
-      return Uri.parse(env.publicOrigin)
-          .replace(
-            path: '/invite/$inviteCode',
-            queryParameters: {
-              'signed_in': '1',
-              if (isNewAccount) 'new': '1',
-            },
-          )
-          .toString();
-    }
-    // New account without invite: `/` would route into WASM (cookie-presence
-    // split, ADR 0002), so use the always-landing `/invite/` path for the
-    // post-signup name + onboarding flow.
-    if (isNewAccount) {
-      return Uri.parse(env.publicOrigin)
-          .replace(
-            path: '/invite/',
-            queryParameters: {'signed_in': '1', 'new': '1'},
-          )
-          .toString();
-    }
-    final origin = env.publicOrigin.endsWith('/')
-        ? env.publicOrigin
-        : '${env.publicOrigin}/';
-    return origin;
-  }
+    required bool? requestLapsed,
+  }) => destinationAfterOAuthCallback(
+    returnTo: inviteCode == null || inviteCode.isEmpty
+        ? ''
+        : Uri.parse(
+            env.publicOrigin,
+          ).replace(path: '/invite/$inviteCode').toString(),
+    publicOrigin: env.publicOrigin,
+    isNewAccount: requestLapsed != null,
+    requestLapsed: requestLapsed,
+  );
 
   Future<EmailAuthStartResult> _runEmailStart(
     Request request, {

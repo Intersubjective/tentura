@@ -7805,6 +7805,7 @@ type v2_AuthResponse {
   access_token: String!
   expires_in: Int!
   refresh_token: String
+  requestLapsed: Boolean
   subject: String!
   token_type: String!
 }

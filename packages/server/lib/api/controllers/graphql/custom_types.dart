@@ -947,6 +947,7 @@ final gqlTypeBeaconPeopleSeenResult =
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
   ..fields.addAll([
+    field('requestLapsed', graphQLBoolean),
     field('subject', graphQLString.nonNullable()),
     field('expires_in', graphQLInt.nonNullable()),
     field('token_type', graphQLString.nonNullable()),
