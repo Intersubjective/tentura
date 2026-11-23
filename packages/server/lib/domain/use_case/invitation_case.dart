@@ -135,10 +135,13 @@ final class InvitationCase extends UseCaseBase {
     return _beaconRepository.getBeaconById(beaconId: beaconId);
   }
 
-  Future<void> _requirePostInviteForward({
+  Future<BeaconEntity> _lockPostInvite({
     required InvitationEntity invitation,
-    required BeaconEntity beacon,
+    required String beaconId,
+    required String userId,
   }) async {
+    final beacon = await _postUnderLock(beaconId);
+    await _requireUnblockedInvite(invitation, userId);
     if (!beacon.allowsForward ||
         await isExpiredPost(_beaconRepository, beacon)) {
       throw const PostNotOpenException();
@@ -151,6 +154,7 @@ final class InvitationCase extends UseCaseBase {
         description: 'Forwarding is off for this post',
       );
     }
+    return beacon;
   }
 
   /// Renames the addressee of the caller's own, still unconsumed invite.
@@ -339,12 +343,7 @@ final class InvitationCase extends UseCaseBase {
     if (invitation == null) {
       throw IdNotFoundException(id: invitationId);
     }
-    if (await _userBlockRepository.isBlockedPair(
-      a: userId,
-      b: invitation.issuer.id,
-    )) {
-      throw IdNotFoundException(id: invitationId);
-    }
+    await _requireUnblockedInvite(invitation, userId);
     if (invitation.issuer.id == userId) {
       throw const InvitationWrongException(
         description: 'Cannot accept your own invite',
@@ -391,10 +390,13 @@ final class InvitationCase extends UseCaseBase {
       emitMutualConnection: !alreadyFriends,
       emitInviteAccepted: !alreadyFriends,
       mutation: (_) async {
-        if (beaconId != null) {
-          await _requirePostInviteForward(
+        if (beaconId == null) {
+          await _lockSenderAndCheckInvite(invitation, userId);
+        } else {
+          await _lockPostInvite(
             invitation: invitation,
-            beacon: await _postUnderLock(beaconId),
+            beaconId: beaconId,
+            userId: userId,
           );
         }
         final claimed = await _userRepository.bindMutual(
@@ -411,22 +413,33 @@ final class InvitationCase extends UseCaseBase {
     InvitationEntity invitation,
     String userId,
   ) async {
-    // Request acceptance shares the sender barrier with delivery until commit.
-    if (_userBlockRepository case final UserBlockWriteLocks locks) {
-      await locks.lockForRequestInviteAcceptance(invitation.issuer.id);
-    }
+    await _lockSenderAndCheckInvite(invitation, userId);
+    return _userRepository.acceptRequestInvite(
+      invitationId: invitation.id,
+      userId: userId,
+    );
+  }
 
+  Future<void> _lockSenderAndCheckInvite(
+    InvitationEntity invitation,
+    String userId,
+  ) async {
+    if (_userBlockRepository case final UserBlockWriteLocks locks) {
+      await locks.lockInviteSender(invitation.issuer.id);
+    }
+    await _requireUnblockedInvite(invitation, userId);
+  }
+
+  Future<void> _requireUnblockedInvite(
+    InvitationEntity invitation,
+    String userId,
+  ) async {
     if (await _userBlockRepository.isBlockedPair(
       a: userId,
       b: invitation.issuer.id,
     )) {
       throw IdNotFoundException(id: invitation.id);
     }
-
-    return _userRepository.acceptRequestInvite(
-      invitationId: invitation.id,
-      userId: userId,
-    );
   }
 
   Future<InviteAcceptance> _acceptAndRecord({
@@ -487,14 +500,11 @@ final class InvitationCase extends UseCaseBase {
     )) {
       throw IdNotFoundException(id: invitation.id);
     }
-    final beacon = await _postUnderLock(beaconId);
-    if (await _userBlockRepository.isBlockedPair(
-      a: userId,
-      b: invitation.issuer.id,
-    )) {
-      throw IdNotFoundException(id: invitation.id);
-    }
-    await _requirePostInviteForward(invitation: invitation, beacon: beacon);
+    final beacon = await _lockPostInvite(
+      invitation: invitation,
+      beaconId: beaconId,
+      userId: userId,
+    );
 
     final claimed = await _userRepository.bindMutual(
       invitationId: invitation.id,

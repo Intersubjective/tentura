@@ -36,10 +36,7 @@ class UserBlockRepository
     required String blockerId,
     required String blockedId,
   }) async {
-    await _db.customStatement(
-      r'SELECT public.user_block_pair_lock($1, $2)',
-      [blockerId, blockedId],
-    );
+    await _lockBlockPair(blockerId, blockedId);
     // Delivery takes the sender barrier before the Post lock. Take both users'
     // barriers before reading the edge inventory and keep them through commit.
     final posts = await _db
@@ -63,8 +60,14 @@ ORDER BY b.id
   }
 
   @override
-  Future<void> lockForRequestInviteAcceptance(String inviterId) =>
+  Future<void> lockInviteSender(String inviterId) =>
       PostLockRepository(_db).lockSenderBlockBarrier(inviterId);
+
+  Future<void> _lockBlockPair(String blockerId, String blockedId) =>
+      _db.customStatement(
+        r'SELECT public.user_block_pair_lock($1, $2)',
+        [blockerId, blockedId],
+      );
 
   @override
   Future<void> block({
@@ -73,10 +76,11 @@ ORDER BY b.id
     required int cascadeMode,
   }) => _db.withJoinedTransaction(() async {
     // Standalone callers need the hierarchy lock before touching the intent.
-    // The user_block insert trigger also acquires the pair barriers.
+    // Take the pair barriers before deleting votes in standalone calls too.
     await _db.customStatement(
       'SELECT public.beacon_hierarchy_acquire_mutation_lock()',
     );
+    await _lockBlockPair(blockerId, blockedId);
     // Mode 0 has nothing to materialize — store status=2 (done) so the
     // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(
@@ -97,6 +101,21 @@ ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
 ''',
       [blockerId, blockedId, cascadeMode],
     );
+    // Take vote row locks before the block insert locks the trust generation.
+    final removedVotes = await _db
+        .customSelect(
+          r'''
+WITH removed AS (
+  DELETE FROM public.vote_user
+  WHERE from_existing_invite
+    AND ((subject = $1 AND object = $2) OR (subject = $2 AND object = $1))
+  RETURNING subject, object
+)
+SELECT subject, object FROM removed ORDER BY subject, object
+''',
+          variables: [Variable<String>(blockerId), Variable<String>(blockedId)],
+        )
+        .get();
     await _db.customStatement(
       r'''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
@@ -105,6 +124,12 @@ ON CONFLICT DO NOTHING
 ''',
       [blockerId, blockedId],
     );
+    for (final vote in removedVotes) {
+      await _reprojectTrustPairForBlockChange(
+        subject: vote.read<String>('subject'),
+        object: vote.read<String>('object'),
+      );
+    }
   }, actorUserId: blockerId);
 
   @override

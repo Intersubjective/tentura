@@ -25,8 +25,8 @@ abstract interface class UserBlockWriteLocks {
     required String blockedId,
   });
 
-  /// Before checking the pair and claiming a Request invite.
-  Future<void> lockForRequestInviteAcceptance(String inviterId);
+  /// Shares the inviter's delivery barrier with block cleanup until commit.
+  Future<void> lockInviteSender(String inviterId);
 }
 
 abstract class UserBlockRepositoryPort {

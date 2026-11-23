@@ -79,12 +79,22 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     String objectUserId,
     int newAmount,
   ) async {
-    final existing = await _db.managers.voteUsers
-        .filter(
-          (v) => v.subject.id(subjectUserId) & v.object.id(objectUserId),
+    // A direct block can remove an automatic vote. Lock an existing vote
+    // through the update that makes it an explicit vote.
+    final existing = await _db
+        .customSelect(
+          r'''
+SELECT amount, from_existing_invite FROM public.vote_user
+WHERE subject = $1 AND object = $2
+FOR UPDATE
+''',
+          variables: [
+            Variable<String>(subjectUserId),
+            Variable<String>(objectUserId),
+          ],
         )
         .getSingleOrNull();
-    final voteChanged = (existing?.amount ?? 0) != newAmount;
+    final voteChanged = (existing?.read<int>('amount') ?? 0) != newAmount;
 
     if (voteChanged && existing == null) {
       await _db.managers.voteUsers.create(
@@ -94,7 +104,8 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
           amount: newAmount,
         ),
       );
-    } else if (voteChanged) {
+    } else if (voteChanged ||
+        existing?.read<bool>('from_existing_invite') == true) {
       await _db.managers.voteUsers
           .filter(
             (v) => v.subject.id(subjectUserId) & v.object.id(objectUserId),

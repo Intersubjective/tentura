@@ -1080,16 +1080,17 @@ class UserRepository implements UserRepositoryPort {
     InviteOrigin origin,
   ) async {
     final subjects = [userA, userB]..sort();
-    final onConflict = origin == InviteOrigin.existingAccount
+    final existingInvite = origin == InviteOrigin.existingAccount;
+    final onConflict = existingInvite
         ? ' ON CONFLICT (subject, object) DO NOTHING'
         : '';
     // Both subject counters must be locked before the statement trigger
     // advances the trust generation.
     await _database.customStatement(
-      'INSERT INTO public.vote_user (subject, object, amount) '
-      r'VALUES ($1, $2, 1), ($2, $1, 1)'
+      'INSERT INTO public.vote_user (subject, object, amount, from_existing_invite) '
+      r'VALUES ($1, $2, 1, $3), ($2, $1, 1, $3)'
       '$onConflict',
-      subjects,
+      [...subjects, existingInvite],
     );
     const projection = r'SELECT public.trust_project_pair($1, $2)';
     await _database.customStatement(projection, subjects);
