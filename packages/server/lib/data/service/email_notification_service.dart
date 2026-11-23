@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
@@ -10,6 +11,7 @@ import 'package:tentura_server/domain/notification/beacon_notification_copy_buil
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/notification/invite_accepted_copy.dart';
 import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
@@ -233,17 +235,39 @@ class EmailNotificationService implements EmailNotificationPort {
       return false;
     }
 
+    final connection = category == NotificationCategory.connections
+        ? (await _outbox.pendingForChannelCollapseKey(
+                accountId: recipientUserId,
+                channelCollapseKey: channelCollapseKey,
+              ))
+              .where(
+                (receipt) =>
+                    receipt.presentationPayload['eventType'] ==
+                    AttentionEventType.mutualConnectionFormed.name,
+              )
+              .firstOrNull
+        : null;
     final unsubscribeUrl = _links.unsubscribeUrl(
       accountId: recipientUserId,
       scope: category.name,
     );
     final content = EmailNotificationContent(
       item: _localizedItem(
-        kind: category == NotificationCategory.connections
+        kind: connection == null && category == NotificationCategory.connections
             ? NotificationKind.inviteAccepted
             : null,
         title: title,
-        body: body,
+        body: connection == null
+            ? body
+            : InviteAcceptedCopy.mutualConnectionBody(
+                actorDisplayName: connection.actorDisplayName,
+                lapsedRequestTitle: switch (connection
+                    .presentationPayload['lapsedRequestTitle']) {
+                  final String title => title,
+                  _ => null,
+                },
+                locale: prefs.locale,
+              ),
         actionUrl: actionUrl,
         locale: prefs.locale,
       ),

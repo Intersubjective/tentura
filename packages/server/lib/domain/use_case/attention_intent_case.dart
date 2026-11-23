@@ -1390,11 +1390,9 @@ class AttentionIntentCase {
       priority: NotificationPriority.normal,
       kind: NotificationKind.inviteAccepted,
       title: 'New connection',
-      body: InviteAcceptedCopy.withLapsedRequest(
-        actorName.isEmpty
-            ? InviteAcceptedCopy.connected.en
-            : 'You and $actorName are now connected.',
-        lapsedRequestTitle,
+      body: InviteAcceptedCopy.mutualConnectionBody(
+        actorDisplayName: actorName,
+        lapsedRequestTitle: lapsedRequestTitle,
       ),
       actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
