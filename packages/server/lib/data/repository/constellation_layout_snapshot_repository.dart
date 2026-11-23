@@ -7,10 +7,12 @@ import 'package:tentura_server/domain/entity/constellation_layout_snapshot.dart'
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_layout_snapshot_repository_port.dart';
+import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import 'constellation_viewer_tx.dart';
+import 'owner_graph_unit_of_work.dart';
 
 /// History snapshots kept per viewer; older ones go in the writing transaction.
 const _historyLimit = 20;
@@ -117,13 +119,15 @@ RETURNING 1
 }
 
 /// `constellation_layout_snapshot` (m0265). Writes are one transaction under
-/// the viewer's batch lock, idempotent by `(viewerId, clientOpId)`.
+/// the viewer's owner scope, idempotent by `(viewerId, clientOpId)`.
 @LazySingleton(as: ConstellationLayoutSnapshotRepositoryPort)
 class ConstellationLayoutSnapshotRepository
     implements ConstellationLayoutSnapshotRepositoryPort {
-  const ConstellationLayoutSnapshotRepository(this._db);
+  ConstellationLayoutSnapshotRepository(this._db)
+    : _ownerGraph = OwnerGraphUnitOfWork(_db);
 
   final TenturaDb _db;
+  final OwnerGraphTransactionPort _ownerGraph;
 
   @override
   Future<List<ConstellationLayoutSnapshot>> list(String viewerId) async {
@@ -147,8 +151,7 @@ ORDER BY kind ASC, created_at DESC, id DESC
     required ConstellationLayoutSnapshotKind kind,
     required ConstellationLayoutSnapshotReason reason,
     required String clientOpId,
-  }) => _db.withMutatingRepeatableRead(viewerId, () async {
-    await lockConstellationViewerBatch(_db, viewerId);
+  }) => _ownerGraph.runRepeatableRead(viewerId, viewerId, (_) async {
     final recorded = await _byOpId(viewerId, clientOpId);
     if (recorded != null) return recorded;
     return insertConstellationLayoutSnapshot(
@@ -165,8 +168,7 @@ ORDER BY kind ASC, created_at DESC, id DESC
     required String viewerId,
     required String snapshotId,
     required String clientOpId,
-  }) => _db.withMutatingRepeatableRead(viewerId, () async {
-    await lockConstellationViewerBatch(_db, viewerId);
+  }) => _ownerGraph.runRepeatableRead(viewerId, viewerId, (_) async {
     final row = await _db
         .customSelect(
           '''
@@ -191,31 +193,16 @@ WHERE id = \$1 AND viewer_id = \$2
         recorded.reason == ConstellationLayoutSnapshotReason.restore) {
       return snapshot;
     }
-    await lockConstellationViewerCursor(_db, viewerId);
-    await insertConstellationLayoutSnapshot(
-      _db,
-      viewerId: viewerId,
-      kind: ConstellationLayoutSnapshotKind.history,
-      reason: ConstellationLayoutSnapshotReason.restore,
-      clientOpId: clientOpId,
-    );
-    await _applyAnchors(
-      viewerId,
-      (jsonDecode(row.read<String>('anchors')) as List<dynamic>)
-          .cast<Map<String, dynamic>>(),
-    );
+    await _restoreLiveAnchors(viewerId, clientOpId, snapshot.anchors);
     return snapshot;
   });
 
-  /// Changes only the favourite, never the live Field anchors. Previous
-  /// favourites remain in history so a screen can undo a favourite save.
   @override
   Future<void> restoreFavourite({
     required String viewerId,
     required String snapshotId,
     required String clientOpId,
-  }) => _db.withMutatingRepeatableRead(viewerId, () async {
-    await lockConstellationViewerBatch(_db, viewerId);
+  }) => _ownerGraph.runRepeatableRead(viewerId, viewerId, (_) async {
     if (await _byOpId(viewerId, clientOpId) != null) return;
     final source = snapshotId.isEmpty
         ? null
@@ -233,6 +220,12 @@ WHERE id = \$1 AND viewer_id = \$2
       throw PeopleTagsException(
         peopleTagsCode: PeopleTagsExceptionCode.snapshotNotFound,
       );
+    }
+    if (source != null &&
+        source.read<int>('kind') ==
+            ConstellationLayoutSnapshotKind.favourite.index) {
+      await _restoreLiveAnchors(viewerId, clientOpId, _fromRow(source).anchors);
+      return;
     }
     await _db.customStatement(
       'UPDATE public.constellation_layout_snapshot SET kind = 1, created_at = clock_timestamp() '
@@ -283,20 +276,34 @@ WHERE viewer_id = \$1 AND client_op_id = \$2
     return row == null ? null : _fromRow(row);
   }
 
+  Future<void> _restoreLiveAnchors(
+    String viewerId,
+    String clientOpId,
+    List<ConstellationLayoutSnapshotAnchor> anchors,
+  ) async {
+    await lockConstellationViewerCursor(_db, viewerId);
+    await insertConstellationLayoutSnapshot(
+      _db,
+      viewerId: viewerId,
+      kind: ConstellationLayoutSnapshotKind.history,
+      reason: ConstellationLayoutSnapshotReason.restore,
+      clientOpId: clientOpId,
+    );
+    await _applyAnchors(viewerId, anchors);
+  }
+
   /// Makes the live anchors equal [anchors] for targets that still exist and
   /// unpins the rest. A target that is gone keeps its stored (tombstone)
   /// position, so it is still there when the target returns.
   Future<void> _applyAnchors(
     String viewerId,
-    List<Map<String, dynamic>> anchors,
+    List<ConstellationLayoutSnapshotAnchor> anchors,
   ) async {
-    final kinds = [for (final a in anchors) a['targetKind']! as String];
-    final ids = [for (final a in anchors) a['targetId']! as String];
-    final xs = [for (final a in anchors) (a['x']! as num).toDouble()];
-    final ys = [for (final a in anchors) (a['y']! as num).toDouble()];
-    final spaces = [
-      for (final a in anchors) (a['coordinateSpaceVersion']! as num).toInt(),
-    ];
+    final kinds = [for (final a in anchors) a.targetKind.name];
+    final ids = [for (final a in anchors) a.targetId];
+    final xs = [for (final a in anchors) a.x];
+    final ys = [for (final a in anchors) a.y];
+    final spaces = [for (final a in anchors) a.coordinateSpaceVersion];
     final newIds = [for (final _ in anchors) generateId('CA')];
     Variable<Object> textArray(List<String> v) =>
         Variable(TypedValue(Type.textArray, v));

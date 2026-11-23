@@ -6,7 +6,7 @@ const handoffKey = 'tentura_post_join_beacon';
 const request = { id: 'B1', title: 'Fix the roof', kind: 'request' };
 const inviterName = 'Vadim';
 
-function renderRequestInvite({ audience, lapse }) {
+function renderRequestInvite({ audience, lapse, tag = '' }) {
   const existing = audience === 'existing account';
   return renderLanding(
     {
@@ -19,7 +19,7 @@ function renderRequestInvite({ audience, lapse }) {
         beacon: { ...request, ...(lapse === undefined ? {} : { lapsed: lapse }) },
       },
     },
-    `request-handoff-${audience}-${lapse}`,
+    `request-handoff-${audience}-${lapse}-${tag}`,
   );
 }
 
@@ -52,3 +52,45 @@ for (const [description, audience, lapse] of [
     });
   });
 }
+
+test('email signup retains the Request handoff only while the Request remains open', async () => {
+  const expectedHandoff = { ...request, inviterName };
+  const outcomes = [];
+  for (const requestLapsed of [false, true]) {
+    const preview = await renderRequestInvite({
+      audience: 'new account',
+      lapse: false,
+      tag: `email-return-${requestLapsed}`,
+    });
+    assert.ok(preview.querySelector('#email-signin')?.isShownIn(preview));
+    const storage = sessionStorage;
+    assert.deepEqual(JSON.parse(storage.getItem(handoffKey)), expectedHandoff);
+
+    // Follow the email verification redirect in the original tab.
+    const requests = [];
+    await renderLanding(
+      {
+        pathname: '/invite/Iabc123',
+        search: `?signed_in=1&new=1&requestLapsed=${requestLapsed}`,
+        storage,
+        fetchResponse: async (url) => {
+          if (url === '/wasm-preload-manifest.json') {
+            return { ok: false, status: 404 };
+          }
+          requests.push(url);
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ id: 'Ujoiner', displayName: 'New member' }),
+          };
+        },
+      },
+      `request-handoff-email-return-${requestLapsed}`,
+    );
+    assert.deepEqual(requests, ['/api/v2/accounts/me/profile']);
+    const stored = storage.getItem(handoffKey);
+    outcomes.push(requestLapsed ? stored : JSON.parse(stored));
+  }
+
+  assert.deepEqual(outcomes, [expectedHandoff, null]);
+});

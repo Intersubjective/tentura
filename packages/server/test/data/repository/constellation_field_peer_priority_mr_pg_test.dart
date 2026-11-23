@@ -191,15 +191,21 @@ SELECT 'Bpftmp' || id, id, '${s.viewer}'
 FROM unnest(${sqlArray(s.temporaryIds)}) AS id
 ''');
     }
-    await db.customStatement('''
+    await session.writer.executeWithOwnerScopes(
+      [s.viewer],
+      '''
 INSERT INTO public.person_tag (id, owner_id, name, glyph, color, ord)
 VALUES ('${tagIdOf(s)}', '${s.viewer}', 'prio', 'g', 0, 0)
-''');
-    await db.customStatement('''
+''',
+    );
+    await session.writer.executeWithOwnerScopes(
+      [s.viewer],
+      '''
 INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
 SELECT '${tagIdOf(s)}', '${s.viewer}', id, 0
 FROM unnest(${sqlArray(s.taggedIds)}) AS id
-''');
+''',
+    );
   }
 
   setUpAll(() async {
@@ -222,18 +228,24 @@ ON CONFLICT (id) DO NOTHING
     // is cut) and the lowest-id far peer (which is kept): none of it may
     // count for priority or appear as an own tag.
     final farSorted = depthAndId.farIds.toList()..sort();
-    await db.customStatement('''
+    await session.writer.executeWithOwnerScopes(
+      [otherOwner],
+      '''
 INSERT INTO public.person_tag (id, owner_id, name, glyph, color, ord)
 VALUES ('$otherTagId', '$otherOwner', 'other', 'g', 0, 0)
-''');
-    await db.customStatement('''
+''',
+    );
+    await session.writer.executeWithOwnerScopes(
+      [otherOwner],
+      '''
 INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
 SELECT '$otherTagId', '$otherOwner', id, 0 FROM unnest(${sqlArray([
-      depthAndId.taggedIds.last,
-      farSorted.last,
-      farSorted.first,
-    ])}) AS id
-''');
+        depthAndId.taggedIds.last,
+        farSorted.last,
+        farSorted.first,
+      ])}) AS id
+''',
+    );
   });
 
   tearDownAll(() async {

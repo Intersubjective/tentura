@@ -7805,6 +7805,7 @@ type v2_AuthResponse {
   access_token: String!
   expires_in: Int!
   refresh_token: String
+  requestLapsed: Boolean
   subject: String!
   token_type: String!
 }
@@ -8419,6 +8420,7 @@ type v2_ConstellationRequest {
   authorId: String!
   coverSource: Int!
   coverThumb: v2_image
+  coverImage: v2_image
   endAt: String
   forwardedById: String
   forwardedByName: String

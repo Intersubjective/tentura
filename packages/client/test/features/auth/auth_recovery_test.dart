@@ -305,10 +305,10 @@ class _FakeAuthRemote implements AuthRemoteRepositoryPort {
   }
 
   @override
-  Future<String> signUp({
+  Future<SignupResult> signUp({
     required String seed,
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async => '';
+  }) async => (accountId: '', requestLapsed: false);
 }

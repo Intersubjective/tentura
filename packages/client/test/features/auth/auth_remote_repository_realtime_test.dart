@@ -23,13 +23,13 @@ void main() {
         final client = _FakeAuthRemoteClient();
         final repository = _repository(client);
 
-        final userId = await repository.signUp(
+        final signup = await repository.signUp(
           seed: 'seed',
           displayName: 'Alice',
           invitationCode: 'invite',
         );
 
-        expect(userId, 'account-a');
+        expect(signup.accountId, 'account-a');
         expect(client.boundAccountId, 'account-a');
         expect(client.order, ['setAuth', 'request:signup', 'bind:account-a']);
       },

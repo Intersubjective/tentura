@@ -80,7 +80,9 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
   }
 
   void _onAuthStateChanged(AuthState auth) {
-    if (!auth.isAuthenticated || auth.isLoading) return;
+    if (!auth.isAuthenticated || auth.isLoading || auth.signupRequestLapsed) {
+      return;
+    }
     final preview = context.read<RegisterInviteCubit>().state.preview;
     final beacon = preview?.beacon;
     if (beacon == null || beacon.id.isEmpty || beacon.lapsed) return;

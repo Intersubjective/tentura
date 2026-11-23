@@ -1,15 +1,18 @@
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/user_erasure_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/env.dart';
 
 import '_use_case_base.dart';
 
@@ -31,7 +34,23 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
     this._imageObjectGc, {
     required super.env,
     required super.logger,
+    this._closureRepository,
   });
+
+  // The injected case always has the lock. Direct test fixtures may omit it.
+  @FactoryMethod()
+  factory UserErasureCase.create(
+    UserErasurePort erasure,
+    BeaconRepositoryPort beacons,
+    UserRepositoryPort users,
+    BeaconHierarchyRepositoryPort hierarchy,
+    BeaconLifecycleEffectsCase lifecycleEffects,
+    TransactionalAttentionCase attention,
+    ImageObjectGcPort imageObjectGc, {
+    required ClosureRepositoryPort closureRepository,
+    required Env env,
+    required Logger logger,
+  }) = UserErasureCase;
 
   final UserErasurePort _erasure;
   final BeaconRepositoryPort _beacons;
@@ -40,6 +59,7 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
   final BeaconLifecycleEffectsCase _lifecycleEffects;
   final TransactionalAttentionCase _attention;
   final ImageObjectGcPort _imageObjectGc;
+  final ClosureRepositoryPort? _closureRepository;
 
   @override
   Future<bool> deleteById({required String id}) async {
@@ -49,9 +69,20 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
     // Small accounts erase atomically; large ones commit in bounded chunks so
     // the DB lane is released between them.
     final atomic = ownedPublished.length + draftIds.length <= batchSize;
-    Future<void> step(Future<void> Function() fn) => atomic
-        ? fn()
-        : _attention.runAction(actorUserId: id, action: (_) => fn());
+    Future<void> runStep(
+      Future<void> Function() fn, {
+      required bool retryOnConflict,
+    }) {
+      Future<void> run() =>
+          _attention.runAction(actorUserId: id, action: (_) => fn());
+      return retryOnConflict ? _attention.retryOnConflict(run) : run();
+    }
+
+    Future<void> step(
+      Future<void> Function() fn, {
+      bool retryOnConflict = false,
+    }) => atomic ? fn() : runStep(fn, retryOnConflict: retryOnConflict);
+
     // Cleanup jobs are enqueued in the transaction that deleted the image rows.
     Future<void> enqueueGc(List<String> imageIds) async {
       for (final imageId in imageIds) {
@@ -61,6 +92,8 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
 
     Future<void> eraseActive(OwnedPublishedBeaconRow owned) async {
       await _hierarchy.lockMutationScope();
+      // Match Cancel/Delete: serialize with invite acceptance before locking the row.
+      await _closureRepository?.lockRequest(owned.beaconId);
       await _beacons.runInBeaconStateTransaction(
         beaconId: owned.beaconId,
         userId: id,
@@ -173,11 +206,12 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
           await _erasure.deleteOrdinaryRoomMessagesAuthoredByUser(userId: id);
           await _users.deleteById(id: id);
         },
+        retryOnConflict: true,
       );
     }
 
     if (atomic) {
-      await _attention.runAction(actorUserId: id, action: (_) => erase());
+      await runStep(erase, retryOnConflict: true);
     } else {
       await erase();
     }

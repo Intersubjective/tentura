@@ -237,6 +237,57 @@ void main() {
     });
   });
 
+  group('People graph write boundaries', () {
+    const tags = 'lib/data/repository/people_tags_repository.dart';
+    const magnets =
+        'lib/data/repository/constellation_tag_magnet_repository.dart';
+    const members = {
+      'PeopleTagsRepository._idempotent',
+      'PeopleTagsRepository.setAutoTagPref',
+      'ConstellationTagMagnetRepository._idempotent',
+    };
+
+    test(
+      'retire the people-tags lock and keep lock SQL out of the repositories',
+      () {
+        final sources = _productionSources();
+        final directLock = RegExp(
+          r'\bpg_advisory_xact_lock\s*\(',
+          caseSensitive: false,
+        );
+        final violations = [
+          for (final MapEntry(:key, :value) in sources.entries)
+            if (value.contains('person_tags:')) '$key uses the people-tags key',
+          for (final path in [tags, magnets])
+            if (directLock.hasMatch(sources[path]!)) '$path takes its own lock',
+        ];
+        expect(violations, isEmpty);
+      },
+    );
+
+    test(
+      'the tag, preference and magnet entries are reviewed owner transactions',
+      () {
+        const expected = [
+          '$tags | PeopleTagsRepository._idempotent | OwnerGraphTransactionPort.run',
+          '$tags | PeopleTagsRepository.setAutoTagPref | OwnerGraphTransactionPort.run',
+          '$magnets | ConstellationTagMagnetRepository._idempotent | OwnerGraphTransactionPort.run',
+        ];
+        final reviewed = _inventoryLines(File(_transactionInventoryPath))
+            .map(_inventoryFields)
+            .where((fields) => members.contains(fields[1]))
+            .map((fields) => fields.take(3).join(' | '));
+        final actual = _transactionEntryPoints().where(
+          (key) => members.contains(key.split(' | ')[1]),
+        );
+        expect(
+          [reviewed, actual],
+          everyElement(unorderedEquals(expected)),
+        );
+      },
+    );
+  });
+
   group('Reviewed inventory of transaction entry points', () {
     final inventoryFile = File(_transactionInventoryPath);
 
@@ -293,6 +344,21 @@ void main() {
             'New or changed transaction entry points must be added to '
             '$_transactionInventoryPath with an owner and a reason.',
       );
+    });
+
+    test('the owner-graph unit of work has reviewed transaction entries', () {
+      final ownerGraphEntries = _transactionEntryPoints().where(
+        (key) => key.split(' | ')[1].startsWith('OwnerGraphUnitOfWork.'),
+      );
+      expect(
+        ownerGraphEntries,
+        isNotEmpty,
+        reason: 'The owner-graph unit of work must own a transaction boundary.',
+      );
+      final reviewed = _inventoryLines(inventoryFile).map(
+        (line) => _inventoryFields(line).take(3).join(' | '),
+      );
+      expect(reviewed, containsAll(ownerGraphEntries));
     });
 
     test('the inventory lists no entry point that no longer exists', () {

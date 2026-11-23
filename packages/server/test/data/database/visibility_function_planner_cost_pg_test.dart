@@ -523,14 +523,16 @@ FROM generate_series(1, @count::int) AS s(i)
 '''),
     parameters: {'viewer': _viewerId, 'count': _beaconCount},
   );
-  await writer.execute(
+  await writer.executeWithOwnerScopes(
+    [_viewerId],
     Sql.named('''
 INSERT INTO public.constellation_anchor_cursor (viewer_id)
 VALUES (@viewer)
 '''),
     parameters: {'viewer': _viewerId},
   );
-  await writer.execute(
+  await writer.executeWithOwnerScopes(
+    [_viewerId],
     Sql.named('''
 INSERT INTO public.constellation_anchor
   (id, viewer_id, beacon_id, x_units, y_units,
@@ -542,7 +544,8 @@ FROM generate_series(1, @count::int) AS s(i)
 '''),
     parameters: {'viewer': _viewerId, 'count': _beaconAnchorCount},
   );
-  await writer.execute(
+  await writer.executeWithOwnerScopes(
+    [_viewerId],
     Sql.named('''
 INSERT INTO public.constellation_anchor
   (id, viewer_id, person_id, x_units, y_units,

@@ -243,13 +243,18 @@ class InvitationRepository implements InvitationAcceptPort {
   /// An open Request invite grants admission, and a Post invite shares the
   /// Post. Only a plain invite can connect the account with the inviter.
   @override
-  Future<void> acceptExistingInvite(String code) async {
+  Future<ExistingInviteAcceptance> acceptExistingInvite(String code) async {
     try {
-      await _remoteApiService.postAuthenticatedJson(
+      final result = await _remoteApiService.postAuthenticatedJson(
         _inviteApiUri(
           '/api/v2/invite/${Uri.encodeComponent(code)}/accept-as-existing',
         ),
       );
+      return switch (result) {
+        {'ok': false} => throw const InvitationNoLongerValid(),
+        {'requestLapsed': true} => ExistingInviteAcceptance.requestLapsed,
+        _ => ExistingInviteAcceptance.accepted,
+      };
     } on ServerStatusException catch (e) {
       throw mapAcceptExistingStatus(e.statusCode, code);
     }

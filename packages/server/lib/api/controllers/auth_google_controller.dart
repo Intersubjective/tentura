@@ -328,6 +328,7 @@ final class AuthGoogleController extends BaseController {
         returnTo: payload.returnTo,
         publicOrigin: env.publicOrigin,
         isNewAccount: resolved.isNewAccount,
+        requestLapsed: resolved.requestLapsed,
       );
       await emitAuthOutcome(
         'google_callback_outcome',

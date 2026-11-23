@@ -41,10 +41,9 @@ class AuthRemoteRepository
       };
 
   ///
-  /// Returns id of created account
   ///
   @override
-  Future<String> signUp({
+  Future<SignupResult> signUp({
     required String seed,
     required String displayName,
     required String invitationCode,
@@ -69,7 +68,10 @@ class AuthRemoteRepository
         .firstLinkResponse(label: _repositoryKey)
         .then((r) => r.dataOrThrow(label: _repositoryKey).signUp);
     await remoteApiService.bindRealtimeAccount(response.subject);
-    return response.subject;
+    return (
+      accountId: response.subject,
+      requestLapsed: response.requestLapsed ?? false,
+    );
   }
 
   ///

@@ -232,12 +232,12 @@ class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {
   Future<SessionCookieClearResult> clearSessionCookie() async =>
       SessionCookieClearResult.succeeded;
   @override
-  Future<String> signUp({
+  Future<SignupResult> signUp({
     required String seed,
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async => userId;
+  }) async => (accountId: userId, requestLapsed: false);
 }
 
 class RecoverFakeProfileRepository implements ProfileRepositoryPort {

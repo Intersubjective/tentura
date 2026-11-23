@@ -100,12 +100,16 @@ VALUES (@blocker, @blocked, @blocker)
   );
 
   Future<void> pin(String personId) async {
-    await writer.execute('''
+    await writer.executeWithOwnerScopes(
+      [_viewer],
+      '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id, revision)
 VALUES ('$_viewer', 0)
 ON CONFLICT (viewer_id) DO NOTHING
-''');
-    await writer.execute(
+''',
+    );
+    await writer.executeWithOwnerScopes(
+      [_viewer],
       Sql.named('''
 INSERT INTO public.constellation_anchor
   (id, viewer_id, person_id, x_units, y_units,

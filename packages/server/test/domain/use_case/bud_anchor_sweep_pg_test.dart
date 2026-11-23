@@ -12,11 +12,14 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/bud_anchor_sweep_repository.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
+import 'package:tentura_server/data/repository/owner_graph_unit_of_work.dart';
+import 'package:tentura_server/domain/port/bud_anchor_sweep_port.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/use_case/anchor_inherit_operation.dart';
 import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/owner_graph_contention.dart';
 import '../../support/pg_test_public_keys.dart';
 
 /// Budding C8: the anchor inheritance sweep (Arch §8.1) and
@@ -63,11 +66,14 @@ Future<void> main() async {
     late ConstellationAnchorRepository anchors;
     late BudAnchorSweepCase sweep;
 
-    BudAnchorSweepCase newSweep() {
-      final port = BudAnchorSweepRepository(database);
+    BudAnchorSweepCase newSweep([TenturaDb? sweepDb]) {
+      final port = BudAnchorSweepRepository(sweepDb ?? database);
       return BudAnchorSweepCase(
         port,
-        AnchorInheritOperation(anchors, port),
+        AnchorInheritOperation(
+          sweepDb == null ? anchors : ConstellationAnchorRepository(sweepDb),
+          port,
+        ),
         env: target.databaseEnv,
         logger: Logger('BudAnchorSweepPgTest'),
       );
@@ -108,6 +114,134 @@ Future<void> main() async {
         await place(viewer, _post, _postX, _postY);
       }
       await place(_moved, _child, 5, 5);
+    });
+
+    group('inheritance under the viewer owner scope', () {
+      setUp(() {
+        final previous = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+        addTearDown(
+          () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = previous,
+        );
+      });
+
+      final childPosition = AnchorInheritOperation.childPosition(
+        const BudPostPlacement(
+          position: ConstellationAnchorPosition(
+            xUnits: _postX,
+            yUnits: _postY,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+          postClosed: false,
+        ),
+      );
+
+      Future<void> expectInherited() async {
+        expect(
+          (await _anchorsOn(writer, _child))[_viewer],
+          (childPosition.xUnits, childPosition.yUnits),
+        );
+        expect(await _inheritedAt(writer, _command), isNotNull);
+      }
+
+      test(
+        'writes the child placement after the viewer scope is released',
+        () async {
+          final holderDb = openDisposablePgDatabase(target);
+          addTearDown(holderDb.close);
+          late Future<void> operation;
+          final (
+            childBeforeRelease,
+            markedBeforeRelease,
+          ) = await whileOwnerGraphScopeHeld(
+            OwnerGraphUnitOfWork(holderDb),
+            _viewer,
+            () async {
+              operation = sweep.runDue().timeout(ownerGraphWriteLimit)
+                ..ignore();
+              await waitsForOwnerGraphScope(writer, _viewer, operation);
+              return (
+                (await _anchorsOn(writer, _child))[_viewer],
+                await _inheritedAt(writer, _command),
+              );
+            },
+          );
+          await operation;
+          if (await _inheritedAt(writer, _command) == null) {
+            await sweep.runDue().timeout(ownerGraphWriteLimit);
+          }
+
+          await expectInherited();
+          expect(
+            childBeforeRelease,
+            isNull,
+            reason: 'The child anchor committed under a held scope.',
+          );
+          expect(
+            markedBeforeRelease,
+            isNull,
+            reason: 'The bud was marked before the viewer scope was released.',
+          );
+        },
+      );
+
+      test(
+        'child placement and receipt persist with database defaults',
+        () async {
+          await sweep.runDue().timeout(ownerGraphWriteLimit);
+
+          await expectInherited();
+          await expectDefaultOwnerScopeEnforcement(database);
+        },
+      );
+
+      test(
+        'commits the child placement and receipt with enforcement enabled',
+        () async {
+          await enforceOwnerScope(session);
+          final enforcedDb = openDisposablePgDatabase(target);
+          addTearDown(enforcedDb.close);
+          final errors = <Object>[];
+          final records = Logger.root.onRecord.listen((record) {
+            final error = record.error;
+            if (record.loggerName == 'BudAnchorSweepPgTest' && error != null) {
+              errors.add(error);
+            }
+          });
+          addTearDown(records.cancel);
+
+          await newSweep(enforcedDb).runDue().timeout(ownerGraphWriteLimit);
+
+          expect(errors, isEmpty);
+          await expectInherited();
+          final rows = await writer.execute(
+            Sql.named('''
+SELECT a.coordinate_space_version, c.revision::int, o.revision::int, w.revision::int
+FROM public.constellation_anchor a
+JOIN public.constellation_anchor_cursor c USING (viewer_id)
+JOIN public.constellation_anchor_op_log o USING (viewer_id)
+JOIN public.constellation_anchor_target_watermark w
+  ON w.viewer_id = a.viewer_id AND w.target_kind = a.target_kind
+  AND w.target_id = a.target_id
+WHERE a.viewer_id = @viewer AND a.beacon_id = @child
+  AND a.tombstone_at IS NULL AND o.client_op_id = @op
+'''),
+            parameters: {
+              'viewer': _viewer,
+              'child': _child,
+              'op': AnchorInheritOperation.opId(
+                childBeaconId: _child,
+                viewerId: _viewer,
+              ),
+            },
+          );
+          final row = rows.single;
+          expect(row[0], childPosition.coordinateSpaceVersion);
+          expect(row[1], greaterThan(0));
+          expect(row[2], row[1]);
+          expect(row[3], row[1]);
+        },
+      );
     });
 
     test('anchor inheritance places the author and invitees, preserves '
@@ -202,7 +336,7 @@ Future<void> main() async {
               '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.id = \$2
 ''',
               variables: [

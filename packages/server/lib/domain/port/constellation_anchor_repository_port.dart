@@ -1,5 +1,7 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import 'owner_graph_transaction_port.dart';
+
 enum AnchorOpKind {
   upsert('UPSERT'),
   delete('DELETE');
@@ -118,5 +120,20 @@ abstract interface class ConstellationAnchorRepositoryPort {
     required String viewerId,
     required String clientOpId,
     bool saveHistory = false,
+  });
+}
+
+/// Anchor writes that participate in an existing owner-graph transaction.
+abstract interface class ScopedConstellationAnchorRepositoryPort
+    implements ConstellationAnchorRepositoryPort {
+  /// Places [target] and invalidates older conditional writes for it and for
+  /// [additionalWatermarkTargets]. An already-applied placement whose target
+  /// watermarks still match the placement is a no-op.
+  Future<void> upsertScoped({
+    required OwnerGraphScope scope,
+    required String viewerId,
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorPosition position,
+    required Set<ConstellationAnchorTarget> additionalWatermarkTargets,
   });
 }

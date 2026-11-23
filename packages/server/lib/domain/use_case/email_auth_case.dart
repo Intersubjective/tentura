@@ -157,15 +157,11 @@ final class EmailAuthCase extends UseCaseBase {
       inviteCode: tx.inviteCode,
     );
     await _consumeLast(plaintextToken);
-    return EmailAuthLoginConfirmed(
-      sessionToken: resolved.sessionToken,
-      inviteCode: tx.inviteCode,
-      isNewAccount: resolved.isNewAccount,
-    );
+    return resolved;
   }
 
   /// QA-only immediate sign-in (controller must gate env + domain).
-  Future<({String sessionToken, bool isNewAccount})> qaTestLogin({
+  Future<EmailAuthLoginConfirmed> qaTestLogin({
     required String normalizedEmail,
     String? inviteCode,
   }) => _mintLoginSession(
@@ -174,7 +170,7 @@ final class EmailAuthCase extends UseCaseBase {
     bypassInviteForNewAccount: true,
   );
 
-  Future<({String sessionToken, bool isNewAccount})> _mintLoginSession({
+  Future<EmailAuthLoginConfirmed> _mintLoginSession({
     required String normalizedEmail,
     String? inviteCode,
     bool bypassInviteForNewAccount = false,
@@ -184,6 +180,7 @@ final class EmailAuthCase extends UseCaseBase {
       authoritative: true,
     )!;
 
+    var requestLapsed = false;
     final resolved = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: normalizedEmail,
@@ -191,6 +188,7 @@ final class EmailAuthCase extends UseCaseBase {
       inviteId: inviteCode,
       assertedContacts: [emailContact],
       bypassInviteForNewAccount: bypassInviteForNewAccount,
+      onRequestLapsed: () => requestLapsed = true,
     );
     final credentialId = await _userRepository.findCredentialId(
       type: CredentialType.emailOtp,
@@ -200,7 +198,11 @@ final class EmailAuthCase extends UseCaseBase {
       accountId: resolved.accountId,
       credentialId: credentialId,
     );
-    return (sessionToken: sessionToken, isNewAccount: resolved.isNewAccount);
+    return EmailAuthLoginConfirmed(
+      sessionToken: sessionToken,
+      inviteCode: inviteCode,
+      requestLapsed: resolved.isNewAccount ? requestLapsed : null,
+    );
   }
 
   Future<void> _consumeLast(String plaintextToken) async {

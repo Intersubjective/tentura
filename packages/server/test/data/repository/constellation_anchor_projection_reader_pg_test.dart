@@ -9,6 +9,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_projection_reader.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
+import 'package:tentura_server/data/repository/owner_graph_unit_of_work.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
@@ -343,7 +344,9 @@ SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units''',
 
         ConstellationAnchorProjection? inside;
         try {
-          await db.withMutatingRepeatableRead(viewer, () async {
+          await OwnerGraphUnitOfWork(db).runRepeatableRead(viewer, viewer, (
+            _,
+          ) async {
             await pinInTransaction(
               ConstellationAnchorTarget.person(relay),
               7,
@@ -396,7 +399,9 @@ SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units''',
         await insertBeacon(id: 'Bcaprojopen01', authorId: author);
 
         ConstellationAnchorProjection? inside;
-        await db.withMutatingRepeatableRead(viewer, () async {
+        await OwnerGraphUnitOfWork(db).runRepeatableRead(viewer, viewer, (
+          _,
+        ) async {
           await pinInTransaction(
             ConstellationAnchorTarget.person(pinnedPerson),
             4,

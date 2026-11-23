@@ -218,7 +218,7 @@ WHERE viewer_id = '$viewer' ORDER BY $order
     DateTime? blockedStartedAt;
     ConstellationAnchorRevision? beforeReleaseRevision;
     try {
-      await blocker.runTx((tx) async {
+      await withPgOwnerScopes(blocker, [viewer], (tx) async {
         final pid =
             (await tx.execute('SELECT pg_backend_pid()')).single.single! as int;
         await tx.execute('''

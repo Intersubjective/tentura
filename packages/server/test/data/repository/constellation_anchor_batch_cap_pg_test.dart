@@ -102,10 +102,13 @@ SELECT public.mr_put_edge(
 ''');
       }
     }
-    await writer.execute('''
+    await writer.executeWithOwnerScopes(
+      [viewer],
+      '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id, revision)
 VALUES ('$viewer', 0)
-''');
+''',
+    );
   });
 
   group('anchor batch of the maximum size', () {

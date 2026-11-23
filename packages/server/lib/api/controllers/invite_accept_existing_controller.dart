@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
@@ -42,7 +43,10 @@ final class InviteAcceptExistingController extends BaseController {
         userId: jwt.sub,
       );
       return Response.ok(
-        jsonEncode({'ok': result.isConsumed}),
+        jsonEncode({
+          'ok': result.isConsumed,
+          'requestLapsed': result == InviteAcceptance.requestLapsed,
+        }),
         headers: {kHeaderContentType: 'application/json'},
       );
     } on IdNotFoundException catch (e) {

@@ -52,6 +52,9 @@ query ConstellationAnchorsFetch(
       coverThumb {
         ...ImageModelV2
       }
+      coverImage {
+        ...ImageModelV2
+      }
     }
     anchorProjection {
       revision
@@ -97,6 +100,9 @@ query ConstellationAnchorsFetch(
         helpOfferCount
         coverSource
         coverThumb {
+          ...ImageModelV2
+        }
+        coverImage {
           ...ImageModelV2
         }
       }

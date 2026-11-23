@@ -1,4 +1,6 @@
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 
 /// Caller-aware invite preview from `GET /api/v2/invite/:code/preview`.
 class InvitePreview {
@@ -97,6 +99,15 @@ class InvitePreviewInviter {
     final imageId = file.substring(0, file.length - suffix.length);
     return imageId.isEmpty ? null : imageId;
   }
+
+  Profile toProfile() => Profile(
+    id: id,
+    displayName: displayName,
+    image: switch (imageId) {
+      final String id => ImageEntity(id: id),
+      null => null,
+    },
+  );
 }
 
 class InvitePreviewBeacon {

@@ -34,6 +34,7 @@ class _ConstellationTagMagnetLayerState
     extends State<ConstellationTagMagnetLayer> {
   final _controlSizes = <String, Size>{};
   late VoidCallback _detachControlSizes;
+  late Listenable _relayout;
 
   @override
   void initState() {
@@ -52,6 +53,10 @@ class _ConstellationTagMagnetLayerState
   }
 
   void _attachControlSizes() {
+    _relayout = Listenable.merge([
+      widget.cubit.graphController,
+      widget.cubit.fieldFitChanges,
+    ]);
     _detachControlSizes = widget.cubit.attachTagMagnetControlSizes(
       () => _controlSizes,
     );
@@ -86,7 +91,8 @@ class _ConstellationTagMagnetLayerState
                     center: cubit.graphController.sceneToViewportLocal(at),
                     frameHolder: widget.frameHolder,
                     onSize: (size) => _controlSizes[tag.id] = size,
-                    relayout: cubit.graphController,
+                    fittedViewport: () => cubit.fittedTagViewport(tag.id, at),
+                    relayout: _relayout,
                   ),
                   child: ConstellationTagMagnetControl(
                     actionLabel: L10n.of(context)!.buttonRemove,
@@ -114,12 +120,14 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
     required this.center,
     required this.frameHolder,
     required this.onSize,
+    required this.fittedViewport,
     required Listenable relayout,
   }) : super(relayout: relayout);
 
   final Offset center;
   final ConstellationPresentationFrameHolder frameHolder;
   final ValueChanged<Size> onSize;
+  final Rect? Function() fittedViewport;
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
@@ -138,6 +146,7 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
         ...?frameHolder.frame?.chips.values,
       ],
       bounds: Offset.zero & size,
+      fittedViewport: fittedViewport(),
     ).topLeft;
   }
 

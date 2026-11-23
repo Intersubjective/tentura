@@ -26,6 +26,8 @@ Map<String, dynamic> wireCodeError(int code) => {
 /// recorded in [sent].
 /// [responseFor] can route by variables and delay individual HTTP responses
 /// when a test needs to control concurrent requests' completion order.
+/// [selectResponse] can restrict a fixture to the selections in the HTTP
+/// request before it is serialized into the response.
 /// [errorFor] can reject a read based on its variables or the test's current
 /// server state, without coupling the fixture to an operation name. It may
 /// also hold an error response until the test releases a synchronization gate.
@@ -37,6 +39,8 @@ Future<void> withRemoteWire(
   Future<Map<String, dynamic>> Function(WireSent request)? responseFor,
   FutureOr<Map<String, dynamic>?> Function(WireSent request)? errorFor,
   List<String>? requestPaths,
+  Map<String, dynamic> Function(String query, Map<String, dynamic> data)?
+  selectResponse,
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -72,6 +76,11 @@ Future<void> withRemoteWire(
     sent.add(wireRequest);
     requestPaths?.add(request.url.path);
     final error = errors[name] ?? await errorFor?.call(wireRequest);
+    final data = error != null
+        ? null
+        : responseFor == null
+        ? responses[name]
+        : await responseFor(wireRequest);
     return http.Response(
       jsonEncode(
         error != null
@@ -80,9 +89,9 @@ Future<void> withRemoteWire(
                 'errors': [error],
               }
             : {
-                'data': responseFor == null
-                    ? responses[name]
-                    : await responseFor(wireRequest),
+                'data': data == null || selectResponse == null
+                    ? data
+                    : selectResponse(json['query'] as String, data),
               },
       ),
       200,

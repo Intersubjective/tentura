@@ -296,19 +296,21 @@ Future<void> main() async {
     });
 
     group('delete and restore', () {
-      Future<void> addMember(String tagId, int source) => writer.execute(
-        Sql.named(
-          'INSERT INTO public.person_tag_member '
-          '(tag_id, owner_id, person_id, source) '
-          'VALUES (@tag, @owner, @person, @source)',
-        ),
-        parameters: {
-          'tag': tagId,
-          'owner': _owner,
-          'person': _person,
-          'source': source,
-        },
-      );
+      Future<void> addMember(String tagId, int source) =>
+          writer.executeWithOwnerScopes(
+            [_owner],
+            Sql.named(
+              'INSERT INTO public.person_tag_member '
+              '(tag_id, owner_id, person_id, source) '
+              'VALUES (@tag, @owner, @person, @source)',
+            ),
+            parameters: {
+              'tag': tagId,
+              'owner': _owner,
+              'person': _person,
+              'source': source,
+            },
+          );
 
       test('delete returns a snapshot with members and sources', () async {
         final tag = await create('Friends', glyph: 'Q', color: 3);

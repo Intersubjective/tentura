@@ -810,8 +810,15 @@ function renderAnonymous(p) {
 const POST_JOIN_BEACON_KEY = 'tentura_post_join_beacon';
 
 function persistPostJoinBeacon(p) {
-  if (!p?.beacon?.id || p.beacon.lapsed === true) return;
   try {
+    if (
+      isNewSignupReturn(location.search) &&
+      new URLSearchParams(location.search).get('requestLapsed') === 'true'
+    ) {
+      sessionStorage.removeItem(POST_JOIN_BEACON_KEY);
+      return;
+    }
+    if (!p?.beacon?.id || p.beacon.lapsed === true) return;
     sessionStorage.setItem(
       POST_JOIN_BEACON_KEY,
       JSON.stringify({
@@ -950,6 +957,7 @@ async function main() {
     track('landing_view', { tier: env.tier, hasCode: Boolean(code) });
 
     if (isSignedInReturn()) {
+      persistPostJoinBeacon();
       applyGoogleReturnAttemptId();
     }
 

@@ -11,6 +11,7 @@ import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
+import 'package:tentura_server/data/repository/owner_graph_unit_of_work.dart';
 import 'package:tentura_server/data/repository/read_snapshot_unit_of_work.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -184,7 +185,9 @@ TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
         ('0', "'-Infinity'::float8"),
       ]) {
         await expectLater(
-          writer.execute('''
+          writer.executeWithOwnerScopes(
+            [viewerA],
+            '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
@@ -192,16 +195,20 @@ INSERT INTO public.constellation_anchor (
   'CAcheck01', '$viewerA', '$personP', ${bad.$1}, ${bad.$2},
   1, 1, now()
 )
-'''),
+''',
+          ),
           throwsA(isA<ServerException>()),
         );
       }
     });
 
     test('coordinate CHECK accepts envelope boundaries', () async {
-      await writer.execute('''
+      await writer.executeWithOwnerScopes(
+        [viewerA],
+        '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewerA')
-''');
+''',
+      );
       final fixtures = [
         (personP, -10.0, -10.0, 'CAedge01'),
         (personQ, 10.0, 10.0, 'CAedge02'),
@@ -210,7 +217,9 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewerA')
       for (final fixture in fixtures) {
         final personCol = fixture.$1 == beaconB ? 'NULL' : "'${fixture.$1}'";
         final beaconCol = fixture.$1 == beaconB ? "'$beaconB'" : 'NULL';
-        await writer.execute('''
+        await writer.executeWithOwnerScopes(
+          [viewerA],
+          '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, beacon_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
@@ -218,7 +227,8 @@ INSERT INTO public.constellation_anchor (
   '${fixture.$4}', '$viewerA', $personCol, $beaconCol,
   ${fixture.$2}, ${fixture.$3}, 1, 1, now()
 )
-''');
+''',
+        );
       }
       final count = await writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerA'
@@ -229,26 +239,35 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     test(
       'partial unique indexes enforce one anchor per viewer target',
       () async {
-        await writer.execute('''
+        await writer.executeWithOwnerScopes(
+          [viewerA],
+          '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewerA')
-''');
-        await writer.execute('''
+''',
+        );
+        await writer.executeWithOwnerScopes(
+          [viewerA],
+          '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
 ) VALUES (
   'CAuniq01', '$viewerA', '$personP', 1, 1, 1, 1, now()
 )
-''');
+''',
+        );
         await expectLater(
-          writer.execute('''
+          writer.executeWithOwnerScopes(
+            [viewerA],
+            '''
 INSERT INTO public.constellation_anchor (
   id, viewer_id, person_id, x_units, y_units,
   coordinate_space_version, revision, placed_at
 ) VALUES (
   'CAuniq02', '$viewerA', '$personP', 2, 2, 1, 2, now()
 )
-'''),
+''',
+          ),
           throwsA(isA<ServerException>()),
         );
       },
@@ -390,7 +409,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
         );
         await clearAfterDelivery();
         await expectLater(
-          db.withMutatingUser(viewerA, () async {
+          OwnerGraphUnitOfWork(db).run({viewerA}, viewerA, (_) async {
             await db.customStatement(
               '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id)

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
@@ -8,8 +11,8 @@ import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
-import 'package:tentura_server/domain/port/constellation_new_people_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 
 import '../database/tentura_db.dart';
 import 'constellation_field_snapshot_reader.dart';
@@ -27,6 +30,13 @@ final constellationRequestSelectColumns = _constellationRequestSelectColumns();
 final constellationPinnedItemSelectColumns = _constellationRequestSelectColumns(
   includePosts: true,
 );
+
+/// Both cover images for the selected Request alias `b`.
+const constellationRequestCoverJoins = '''
+LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+LEFT JOIN public.beacon_image gallery_link
+  ON gallery_link.beacon_id = b.id AND gallery_link.image_id = b.cover_image_id
+LEFT JOIN public.image gallery_cover ON gallery_cover.id = gallery_link.image_id''';
 
 String _constellationRequestSelectColumns({bool includePosts = false}) =>
     '''
@@ -78,6 +88,12 @@ String _constellationRequestSelectColumns({bool includePosts = false}) =>
   cover.width AS cover_thumb_width,
   cover.author_id AS cover_thumb_author_id,
   cover.created_at AS cover_thumb_created_at,
+  gallery_cover.id::text AS gallery_cover_id,
+  gallery_cover.hash AS gallery_cover_hash,
+  gallery_cover.height AS gallery_cover_height,
+  gallery_cover.width AS gallery_cover_width,
+  gallery_cover.author_id AS gallery_cover_author_id,
+  gallery_cover.created_at AS gallery_cover_created_at,
   (
     SELECT parent.id FROM public.beacon parent
     WHERE parent.id = b.parent_beacon_id
@@ -106,10 +122,10 @@ final class ConstellationFieldRepository
     @ignoreParam ConstellationDbAdmissionPort? _,
   ]) : _snapshotOpenProbe = null;
 
+  static final _log = Logger('ConstellationFieldRepository');
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
-  late final ConstellationNewPeopleRepositoryPort _newPeople =
-      ConstellationNewPeopleRepository(_database);
+  late final _newPeople = ConstellationNewPeopleRepository(_database);
   final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   @override
@@ -117,15 +133,65 @@ final class ConstellationFieldRepository
     required String viewerId,
     required String context,
     required ConstellationFieldReadParams params,
-  }) {
-    return _database.withConnectionScope(
-      () => _readSnapshotInTx(viewerId, context, params),
+  }) async {
+    final reader = ConstellationFieldSnapshotReader(
+      _database,
+      _profiles,
+      snapshotOpenProbe: _snapshotOpenProbe,
+    );
+    final snapshot = await _database.withConnectionScope(
+      () => _readSnapshotInTx(reader, viewerId, context, params),
       actorUserId: viewerId,
       kind: MainDbWorkKind.full,
     );
+    if (reader.unseenPeerIds.isNotEmpty) {
+      await _recordFirstSeen(viewerId, reader);
+    }
+    return snapshot;
+  }
+
+  Future<void> _recordFirstSeen(
+    String viewerId,
+    ConstellationFieldSnapshotReader reader,
+  ) async {
+    // Keep the uncontended write synchronous. If the viewer's scope is held,
+    // return the snapshot while the same write waits in its own transaction.
+    final waiting = Completer<void>();
+    Future<void> write() => _newPeople.recordFirstSeen(
+      viewerId: viewerId,
+      peerIds: reader.unseenPeerIds,
+      backfill: reader.firstSeenBackfill,
+      onScopeWait: () {
+        if (!waiting.isCompleted) waiting.complete();
+      },
+    );
+
+    // A deferred write can outlive the HTTP response and its cancellation.
+    final request = RequestContext.current;
+    request?.check();
+    final writeContext = request == null
+        ? null
+        : (RequestContext(requestId: request.requestId)..actor = viewerId);
+    final recorded = writeContext == null
+        ? write()
+        : writeContext.run(write).whenComplete(writeContext.dispose);
+    await Future.any([
+      waiting.future,
+      recorded.onError<Object>((error, stackTrace) {
+        if (!waiting.isCompleted) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+        _log.warning(
+          'Deferred Field first-seen write failed',
+          error,
+          stackTrace,
+        );
+      }),
+    ]);
   }
 
   Future<ConstellationFieldSnapshot> _readSnapshotInTx(
+    ConstellationFieldSnapshotReader reader,
     String viewerId,
     String context,
     ConstellationFieldReadParams params,
@@ -141,12 +207,7 @@ final class ConstellationFieldRepository
           ],
         )
         .get();
-    final reader = ConstellationFieldSnapshotReader(
-      _database,
-      _profiles,
-      snapshotOpenProbe: _snapshotOpenProbe,
-    );
-    final snapshot = await _database.withReadSnapshot(() async {
+    return _database.withReadSnapshot(() async {
       await _database.freezeVisibilityMemo();
       return reader.read(
         viewerId: viewerId,
@@ -154,17 +215,6 @@ final class ConstellationFieldRepository
         params: params,
       );
     });
-    // Only a read that met new people writes, in one short transaction of its own
-    // after the snapshot: the first rows ever recorded for a viewer go in at
-    // -infinity so nobody is New right after deploy.
-    if (reader.unseenPeerIds.isNotEmpty) {
-      await _newPeople.recordFirstSeen(
-        viewerId: viewerId,
-        peerIds: reader.unseenPeerIds,
-        backfill: reader.firstSeenBackfill,
-      );
-    }
-    return snapshot;
   }
 
   @override
@@ -250,7 +300,7 @@ ORDER BY src, dst, tier
           '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.user_id = \$1
   AND b.kind = 0
   AND b.status IN (0, 7, 8)
@@ -280,7 +330,7 @@ ORDER BY b.id
 SELECT $constellationRequestSelectColumns
 FROM public.person_visible_peers_symmetric(\$1, \$2) p
 INNER JOIN public.beacon b ON b.user_id = p.peer_id::text
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.user_id <> \$1
   AND b.is_discoverable
   AND b.kind = 0
@@ -337,21 +387,6 @@ ConstellationRequestRecord readConstellationRequestRow(
   bool? viewerParticipates,
   String? pinState,
 }) {
-  ImagePublicRecord? coverThumb;
-  final coverId = row.readNullable<String>('cover_thumb_id');
-  if (coverId != null) {
-    coverThumb = ImagePublicRecord(
-      id: coverId,
-      hash: row.read<String>('cover_thumb_hash'),
-      height: row.read<int>('cover_thumb_height'),
-      width: row.read<int>('cover_thumb_width'),
-      authorId: row.read<String>('cover_thumb_author_id'),
-      createdAt: readCustomSelectTimestamptz(
-        row.data['cover_thumb_created_at'],
-      )!,
-    );
-  }
-
   final needsRaw = row.read<String>('needs');
   final needs = needsRaw.isEmpty
       ? const <String>[]
@@ -385,9 +420,27 @@ ConstellationRequestRecord readConstellationRequestRow(
     hasUnread: row.read<bool>('has_unread'),
     lastActivityAt: readCustomSelectTimestamptz(row.data['last_activity_at']),
     coverSource: row.read<int>('cover_source'),
-    coverThumb: coverThumb,
+    coverThumb: _readRequestCover(row, 'cover_thumb'),
+    coverImage: _readRequestCover(row, 'gallery_cover'),
     viewerParticipates: viewerParticipates,
     pinState: pinState,
     parentBeaconId: row.readNullable<String>('parent_beacon_id'),
+  );
+}
+
+ImagePublicRecord? _readRequestCover(QueryRow row, String prefix) {
+  final id = row.readNullable<String>('${prefix}_id');
+  if (id == null) return null;
+  return ImagePublicRecord(
+    id: id,
+    hash: row.read<String>('${prefix}_hash'),
+    height: row.read<int>('${prefix}_height'),
+    width: row.read<int>('${prefix}_width'),
+    authorId: row.read<String>('${prefix}_author_id'),
+    createdAt:
+        readCustomSelectTimestamptz(row.data['${prefix}_created_at']) ??
+        (throw const FormatException(
+          'Request cover image has no creation time',
+        )),
   );
 }

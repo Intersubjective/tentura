@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_tag_magnet_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -207,6 +208,8 @@ Future<TagLensBodyHarness> mountTagLensBody(
   ConstellationPlacementCase Function(ConstellationFieldStoreCase store)?
   placementFor,
   ConstellationField? field,
+  ConstellationRepositoryPort? fieldRepository,
+  ConstellationTagMagnetCase? tagMagnetCase,
   List<PersonTag>? tagList,
 
   /// Replaces the default [ConstellationBody], e.g. to turn feature flags on
@@ -235,12 +238,13 @@ Future<TagLensBodyHarness> mountTagLensBody(
     await rig.dispose();
   });
   final fixture = ConstellationStoreFixture(
-    _StubRepository(field ?? tagLensHarnessField()),
+    fieldRepository ?? _StubRepository(field ?? tagLensHarnessField()),
     accountId: tagLensHarnessEgo.id,
   );
   final cubit = ConstellationCubit(
     case_: fixture.store,
     placementCase: placementFor?.call(fixture.store),
+    tagMagnetCase: tagMagnetCase,
     viewer: tagLensHarnessEgo,
   );
   addTearDown(cubit.close);

@@ -259,10 +259,11 @@ class FakeInvitationAcceptPort implements InvitationAcceptPort {
   }
 
   @override
-  Future<void> acceptExistingInvite(String code) async {
+  Future<ExistingInviteAcceptance> acceptExistingInvite(String code) async {
     acceptCalls++;
     if (acceptError != null) {
       throw acceptError!;
     }
+    return ExistingInviteAcceptance.accepted;
   }
 }

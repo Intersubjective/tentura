@@ -129,9 +129,12 @@ VALUES ('$viewer', '$peer', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
 SELECT public.mr_put_edge('$src', '$dst', 0.75::double precision, '${params.context}', 0)
 ''');
       }
-      await writer.execute('''
+      await writer.executeWithOwnerScopes(
+        [viewer],
+        '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
-''');
+''',
+      );
     });
 
     test(

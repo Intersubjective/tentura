@@ -4,11 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/invitation_entity.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -31,13 +30,12 @@ class _FakeInvitations extends Fake implements InvitationRepository {
   final accepted = <String>[];
 
   @override
-  Future<InvitationFetchByIdResult?> fetchById(String id) async => (
-    invitation: InvitationEntity(
-      id: id,
-      createdAt: DateTime.utc(2026),
-      updatedAt: DateTime.utc(2026),
-    ),
-    issuer: Profile(id: issuerId, displayName: 'Tab QA'),
+  Future<InvitePreview> fetchInvitePreview(String code) async => InvitePreview(
+    codeStatus: InviteCodeStatus.available,
+    callerStatus: issuerId == _me
+        ? InviteCallerStatus.isInviter
+        : InviteCallerStatus.existingUser,
+    inviter: InvitePreviewInviter(id: issuerId, displayName: 'Tab QA'),
   );
 
   @override

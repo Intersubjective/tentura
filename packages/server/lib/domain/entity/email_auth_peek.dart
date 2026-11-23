@@ -68,7 +68,7 @@ sealed class EmailAuthConfirmOutcome {
 final class EmailAuthLoginConfirmed extends EmailAuthConfirmOutcome {
   const EmailAuthLoginConfirmed({
     required this.sessionToken,
-    required this.isNewAccount,
+    required this.requestLapsed,
     this.inviteCode,
   });
 
@@ -76,7 +76,9 @@ final class EmailAuthLoginConfirmed extends EmailAuthConfirmOutcome {
   final String? inviteCode;
 
   /// True only when a brand-new account was created (drives `new=1` redirect).
-  final bool isNewAccount;
+  bool get isNewAccount => requestLapsed != null;
+
+  final bool? requestLapsed;
 }
 
 /// Settings link mode: email attached; no session minted.

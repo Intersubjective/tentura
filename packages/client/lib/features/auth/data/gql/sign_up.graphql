@@ -1,5 +1,6 @@
 mutation SignUp($authRequestToken: String!, $displayName: String!, $handle: String) {
   signUp(authRequestToken: $authRequestToken, displayName: $displayName, handle: $handle) {
     subject
+    requestLapsed
   }
 }

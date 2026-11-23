@@ -578,6 +578,144 @@ Future<void> main() async {
     });
   });
 
+  group(
+    'immediate connection emails name the inviter in the recipient locale',
+    () {
+      const requestTitle = 'Fix the roof';
+      const russianConnection = 'Вы и Anna теперь на связи.';
+      const russianWithRequest =
+          '$russianConnection Запрос «Fix the roof» больше недоступен '
+          'по этому приглашению.';
+
+      Future<AttentionChannelDecision> connectionDelivery({
+        required String locale,
+        String counterpart = _bob,
+        String? lapsedRequestTitle,
+      }) async {
+        await setPreferences(counterpart, locale: locale);
+        final intent = await intents.mutualConnectionFormed(
+          actorUserId: _anna,
+          counterpartUserId: counterpart,
+          sourceEventKey: 'connection:$_anna:$counterpart',
+          lapsedRequestTitle: lapsedRequestTitle,
+        );
+        await record(intent);
+        return (await claim(counterpart)).single;
+      }
+
+      Future<void> sendConnection(AttentionChannelDecision decision) async {
+        expect(decision.kind, NotificationKind.inviteAccepted);
+        await emailService().considerImmediate(
+          recipientUserId: decision.recipientId,
+          kind: decision.kind,
+          beaconId: decision.beaconId ?? '',
+          channelCollapseKey: decision.dedupKey,
+          title: decision.title,
+          // Pass the stored body and leave rendered copy unset.
+          body: decision.body,
+          actionUrl: decision.actionUrl,
+          pushDelivered: false,
+        );
+      }
+
+      test('the connection and unavailable Request are stated in English and '
+          'Russian for the respective recipients', () async {
+        const englishBody =
+            'You and Anna are now connected. The Request «Fix the roof» is '
+            'no longer available through this invitation.';
+        await sendConnection(
+          await connectionDelivery(
+            locale: 'en',
+            counterpart: _author,
+            lapsedRequestTitle: requestTitle,
+          ),
+        );
+        expect(sender.itemBodies, [englishBody]);
+
+        await sendConnection(
+          await connectionDelivery(
+            locale: 'ru',
+            lapsedRequestTitle: requestTitle,
+          ),
+        );
+        expect(sender.itemBodies, [englishBody, russianWithRequest]);
+      });
+
+      for (final (description, name) in [
+        ('the connection sentence is localized in English and Russian', 'Anna'),
+        ('both locales trim spaces around the inviter name', '  Anna  '),
+      ]) {
+        test('$description when there is no unavailable Request', () async {
+          await rename(_anna, name);
+          const englishBody = 'You and Anna are now connected.';
+          await sendConnection(
+            await connectionDelivery(
+              locale: 'en',
+              counterpart: _author,
+            ),
+          );
+          expect(sender.itemBodies, [englishBody]);
+
+          await sendConnection(await connectionDelivery(locale: 'ru'));
+          expect(sender.itemBodies, [englishBody, russianConnection]);
+        });
+      }
+
+      test('the connections category sends one email with the Russian '
+          'connection and unavailable Request text', () async {
+        final decision = await connectionDelivery(
+          locale: 'ru',
+          lapsedRequestTitle: requestTitle,
+        );
+        final sent = await emailService().considerImmediateByCategory(
+          recipientUserId: decision.recipientId,
+          channelCollapseKey: decision.dedupKey,
+          title: decision.title,
+          body: decision.body,
+          actionUrl: decision.actionUrl,
+          categoryScope: 'connections',
+        );
+        expect(sent, isTrue);
+        expect(sender.itemBodies, [russianWithRequest]);
+      });
+
+      test('ru-RU recipients get the Russian connection and unavailable '
+          'Request text', () async {
+        await sendConnection(
+          await connectionDelivery(
+            locale: 'ru-RU',
+            lapsedRequestTitle: requestTitle,
+          ),
+        );
+        expect(sender.itemBodies, [russianWithRequest]);
+      });
+
+      test(
+        'the Russian connection email preserves a Cyrillic inviter name',
+        () async {
+          await rename(_anna, 'Анна Иванова');
+          await sendConnection(await connectionDelivery(locale: 'ru'));
+          expect(sender.itemBodies, ['Вы и Анна Иванова теперь на связи.']);
+        },
+      );
+
+      test('the Russian email preserves a name containing “The Request” and '
+          'names the unavailable Request separately', () async {
+        await rename(_anna, 'Max The Request');
+        await sendConnection(
+          await connectionDelivery(
+            locale: 'ru',
+            lapsedRequestTitle: requestTitle,
+          ),
+        );
+        const expectedBody =
+            'Вы и Max The Request теперь на связи. '
+            'Запрос «Fix the roof» больше недоступен по этому приглашению.';
+        expect(sender.itemBodies, [expectedBody]);
+      });
+    },
+  );
+
   group('a Post share email names the sharer and the Post', () {
     test(
       'English subject has the sentence and the unquoted Post label',

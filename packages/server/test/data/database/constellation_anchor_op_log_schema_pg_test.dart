@@ -48,7 +48,8 @@ ON CONFLICT (id) DO NOTHING
     required String opId,
     Uint8List? fingerprint,
     String result = '{"status":"applied"}',
-  }) => writer.execute(
+  }) => writer.executeWithOwnerScopes(
+    [viewerId],
     Sql.named('''
 INSERT INTO public.constellation_anchor_op_log
   (viewer_id, client_op_id, fingerprint, result, revision, created_at)
@@ -132,14 +133,16 @@ VALUES ('Aoplogupg001', 'Ucaoplogupg001', 'Ucaoplogupg002', 0, 0, 1, 1, now())
       'upgraded op log enforces sizes and cascades on user delete',
       () async {
         final c = upgradeSession.writer;
-        Future<void> insert(String op, Uint8List fp) => c.execute(
-          Sql.named('''
+        Future<void> insert(String op, Uint8List fp) =>
+            c.executeWithOwnerScopes(
+              ['Ucaoplogupg001'],
+              Sql.named('''
 INSERT INTO public.constellation_anchor_op_log
   (viewer_id, client_op_id, fingerprint, result, revision, created_at)
 VALUES ('Ucaoplogupg001', @op, @fp, '{}'::jsonb, 1, now())
 '''),
-          parameters: {'op': op, 'fp': fp},
-        );
+              parameters: {'op': op, 'fp': fp},
+            );
 
         await expectLater(
           insert('a' * 65, digest),
@@ -266,25 +269,34 @@ WHERE schemaname = 'public'
   });
 
   group('constellation anchor target watermark', () {
-    Future<void> upsertWatermark(int revision) => writer.execute('''
+    Future<void> upsertWatermark(int revision) => writer.executeWithOwnerScopes(
+      [viewer],
+      '''
 INSERT INTO public.constellation_anchor_target_watermark
   (viewer_id, target_kind, target_id, revision)
 VALUES ('$viewer', 'person', '$person', $revision)
 ON CONFLICT (viewer_id, target_kind, target_id)
 DO UPDATE SET revision = EXCLUDED.revision
-''');
+''',
+    );
 
     test('survives deletion of the anchor it describes', () async {
-      await writer.execute('''
+      await writer.executeWithOwnerScopes(
+        [viewer],
+        '''
 INSERT INTO public.constellation_anchor_cursor (viewer_id, revision)
 VALUES ('$viewer', 0) ON CONFLICT (viewer_id) DO NOTHING
-''');
-      await writer.execute('''
+''',
+      );
+      await writer.executeWithOwnerScopes(
+        [viewer],
+        '''
 INSERT INTO public.constellation_anchor
   (id, viewer_id, person_id, x_units, y_units, coordinate_space_version,
    revision, placed_at)
 VALUES ('Aoplogwm0001', '$viewer', '$person', 0, 0, 1, 1, now())
-''');
+''',
+      );
       await upsertWatermark(5);
 
       await writer.execute(

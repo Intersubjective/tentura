@@ -24,9 +24,7 @@ class ConstellationRearrangePreviewBar extends StatelessWidget {
     final theme = Theme.of(context);
     final summary = Text(
       l10n.constellationRearrangePreview(movingCount),
-      style: theme.textTheme.titleSmall?.copyWith(
-        color: theme.colorScheme.onSecondaryContainer,
-      ),
+      style: TenturaText.status(theme.colorScheme.onSecondaryContainer),
     );
     final actions = [
       TextButton(

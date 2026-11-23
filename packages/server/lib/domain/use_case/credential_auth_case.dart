@@ -48,6 +48,7 @@ final class CredentialAuthCase extends UseCaseBase {
     Map<String, Object?>? publicData,
     List<AssertedContact> assertedContacts = const [],
     bool bypassInviteForNewAccount = false,
+    void Function()? onRequestLapsed,
   }) async {
     final authoritative = AssertedContact.authoritativeOnly(assertedContacts);
 
@@ -90,6 +91,7 @@ final class CredentialAuthCase extends UseCaseBase {
       publicData: publicData,
       contacts: authoritative,
       bypassInviteForNewAccount: bypassInviteForNewAccount,
+      onRequestLapsed: onRequestLapsed,
     );
   }
 
@@ -122,6 +124,7 @@ final class CredentialAuthCase extends UseCaseBase {
     String? inviteId,
     Map<String, Object?>? publicData,
     bool bypassInviteForNewAccount = false,
+    void Function()? onRequestLapsed,
   }) async {
     if (inviteId == null || inviteId.isEmpty) {
       final mayBypassInvite =
@@ -153,7 +156,7 @@ final class CredentialAuthCase extends UseCaseBase {
       invitationId: inviteId,
     );
     final attention = _attention!;
-    Future<({String accountId, bool isNewAccount})> acceptInvite() {
+    Future<(String, bool)> acceptInvite() {
       return attention.runAction(
         actorUserId: null,
         action: (transaction) async {
@@ -209,13 +212,14 @@ final class CredentialAuthCase extends UseCaseBase {
               ),
             );
           }
-          return (accountId: user.id, isNewAccount: true);
+          return (user.id, lapsedRequestTitle != null);
         },
       );
     }
 
+    final (String, bool) accepted;
     try {
-      return await attention.retryOnConflict(acceptInvite);
+      accepted = await attention.retryOnConflict(acceptInvite);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(
         type: type,
@@ -225,6 +229,9 @@ final class CredentialAuthCase extends UseCaseBase {
         inviteId: inviteId,
       );
     }
+    final (accountId, requestLapsed) = accepted;
+    if (requestLapsed) onRequestLapsed?.call();
+    return (accountId: accountId, isNewAccount: true);
   }
 
   Future<({String accountId, bool isNewAccount})>

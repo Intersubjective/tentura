@@ -7,20 +7,24 @@ import 'package:tentura_server/domain/entity/constellation_tag_magnet.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_tag_magnet_repository_port.dart';
+import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 
 import '../database/tentura_db.dart';
+import 'owner_graph_unit_of_work.dart';
 
 const _columns = 'tag_id, x_units, y_units, revision';
 
 /// `constellation_tag_magnet` (m0267). Each write is one transaction under
-/// the viewer's people-tags advisory lock, with its replay record in
+/// the viewer's owner-graph scope, with its replay record in
 /// `person_tag_op_log`, so magnets and tags never interleave per viewer.
 @LazySingleton(as: ConstellationTagMagnetRepositoryPort)
 class ConstellationTagMagnetRepository
     implements ConstellationTagMagnetRepositoryPort {
-  const ConstellationTagMagnetRepository(this._database);
+  ConstellationTagMagnetRepository(this._database)
+    : _ownerGraph = OwnerGraphUnitOfWork(_database);
 
   final TenturaDb _database;
+  final OwnerGraphTransactionPort _ownerGraph;
 
   @override
   Future<List<ConstellationTagMagnet>> list(String viewerId) async {
@@ -122,11 +126,7 @@ DELETE FROM public.constellation_tag_magnet
     required T Function(Map<String, dynamic>) decode,
     required Future<T> Function() run,
     required Map<String, dynamic> Function(T) encode,
-  }) => _database.withMutatingUser(viewerId, () async {
-    await _database.customStatement(
-      r"SELECT pg_advisory_xact_lock(hashtextextended('person_tags:' || $1, 4242))",
-      [viewerId],
-    );
+  }) => _ownerGraph.run({viewerId}, viewerId, (_) async {
     final logged = await _database
         .customSelect(
           'SELECT fingerprint, result::text AS result '

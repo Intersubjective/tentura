@@ -10,7 +10,9 @@ import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
+import 'package:tentura/features/invitation/domain/port/invitation_accept_port.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 
@@ -26,6 +28,7 @@ class ConnectBottomSheet extends StatefulWidget {
       isScrollControlled: true,
       showDragHandle: true,
       useSafeArea: true,
+      showSnackBars: true,
       maxWidth: _dialogMaxWidth,
       builder: (context) => Padding(
         padding: EdgeInsets.only(
@@ -171,46 +174,77 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
           entry: kBeaconEntryUnknown,
         );
       case 'I':
-        final result = await _invitationRepository.fetchById(code);
-        if (mounted) {
-          if (result == null) {
-            showSnackBar(context, isError: true, text: _l10n.codeNotFoundError);
-          } else if (GetIt.I<AuthCubit>().state.checkIfIsMe(result.issuer.id)) {
-            // Accepting it would write a self-trust edge and consume the
-            // invite; the landing page refuses this case too (#272).
-            showSnackBar(
-              context,
-              text: const InviteOwnInviteMessage().toL10n(_l10n.localeName),
-            );
-          } else if (await InvitationAcceptDialog.show(
-                context,
-                profile: result.issuer,
-              ) ??
-              false) {
-            try {
-              await _invitationRepository.accept(code);
-            } catch (e) {
-              // The server refuses self-accept too (#357); a stale account
-              // id or an older client reaches here instead of the check above.
-              if (mounted) {
-                showSnackBar(
-                  context,
-                  isError: true,
-                  text: _l10n.errorGenericAction,
-                  detail: e.toString(),
-                );
-              }
-              return;
-            }
-            if (mounted) {
-              // TBD: l10n
-              showSnackBar(context, text: 'Invitation accepted!');
-              await GetIt.I<AppNavigator>().openProfile(result.issuer.id);
-            }
-          }
-        }
+        await _acceptInvite(code);
       default:
         showSnackBar(context, isError: true, text: _l10n.codePrefixError);
+    }
+  }
+
+  Future<void> _acceptInvite(String code) async {
+    try {
+      final preview = await _invitationRepository.fetchInvitePreview(code);
+      if (!mounted) return;
+      if (preview.callerStatus == InviteCallerStatus.isInviter) {
+        showSnackBar(
+          context,
+          text: const InviteOwnInviteMessage().toL10n(_l10n.localeName),
+        );
+        return;
+      }
+
+      final inviter = preview.inviter;
+      if (!preview.isAvailable || inviter == null || inviter.id.isEmpty) {
+        showSnackBar(context, isError: true, text: _l10n.codeNotFoundError);
+        return;
+      }
+
+      final request = switch (preview.beacon) {
+        final InvitePreviewBeacon beacon when !beacon.isPost => beacon,
+        _ => null,
+      };
+      final confirmed = await InvitationAcceptDialog.show(
+        context,
+        profile: inviter.toProfile(),
+        beacon: request,
+      );
+      if (!mounted || confirmed != true) return;
+
+      if (request != null) {
+        final result = await _invitationRepository.acceptExistingInvite(code);
+        if (!mounted ||
+            request.lapsed ||
+            result == ExistingInviteAcceptance.requestLapsed) {
+          return;
+        }
+        await GetIt.I<AppNavigator>().openBeacon(
+          request.id,
+          entry: kBeaconEntryInvite,
+        );
+        return;
+      }
+
+      // Preserve the existing acceptance flow for plain and Post invites.
+      await _invitationRepository.accept(code);
+      if (!mounted) return;
+      final navigator = GetIt.I<AppNavigator>();
+      final navigation = navigator.openProfile(inviter.id);
+      // Present the confirmation after the route push clears transient bars.
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) {
+        showSnackBar(
+          navigator.rootContext ?? context,
+          text: const InviteAcceptedMessage().toL10n(_l10n.localeName),
+        );
+      }
+      await navigation;
+    } catch (e) {
+      if (!mounted) return;
+      showSnackBar(
+        context,
+        isError: true,
+        text: _l10n.errorGenericAction,
+        detail: e.toString(),
+      );
     }
   }
 }

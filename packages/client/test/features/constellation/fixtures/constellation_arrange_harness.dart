@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_arranging_toolbar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
@@ -258,11 +259,12 @@ typedef ArrangeHarness = ({
 
 Future<ArrangeHarness> arrangeHarness({
   Map<ConstellationAnchorTarget, ConstellationAnchorPosition>? initial,
+  ConstellationRepositoryPort? fieldRepository,
 }) async {
   final anchors = ArrangeAnchorRepository(initial ?? arrangeInitialAnchors());
   final sync = buildTestRealtimeSync();
   final store = ConstellationStoreFixture(
-    ArrangeFieldRepository(anchors),
+    fieldRepository ?? ArrangeFieldRepository(anchors),
     accountId: 'ego',
     realtime: sync.case_,
   ).store;
@@ -295,6 +297,7 @@ Widget _shell(
   ConstellationCubit cubit,
   Widget child, {
   ConstellationSelectionCubit? selection,
+  ConstellationTagLensCubit? tagLens,
   Locale locale = const Locale('en'),
 }) => MaterialApp(
   locale: locale,
@@ -317,6 +320,8 @@ Widget _shell(
         BlocProvider<ScreenCubit>(
           create: (_) => ScreenCubit(FakeUiEffectPort()),
         ),
+        if (tagLens != null)
+          BlocProvider<ConstellationTagLensCubit>.value(value: tagLens),
       ],
       child: Scaffold(body: child),
     ),
@@ -329,9 +334,11 @@ Future<void> pumpArrangeBody(
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
   ConstellationSelectionCubit? selection,
+  ConstellationTagLensCubit? tagLens,
   Locale locale = const Locale('en'),
+  Size surface = const Size(1200, 900),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(1200, 900));
+  await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     _shell(
@@ -342,6 +349,7 @@ Future<void> pumpArrangeBody(
         arrangeV2Enabled: arrangeV2Enabled,
       ),
       selection: selection,
+      tagLens: tagLens,
       locale: locale,
     ),
   );

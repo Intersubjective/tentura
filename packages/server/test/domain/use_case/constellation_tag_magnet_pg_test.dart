@@ -679,7 +679,7 @@ Future<void> main() async {
             final revisionBefore = await ownerRevision();
             notifications.clear();
 
-            await writer.runTx((tx) async {
+            await withPgOwnerScopes(writer, [_owner], (tx) async {
               await insertMagnet(tx, a.id, 1, 1);
               await insertMagnet(tx, b.id, 2, 2);
               await tx.execute(
@@ -719,7 +719,7 @@ Future<void> main() async {
             await settle();
             notifications.clear();
 
-            await writer.runTx((tx) async {
+            await withPgOwnerScopes(writer, [_owner], (tx) async {
               await insertMagnet(tx, tag.id, 1, 1);
               await tx.execute(
                 Sql.named(
@@ -740,12 +740,13 @@ Future<void> main() async {
           await settle();
           notifications.clear();
 
-          await writer
-              .runTx((tx) async {
-                await insertMagnet(tx, tag.id, 1, 1);
-                throw StateError('abort');
-              })
-              .then<void>((_) {}, onError: (Object _) {});
+          await expectLater(
+            withPgOwnerScopes(writer, [_owner], (tx) async {
+              await insertMagnet(tx, tag.id, 1, 1);
+              throw StateError('abort');
+            }),
+            throwsA(isA<StateError>()),
+          );
           await settle();
 
           expect(hints(), isEmpty);

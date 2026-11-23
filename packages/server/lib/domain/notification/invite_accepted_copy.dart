@@ -26,6 +26,21 @@ enum InviteAcceptedCopy {
   static const _englishUnavailable =
       ' is no longer available through this invitation.';
 
+  static String mutualConnectionBody({
+    required String actorDisplayName,
+    required String? lapsedRequestTitle,
+    String locale = 'en',
+  }) {
+    final name = actorDisplayName.trim();
+    final ru = locale.toLowerCase().startsWith('ru');
+    final sentence = name.isEmpty
+        ? (ru ? connected.ru : connected.en)
+        : (ru
+              ? 'Вы и $name теперь на связи.'
+              : 'You and $name are now connected.');
+    return withLapsedRequest(sentence, lapsedRequestTitle, ru: ru);
+  }
+
   static String withLapsedRequest(
     String body,
     String? requestTitle, {

@@ -65,7 +65,7 @@ WITH candidates AS (
 )
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
-LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+$constellationRequestCoverJoins
 WHERE b.id IN (
   SELECT public.beacon_readable_ids(
     \$1,

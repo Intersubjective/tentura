@@ -4,8 +4,6 @@ import 'package:injectable/injectable.dart';
 import '../../data/repository/invitation_repository.dart';
 
 import 'package:tentura/app/platform/landing_redirect.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -112,8 +110,9 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     final beacon = state.pendingBeacon;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _repository.acceptExistingInvite(code);
-      if (beacon?.lapsed == true) {
+      final result = await _repository.acceptExistingInvite(code);
+      if (result == ExistingInviteAcceptance.requestLapsed ||
+          beacon?.lapsed == true) {
         _finishWithMessage(null);
       } else if (beacon != null && beacon.id.isNotEmpty) {
         _postJoinNavigation.setFromBeaconInvite(
@@ -161,21 +160,12 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
         emit(
           state.copyWith(
             status: StateStatus.isSuccess,
-            pendingInviter: _inviterProfile(inviter),
+            pendingInviter: inviter.toProfile(),
             pendingBeacon: preview.beacon,
           ),
         );
     }
   }
-
-  Profile _inviterProfile(InvitePreviewInviter inviter) => Profile(
-    id: inviter.id,
-    displayName: inviter.displayName,
-    image: switch (inviter.imageId) {
-      final String imageId => ImageEntity(id: imageId),
-      null => null,
-    },
-  );
 
   void _finishWithMessage(
     LocalizableMessage? message, {
@@ -226,7 +216,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
-        pendingInviter: showLapsedNotice ? _inviterProfile(inviter) : null,
+        pendingInviter: showLapsedNotice ? inviter.toProfile() : null,
         pendingBeacon: showLapsedNotice ? beacon : null,
         pendingSignupCode: code,
       ),

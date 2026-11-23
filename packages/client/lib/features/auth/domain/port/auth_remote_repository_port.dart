@@ -1,8 +1,10 @@
 import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 
+typedef SignupResult = ({String accountId, bool requestLapsed});
+
 /// Remote auth API (implemented by `AuthRemoteRepository` in data layer).
 abstract class AuthRemoteRepositoryPort {
-  Future<String> signUp({
+  Future<SignupResult> signUp({
     required String seed,
     required String displayName,
     required String invitationCode,

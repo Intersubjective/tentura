@@ -83,6 +83,7 @@ final class AuthCase extends UseCaseBase {
     required String authRequestToken,
     required String displayName,
     String? handle,
+    void Function()? onRequestLapsed,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
     final payload = jwt.payload as Map<String, dynamic>;
@@ -104,6 +105,7 @@ final class AuthCase extends UseCaseBase {
               publicKey: publicKey,
               displayName: displayName,
               handle: handle,
+              onRequestLapsed: onRequestLapsed,
             ),
             _ => throw const IdWrongException(
               description: 'Invite attribute not found!',
@@ -154,12 +156,13 @@ final class AuthCase extends UseCaseBase {
     required String publicKey,
     required String displayName,
     String? handle,
+    void Function()? onRequestLapsed,
   }) async {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
     );
     final attention = _attention!;
-    Future<UserEntity> acceptInvite() => attention.runAction(
+    Future<(UserEntity, bool)> acceptInvite() => attention.runAction(
       actorUserId: null,
       action: (transaction) async {
         String? lapsedRequestTitle;
@@ -212,10 +215,12 @@ final class AuthCase extends UseCaseBase {
             ),
           );
         }
-        return user;
+        return (user, lapsedRequestTitle != null);
       },
     );
-    return attention.retryOnConflict(acceptInvite);
+    final (user, requestLapsed) = await attention.retryOnConflict(acceptInvite);
+    if (requestLapsed) onRequestLapsed?.call();
+    return user;
   }
 
   Future<bool> signOut({

@@ -93,6 +93,8 @@ export class FakeNode {
  *   preview?: object,
  *   previewFails?: boolean,
  *   languages?: string[],
+ *   storage?: Storage,
+ *   fetchResponse?: typeof fetch,
  * }} options
  */
 export function installBrowserFake(options) {
@@ -103,6 +105,8 @@ export function installBrowserFake(options) {
     preview,
     previewFails = false,
     languages = ['en-US'],
+    storage,
+    fetchResponse,
   } = options;
   const card = new FakeNode(1, 'DIV');
   const app = new FakeNode(1, 'DIV');
@@ -145,12 +149,14 @@ export function installBrowserFake(options) {
     configurable: true,
   });
   const store = new Map();
-  globalThis.sessionStorage = {
+  globalThis.sessionStorage = storage ?? {
     getItem: (k) => store.get(k) ?? null,
     setItem: (k, v) => store.set(k, String(v)),
     removeItem: (k) => store.delete(k),
   };
-  if (previewFails) {
+  if (fetchResponse) {
+    globalThis.fetch = fetchResponse;
+  } else if (previewFails) {
     globalThis.fetch = async () => ({
       ok: false,
       status: 500,

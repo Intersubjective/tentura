@@ -285,7 +285,8 @@ FOR EACH ROW EXECUTE FUNCTION public.person_tag_revision_probe_fn()
       test('$label delivers one hint to the owner', () async {
         final before = await committedRevision(_ownerA);
 
-        await writer.execute(
+        await writer.executeWithOwnerScopes(
+          [_ownerA],
           statement.replaceAll('%TAG%', tagA.id).replaceAll('%OWNER%', _ownerA),
         );
         await settle();
@@ -345,7 +346,7 @@ FOR EACH ROW EXECUTE FUNCTION public.person_tag_revision_probe_fn()
       final before = await committedRevision(_ownerA);
 
       await expectLater(
-        writer.runTx((tx) async {
+        withPgOwnerScopes(writer, [_ownerA], (tx) async {
           await tx.execute(
             Sql.named(
               'INSERT INTO public.person_tag_member '
@@ -368,7 +369,7 @@ FOR EACH ROW EXECUTE FUNCTION public.person_tag_revision_probe_fn()
       'one transaction touching two owners delivers one hint per owner, '
       'each to that owner only',
       () async {
-        await writer.runTx((tx) async {
+        await withPgOwnerScopes(writer, [_ownerA, _ownerB], (tx) async {
           for (final (tag, owner, person) in [
             (tagA.id, _ownerA, _personP),
             (tagA.id, _ownerA, _personQ),
