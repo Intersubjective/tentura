@@ -7,30 +7,31 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i13;
-import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i16;
-import 'package:tentura_root/domain/entity/beacon_status.dart' as _i17;
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i17;
+import 'package:tentura_root/domain/entity/beacon_status.dart' as _i18;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i4;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i12;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i5;
-import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i18;
+import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i19;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i7;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/post_summary.dart' as _i15;
+import 'package:tentura_server/domain/entity/invite_acceptance.dart' as _i14;
+import 'package:tentura_server/domain/entity/post_summary.dart' as _i16;
 import 'package:tentura_server/domain/entity/user_contact_entity.dart' as _i10;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i3;
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart'
-    as _i21;
-import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i14;
+    as _i22;
+import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i15;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i8;
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart'
     as _i9;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i11;
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart'
-    as _i20;
+    as _i21;
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart'
-    as _i19;
+    as _i20;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -274,6 +275,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     _i11.InvitedPostForwardCreated? onPostForwardCreated,
+    _i11.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvited, [], {
@@ -282,6 +284,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #displayName: displayName,
               #handle: handle,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i6.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -292,6 +295,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #displayName: displayName,
                   #handle: handle,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),
@@ -342,6 +346,7 @@ class MockUserRepositoryPort extends _i1.Mock
     Map<String, Object?>? publicData,
     List<_i12.AssertedContact>? contacts = const [],
     _i11.InvitedPostForwardCreated? onPostForwardCreated,
+    _i11.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -353,6 +358,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #publicData: publicData,
               #contacts: contacts,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i6.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -366,6 +372,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #publicData: publicData,
                   #contacts: contacts,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),
@@ -600,6 +607,22 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<_i14.InviteAcceptance> acceptRequestInvite({
+    required String? invitationId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptRequestInvite, [], {
+              #invitationId: invitationId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<_i14.InviteAcceptance>.value(
+              _i14.InviteAcceptance.accepted,
+            ),
+          )
+          as _i6.Future<_i14.InviteAcceptance>);
+
+  @override
   _i6.Future<bool> bindMutual({
     required String? invitationId,
     required String? userId,
@@ -622,23 +645,23 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRepositoryPort extends _i1.Mock
-    implements _i14.BeaconRepositoryPort {
+    implements _i15.BeaconRepositoryPort {
   MockBeaconRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<List<_i15.PostSummary>> myPosts(String? viewerId) =>
+  _i6.Future<List<_i16.PostSummary>> myPosts(String? viewerId) =>
       (super.noSuchMethod(
             Invocation.method(#myPosts, [viewerId]),
-            returnValue: _i6.Future<List<_i15.PostSummary>>.value(
-              <_i15.PostSummary>[],
+            returnValue: _i6.Future<List<_i16.PostSummary>>.value(
+              <_i16.PostSummary>[],
             ),
           )
-          as _i6.Future<List<_i15.PostSummary>>);
+          as _i6.Future<List<_i16.PostSummary>>);
 
   @override
-  _i6.Future<_i15.PostSummary?> postSummary({
+  _i6.Future<_i16.PostSummary?> postSummary({
     required String? viewerId,
     required String? beaconId,
   }) =>
@@ -647,9 +670,9 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #viewerId: viewerId,
               #beaconId: beaconId,
             }),
-            returnValue: _i6.Future<_i15.PostSummary?>.value(),
+            returnValue: _i6.Future<_i16.PostSummary?>.value(),
           )
-          as _i6.Future<_i15.PostSummary?>);
+          as _i6.Future<_i16.PostSummary?>);
 
   @override
   _i6.Future<_i5.BeaconEntity> createBeacon({
@@ -667,15 +690,15 @@ class MockBeaconRepositoryPort extends _i1.Mock
     int? ticker = 0,
     String? primaryNeedSlug,
     String? coverImageId,
-    _i16.BeaconCoverSource? coverSource = _i16.BeaconCoverSource.photo,
-    _i17.BeaconStatus? status,
+    _i17.BeaconCoverSource? coverSource = _i17.BeaconCoverSource.photo,
+    _i18.BeaconStatus? status,
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
     bool? isDiscoverable,
-    _i18.BeaconKind? kind = _i18.BeaconKind.request,
-    _i18.BeaconForwardPolicyValue? forwardPolicy =
-        _i18.BeaconForwardPolicyValue.open,
+    _i19.BeaconKind? kind = _i19.BeaconKind.request,
+    _i19.BeaconForwardPolicyValue? forwardPolicy =
+        _i19.BeaconForwardPolicyValue.open,
     String? clientOpId,
   }) =>
       (super.noSuchMethod(
@@ -1078,7 +1101,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
   @override
   _i6.Future<void> setForwardPolicy({
     required String? beaconId,
-    required _i18.BeaconForwardPolicyValue? policy,
+    required _i19.BeaconForwardPolicyValue? policy,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#setForwardPolicy, [], {
@@ -1095,7 +1118,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     required String? beaconId,
     required String? userId,
     required String? description,
-    required _i18.BeaconForwardPolicyValue? forwardPolicy,
+    required _i19.BeaconForwardPolicyValue? forwardPolicy,
     int? lifetimeHours,
   }) =>
       (super.noSuchMethod(
@@ -1412,8 +1435,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
   @override
   _i6.Future<void> recordBeaconStatusTransition({
     required String? beaconId,
-    required _i17.BeaconStatus? fromStatus,
-    required _i17.BeaconStatus? toStatus,
+    required _i18.BeaconStatus? fromStatus,
+    required _i18.BeaconStatus? toStatus,
     required String? reason,
     required String? actorId,
   }) =>
@@ -1582,7 +1605,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     required String? beaconId,
     required List<String>? imageIds,
     required String? coverImageId,
-    required _i16.BeaconCoverSource? coverSource,
+    required _i17.BeaconCoverSource? coverSource,
     String? coverThumbImageId,
   }) =>
       (super.noSuchMethod(
@@ -1601,7 +1624,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
   _i6.Future<void> setCover({
     required String? beaconId,
     required String? coverImageId,
-    required _i16.BeaconCoverSource? coverSource,
+    required _i17.BeaconCoverSource? coverSource,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#setCover, [], {
@@ -1652,7 +1675,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookupPort extends _i1.Mock
-    implements _i19.VoteUserFriendshipLookupPort {
+    implements _i20.VoteUserFriendshipLookupPort {
   MockVoteUserFriendshipLookupPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -1724,14 +1747,14 @@ class MockVoteUserFriendshipLookupPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVerifiedContactRepositoryPort extends _i1.Mock
-    implements _i20.VerifiedContactRepositoryPort {
+    implements _i21.VerifiedContactRepositoryPort {
   MockVerifiedContactRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
   _i6.Future<String?> getAccountIdByContact({
-    required _i21.ContactKind? kind,
+    required _i22.ContactKind? kind,
     required String? value,
   }) =>
       (super.noSuchMethod(
@@ -1745,7 +1768,7 @@ class MockVerifiedContactRepositoryPort extends _i1.Mock
 
   @override
   _i6.Future<Set<String>> findAccountIdsByContacts(
-    Iterable<({_i21.ContactKind kind, String value})>? contacts,
+    Iterable<({_i22.ContactKind kind, String value})>? contacts,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#findAccountIdsByContacts, [contacts]),

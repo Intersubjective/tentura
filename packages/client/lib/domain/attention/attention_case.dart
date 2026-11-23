@@ -34,6 +34,8 @@ import 'port/attention_reconcile_port.dart';
 import 'port/attention_repository_port.dart';
 import 'qa_attention_latency_probe.dart';
 
+enum _SurfaceSummaryRefresh { standard, catchUp }
+
 /// QA-only measurement of receipt commit to head-snapshot emission latency.
 final class AttentionHeadRefreshLatency {
   const AttentionHeadRefreshLatency({
@@ -132,8 +134,9 @@ final class AttentionCase implements AttentionReconcilePort {
   StreamSubscription<RealtimeCatchUp>? _catchUpSub;
   StreamSubscription<dynamic>? _blockSub;
   bool _surfaceSummaryRefreshInFlight = false;
-  bool _surfaceSummaryRefreshQueued = false;
+  _SurfaceSummaryRefresh? _queuedSurfaceSummaryRefresh;
   int _surfaceSummaryRequestSerial = 0;
+  int _surfaceSummaryAppliedSerial = 0;
 
   /// Bumped when a mutation starts and again when it settles, so that any
   /// read overlapping it is discarded rather than allowed to overwrite the
@@ -213,7 +216,9 @@ final class AttentionCase implements AttentionReconcilePort {
         .listen(_onRealtimeEntityChange);
     _catchUpSub = _realtime.catchUps.listen((_) {
       _requestHeadRefreshForAllAttached();
-      unawaited(_requestSurfaceSummaryRefresh());
+      unawaited(
+        _requestSurfaceSummaryRefresh(reason: _SurfaceSummaryRefresh.catchUp),
+      );
     });
     _blockSub = _blockCase.changes.listen((_) {
       _requestHeadRefreshForAllAttached();
@@ -340,7 +345,9 @@ final class AttentionCase implements AttentionReconcilePort {
     }
     if (accountGeneration != _accountGeneration) return;
     if (mutationSerial != _mutationSerial) return;
-    if (summarySerial != _surfaceSummaryRequestSerial) return;
+    // A catch-up can start another summary read while this refresh is
+    // waiting for its pages. Only an applied summary supersedes this result.
+    if (summarySerial < _surfaceSummaryAppliedSerial) return;
     final next = <String, AttentionFeedSession>{};
     for (var i = 0; i < requested.length; i++) {
       final request = requested[i];
@@ -357,6 +364,7 @@ final class AttentionCase implements AttentionReconcilePort {
       );
     }
     _feedSessions.updateAll(next);
+    _surfaceSummaryAppliedSerial = summarySerial;
     _adoptSurfaceSummary(summary);
   }
 
@@ -381,6 +389,7 @@ final class AttentionCase implements AttentionReconcilePort {
     _emit(const AttentionFeedSnapshot());
     _surfaceSummarySubject.add(const AttentionSurfaceSummary());
     _surfaceSummaryRequestSerial = 0;
+    _surfaceSummaryAppliedSerial = 0;
     _publishSweep(null);
     if (accountId.isNotEmpty) {
       _requestHeadRefreshForAllAttached();
@@ -1204,10 +1213,15 @@ final class AttentionCase implements AttentionReconcilePort {
     }
   }
 
-  Future<void> _requestSurfaceSummaryRefresh() async {
+  Future<void> _requestSurfaceSummaryRefresh({
+    _SurfaceSummaryRefresh reason = _SurfaceSummaryRefresh.standard,
+  }) async {
     if (_accountId.isEmpty) return;
     if (_surfaceSummaryRefreshInFlight) {
-      _surfaceSummaryRefreshQueued = true;
+      if (_queuedSurfaceSummaryRefresh == null ||
+          reason == _SurfaceSummaryRefresh.catchUp) {
+        _queuedSurfaceSummaryRefresh = reason;
+      }
       return;
     }
     _surfaceSummaryRefreshInFlight = true;
@@ -1219,16 +1233,21 @@ final class AttentionCase implements AttentionReconcilePort {
       if (accountGeneration != _accountGeneration) return;
       if (mutationSerial != _mutationSerial) return;
       if (requestSerial != _surfaceSummaryRequestSerial) return;
-      _adoptSurfaceSummary(summary);
+      _surfaceSummaryAppliedSerial = requestSerial;
+      _adoptSurfaceSummary(
+        summary,
+        updateUnfilteredHistory: reason == _SurfaceSummaryRefresh.catchUp,
+      );
     } catch (error, stackTrace) {
       if (accountGeneration != _accountGeneration) return;
       if (requestSerial != _surfaceSummaryRequestSerial) return;
       _logger.warning('Attention surface summary failed', error, stackTrace);
     } finally {
       _surfaceSummaryRefreshInFlight = false;
-      if (_surfaceSummaryRefreshQueued) {
-        _surfaceSummaryRefreshQueued = false;
-        unawaited(_requestSurfaceSummaryRefresh());
+      final queued = _queuedSurfaceSummaryRefresh;
+      _queuedSurfaceSummaryRefresh = null;
+      if (queued != null) {
+        unawaited(_requestSurfaceSummaryRefresh(reason: queued));
       }
     }
   }
@@ -1369,6 +1388,7 @@ final class AttentionCase implements AttentionReconcilePort {
   void _adoptSurfaceSummary(
     AttentionSurfaceSummary summary, {
     bool updateHistory = true,
+    bool updateUnfilteredHistory = false,
   }) {
     if (!_surfaceSummarySubject.isClosed) {
       _surfaceSummarySubject.add(summary);
@@ -1377,10 +1397,11 @@ final class AttentionCase implements AttentionReconcilePort {
     if (historySummary != null) {
       const destination = AttentionFeedDestinationId.history;
       final history = _feedSessions.session(destination);
-      // Seed History before its first page. While searching, keep its total
-      // current with the unfiltered summary. A loaded unfiltered page owns
-      // its own badge count.
-      if (history.pages.isEmpty || history.normalizedSearch != null) {
+      // An unfiltered History badge normally follows its feed page. Catch-up
+      // also uses the account total so Read all can update while that page loads.
+      if (updateUnfilteredHistory ||
+          history.pages.isEmpty ||
+          history.normalizedSearch != null) {
         _feedSessions.update(
           destination,
           history.copyWith(summary: historySummary),

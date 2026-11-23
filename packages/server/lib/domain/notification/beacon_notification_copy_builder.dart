@@ -163,10 +163,10 @@ class BeaconNotificationCopyBuilder {
       locale: locale,
     );
     final inviteAccepted = intent.kind == NotificationKind.inviteAccepted
-        ? InviteAcceptedCopy.forStoredBody(body)
+        ? InviteAcceptedCopy.russianForStoredBody(body)
         : null;
     final localizedBody =
-        inviteAccepted?.ru ?? (english.body == body ? russian.body : body);
+        inviteAccepted ?? (english.body == body ? russian.body : body);
     return BeaconNotificationCopy(
       title: english.title == title ? russian.title : title,
       body: localizedBody,

@@ -36,6 +36,7 @@ import 'package:tentura_server/data/repository/user_contact_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
@@ -276,7 +277,7 @@ Future<void> main() async {
     );
     expect(
       await invitations.acceptAsExisting(code: laterInvite.id, userId: _dave),
-      isTrue,
+      InviteAcceptance.accepted,
     );
 
     // Verify the workflows actually persisted accepted invites and both
@@ -560,7 +561,7 @@ Future<void> main() async {
           code: aliceInvite.id,
           userId: _frank,
         ),
-        isTrue,
+        InviteAcceptance.accepted,
       );
       // A non-author member invites an account that signed up before it.
       final bobInvite = await invitations.create(
@@ -570,7 +571,7 @@ Future<void> main() async {
       );
       expect(
         await invitations.acceptAsExisting(code: bobInvite.id, userId: _grace),
-        isTrue,
+        InviteAcceptance.accepted,
       );
       // Heidi only receives Bob's forward; Bob also holds an invite on this
       // Post that nobody ever accepted.
@@ -612,7 +613,7 @@ Future<void> main() async {
       );
       expect(
         await invitations.acceptAsExisting(code: ivanInvite.id, userId: _ivan),
-        isTrue,
+        InviteAcceptance.accepted,
       );
 
       // The production accept path recorded these as existing-account

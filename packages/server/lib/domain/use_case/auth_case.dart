@@ -158,14 +158,19 @@ final class AuthCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
     );
-    return _attention!.runAction(
+    final attention = _attention!;
+    Future<UserEntity> acceptInvite() => attention.runAction(
       actorUserId: null,
       action: (transaction) async {
+        String? lapsedRequestTitle;
         final user = await _userRepository.createInvited(
           invitationId: invitationId,
           publicKey: publicKey,
           displayName: displayName,
           handle: handle,
+          onRequestLapsed: invitation?.beaconId == null
+              ? null
+              : (title) => lapsedRequestTitle = title,
           onPostForwardCreated: switch (invitation) {
             final invitation? when invitation.beaconId != null =>
               (beacon, recipientId) async {
@@ -195,6 +200,7 @@ final class AuthCase extends UseCaseBase {
                 accepterHandle: user.handle,
               ),
               sourceEventKey: 'invitation:$invitationId:accepted',
+              lapsedRequestTitle: lapsedRequestTitle,
             ),
           );
           await transaction.record(
@@ -202,12 +208,14 @@ final class AuthCase extends UseCaseBase {
               actorUserId: invitation.issuer.id,
               counterpartUserId: user.id,
               sourceEventKey: 'invitation:$invitationId:mutual',
+              lapsedRequestTitle: lapsedRequestTitle,
             ),
           );
         }
         return user;
       },
     );
+    return attention.retryOnConflict(acceptInvite);
   }
 
   Future<bool> signOut({

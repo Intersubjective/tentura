@@ -965,6 +965,12 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
+  "inviteAcceptBeaconAccessBody": "Accepting only gives you access to this request and adds it to your Activity.",
+  "@inviteAcceptBeaconAccessBody": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptPostTitle": "Accept invitation to view the post?",
+  "inviteAcceptPostAccessBody": "Accepting gives you access to this post.",
   "inviteAcceptBeaconBody": "Accepting connects you with {name} and adds this request to your Activity.",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",
@@ -972,6 +978,21 @@
       "name": {
         "type": "String"
       }
+    }
+  },
+  "inviteLapsedTitle": "Request closed",
+  "inviteLapsedExistingBody": "{name} invited you to «{requestTitle}», but it has already closed.",
+  "@inviteLapsedExistingBody": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "requestTitle": {"type": "String"}
+    }
+  },
+  "inviteLapsedSignupBody": "{name} invited you to «{requestTitle}», but it has already closed. You're still welcome on Tentura, and you're now connected with {name}.",
+  "@inviteLapsedSignupBody": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "requestTitle": {"type": "String"}
     }
   },
   "tapToChooseLocation": "Tap to choose location",

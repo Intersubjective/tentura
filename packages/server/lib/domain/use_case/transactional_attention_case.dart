@@ -20,6 +20,14 @@ class TransactionalAttentionCase {
   final MutatingUnitOfWorkPort _unitOfWork;
   final AttentionDispatchPort _dispatch;
 
+  /// Apply the unit of work's retry policy around a complete [runAction] call.
+  Future<T> retryOnConflict<T>(Future<T> Function() runTransaction) {
+    final unitOfWork = _unitOfWork;
+    return unitOfWork is RetryingMutatingUnitOfWorkPort
+        ? unitOfWork.retryOnConflict(runTransaction)
+        : runTransaction();
+  }
+
   Future<T> runAction<T>({
     required String? actorUserId,
     required Future<T> Function(AttentionTransaction transaction) action,

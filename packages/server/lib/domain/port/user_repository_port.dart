@@ -1,15 +1,19 @@
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
-/// Called inside the signup transaction only after a new Post forward edge
-/// has been inserted. Existing edges do not trigger another receipt.
+/// Called inside the signup transaction after inserting a new invite forward,
+/// for either a Request or a Post. Existing edges do not trigger a receipt.
 typedef InvitedPostForwardCreated =
     Future<void> Function(
       BeaconEntity beacon,
       String recipientId,
     );
+
+/// Reports the title of a Request that lapsed during an otherwise valid signup.
+typedef InvitedRequestLapsed = void Function(String requestTitle);
 
 /// Persistence port for users (implemented by the server user repository).
 abstract class UserRepositoryPort {
@@ -25,6 +29,7 @@ abstract class UserRepositoryPort {
     required String displayName,
     String? handle,
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   });
 
   /// Seedless account with a single non-device credential (e.g. OIDC).
@@ -47,6 +52,7 @@ abstract class UserRepositoryPort {
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   });
 
   Future<UserEntity> getById(String id);
@@ -136,6 +142,12 @@ abstract class UserRepositoryPort {
   });
 
   Future<void> deleteById({required String id});
+
+  /// Consumes a Request invite and grants admission only while it can forward.
+  Future<InviteAcceptance> acceptRequestInvite({
+    required String invitationId,
+    required String userId,
+  });
 
   /// [onForwardCreated] runs inside the accepting transaction only when a
   /// beacon invite inserts a new forward edge, never for an existing edge.

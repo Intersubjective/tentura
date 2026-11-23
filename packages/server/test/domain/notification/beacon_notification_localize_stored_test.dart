@@ -103,6 +103,101 @@ void main() {
     });
   });
 
+  group('stored connection notices for unavailable Requests', () {
+    const variants = [
+      (
+        InviteAcceptedCopy.existingAccount,
+        'an existing account accepts',
+        'Already had a Tentura account. You are now connected.',
+        'Уже был аккаунт в Tentura. Теперь вы связаны.',
+      ),
+      (
+        InviteAcceptedCopy.newAccount,
+        'a new account accepts',
+        'Created an account via your invitation. You are now connected.',
+        'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.',
+      ),
+      (
+        InviteAcceptedCopy.connected,
+        'a connection is formed',
+        'You are now connected on Tentura.',
+        'Вы теперь связаны в Tentura.',
+      ),
+    ];
+    const titles = [
+      ('Fix the roof', ' «Fix the roof»', 'an English title'),
+      ('', '', 'no title'),
+    ];
+
+    for (final (variant, event, en, ru) in variants) {
+      for (final (requestTitle, label, description) in titles) {
+        test('Russian recipients get localized copy when $event with '
+            '$description', () {
+          final stored = InviteAcceptedCopy.withLapsedRequest(
+            variant.en,
+            requestTitle,
+          );
+          expect(
+            stored,
+            '$en The Request$label is no longer available through this invitation.',
+          );
+          for (final locale in ['en', 'en-US']) {
+            final english = localize(
+              NotificationKind.inviteAccepted,
+              title: 'Anna · @anna',
+              body: stored,
+              locale: locale,
+            );
+            expect(english.body, stored, reason: locale);
+          }
+
+          final russian = localize(
+            NotificationKind.inviteAccepted,
+            title: 'Anna · @anna',
+            body: stored,
+          );
+          expect(russian.title, 'Anna · @anna');
+          expect(russian.actionUrl, '/#/x');
+          expect(
+            russian.body,
+            '$ru Запрос$label больше недоступен по этому приглашению.',
+          );
+          expect(
+            russian.body,
+            InviteAcceptedCopy.withLapsedRequest(
+              variant.ru,
+              requestTitle,
+              ru: true,
+            ),
+          );
+          expect(russian.body, isNot(contains('no longer available')));
+          expect(russian.body, isNot(contains('connected')));
+        });
+      }
+    }
+
+    for (final (requestTitle, label, description) in const [
+      ('Почини крышу', 'Почини крышу', 'preserves a Russian Request title'),
+      ('  Fix the roof  ', 'Fix the roof', 'keeps the trimmed Request title'),
+    ]) {
+      test('Russian copy $description', () {
+        final copy = localize(
+          NotificationKind.inviteAccepted,
+          title: 'Anna · @anna',
+          body: InviteAcceptedCopy.withLapsedRequest(
+            InviteAcceptedCopy.connected.en,
+            requestTitle,
+          ),
+        );
+        expect(
+          copy.body,
+          'Вы теперь связаны в Tentura. '
+          'Запрос «$label» больше недоступен по этому приглашению.',
+        );
+      });
+    }
+  });
+
   group('generic kinds', () {
     test('stored body equal to built English becomes Russian', () {
       final copy = localize(

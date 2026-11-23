@@ -12,10 +12,9 @@ import '_base_controller.dart';
 
 final _log = Logger('InviteAcceptExistingController');
 
-/// `POST /api/v2/invite/<code>/accept-as-existing` — an already-authenticated
-/// user befriends the invite issuer (beacon forwarded when present). Guarded by
-/// `verifyBearerJwt`; single-use code, retry-safe (see
-/// `InvitationCase.acceptAsExisting`). Never creates an account.
+/// `POST /api/v2/invite/<code>/accept-as-existing` consumes a single-use
+/// invitation for an authenticated account. A Request invite grants admission
+/// while the Request can still be forwarded.
 @Injectable(order: 3)
 final class InviteAcceptExistingController extends BaseController {
   const InviteAcceptExistingController(
@@ -38,12 +37,12 @@ final class InviteAcceptExistingController extends BaseController {
     }
 
     try {
-      final ok = await _invitationCase.acceptAsExisting(
+      final result = await _invitationCase.acceptAsExisting(
         code: code,
         userId: jwt.sub,
       );
       return Response.ok(
-        jsonEncode({'ok': ok}),
+        jsonEncode({'ok': result.isConsumed}),
         headers: {kHeaderContentType: 'application/json'},
       );
     } on IdNotFoundException catch (e) {

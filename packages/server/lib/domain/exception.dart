@@ -422,6 +422,35 @@ final class BeaconStructuralOnlyException extends ExceptionBase {
       );
 }
 
+/// A Request row survives without an author. An existing invite can still
+/// refer to it even though it cannot be loaded as a BeaconEntity.
+sealed class OwnerlessRequest implements Exception {
+  String get title;
+}
+
+final class OwnerlessRequestNotFoundException extends IdNotFoundException
+    implements OwnerlessRequest {
+  const OwnerlessRequestNotFoundException({
+    required String beaconId,
+    required this.title,
+  }) : super(description: 'Request owner missing for [$beaconId]');
+
+  @override
+  final String title;
+}
+
+final class DeletedOwnerlessRequestException
+    extends BeaconStructuralOnlyException
+    implements OwnerlessRequest {
+  const DeletedOwnerlessRequestException({
+    required super.beaconId,
+    required this.title,
+  });
+
+  @override
+  final String title;
+}
+
 final class BeaconParentNotCoordinatableException extends ExceptionBase {
   const BeaconParentNotCoordinatableException({String? description})
     : super(

@@ -45,6 +45,189 @@ const _timestamp = '2026-11-01T08:00:00Z';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('History Read all during reconnect', () {
+    test(
+      'follows unread summaries through reconnect with search open and after clearing it',
+      () => _withFeed((feed) async {
+        feed.server
+          ..newerReadCount = 1
+          ..readSearchTarget = 'a';
+        final history = feed.open(_history);
+        await _until(() => history.state.firstLoadDone, 'History head');
+        expect(history.state.items.map((row) => row.id), [
+          'Nrecent000000',
+          _readId,
+        ]);
+        expect(history.state.canReadAll, isFalse);
+
+        final search = _holdHistorySearch(feed);
+        history.setSearch('a');
+        await search.captured.future.timeout(const Duration(seconds: 5));
+        feed.server
+          ..delivered = true
+          ..secondReceipt = true;
+        final summary = feed.holdSurfaceSummaryWithUnread(2);
+        feed.sync.port.emitCatchUp(accountId: _viewer);
+        await summary.waitForCapture(unread: 2);
+
+        search.open();
+        await feed.waitForSearch(_history, 'a');
+        _expectReconnectedSearch(feed, history);
+        expect(history.state.canReadAll, isFalse);
+        await summary.releaseAndWaitFor(feed.waitForSummary(2));
+        expect(history.state.summary.unreadTotal, 2);
+        expect(_readAll(history), (true, true));
+
+        final pendingPage = _holdHistorySearch(feed);
+        feed.server.delivered = false;
+        feed.sync.port.emitCatchUp(accountId: _viewer);
+        await pendingPage.captured.future.timeout(const Duration(seconds: 5));
+        await feed.waitForSummary(0);
+        expect(history.state.canReadAll, isFalse);
+        final reads = feed.sent.where(_isHistoryHead).length;
+
+        feed.server
+          ..delivered = true
+          ..desk = _DeskReceipt(_deskBeaconId);
+        feed.sync.port.emitCatchUp(accountId: _viewer);
+        await feed.waitForSummary(3);
+        expect(feed.sent.where(_isHistoryHead), hasLength(reads));
+        expect(_readAll(history), (true, true));
+
+        feed.server
+          ..delivered = false
+          ..secondReceipt = false
+          ..desk = null;
+        history.setSearch('');
+        pendingPage.open();
+        await feed.waitForSearch(_history, '');
+        expect(history.state.summary.unreadTotal, 0);
+        expect(history.state.canReadAll, isFalse);
+
+        feed.server
+          ..delivered = true
+          ..secondReceipt = true;
+        final unfilteredPage = _holdUnfilteredHistoryHead(feed);
+        feed.sync.port.emitCatchUp(accountId: _viewer);
+        await unfilteredPage.waitForCapture(unread: 2);
+        await feed.waitForSummary(2);
+        final enabledWithUnread = history.state.canReadAll;
+
+        feed.server
+          ..delivered = false
+          ..secondReceipt = false;
+        feed.sync.port.emitCatchUp(accountId: _viewer);
+        await feed.waitForSummary(0);
+        expect(history.state.canReadAll, isFalse);
+        expect(
+          enabledWithUnread,
+          isTrue,
+          reason:
+              'the account summary arrived while the unfiltered page waited',
+        );
+      }),
+    );
+
+    testWidgets(
+      'updates the Russian Read all button on reconnect before and after a search sweep',
+      (tester) async {
+        await usePhoneSurface(tester);
+        await tester.runAsync(
+          () => _withFeed((feed) async {
+            feed.server
+              ..newerReadCount = 1
+              ..readSearchTarget = 'a';
+            final services = GetIt.I
+              ..pushNewScope()
+              ..registerSingleton(feed.attention)
+              ..registerSingleton(feed.sync.case_)
+              ..registerSingleton(Logger('history-reconnect-screen'))
+              ..registerSingleton<InviteAcceptedSetupPort>(
+                NoopInviteAcceptedSetupPort(),
+              );
+            ensureNoopAttentionActorProfilesRegistered();
+            const locale = Locale('ru');
+            final l10n = lookupL10n(locale);
+            try {
+              await tester.pumpWidget(
+                StackRouterScope(
+                  controller: _HistoryRouter(),
+                  stateHash: 0,
+                  child: MaterialApp(
+                    theme: TenturaTheme.light(),
+                    locale: locale,
+                    localizationsDelegates: L10n.localizationsDelegates,
+                    supportedLocales: L10n.supportedLocales,
+                    home: const MediaQuery(
+                      data: MediaQueryData(size: kPhoneSurface),
+                      child: TenturaResponsiveScope(child: UpdatesScreen()),
+                    ),
+                  ),
+                ),
+              );
+              final history = tester
+                  .element(find.byType(Scaffold))
+                  .read<UpdatesFeedCubit>();
+              await _until(() => history.state.firstLoadDone, 'History head');
+              await tester.pumpAndSettle();
+              final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+              expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+
+              final search = _holdHistorySearch(feed);
+              await tester.tap(find.byTooltip(l10n.updatesSearchHint));
+              await tester.pumpAndSettle();
+              final field = find.byType(TextField);
+              await tester.enterText(field, 'a');
+              await search.captured.future.timeout(const Duration(seconds: 5));
+
+              feed.server
+                ..delivered = true
+                ..secondReceipt = true;
+              final summary = feed.holdSurfaceSummaryWithUnread(2);
+              feed.sync.port.emitCatchUp(accountId: _viewer);
+              await summary.waitForCapture(unread: 2);
+              await summary.releaseAndWaitFor(feed.waitForSummary(2));
+              search.open();
+              await feed.waitForSearch(_history, 'a');
+              await tester.pumpAndSettle();
+
+              _expectReconnectedSearch(feed, history);
+              expect(tester.takeException(), isNull);
+              expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
+              await tester.tap(readAll);
+              await feed.waitForSummary(0);
+              await tester.pumpAndSettle();
+              expect(feed.readAllOperations, [
+                'AttentionMarkAllSeen',
+                'AttentionDismissAll',
+              ]);
+
+              await tester.tap(find.byTooltip(l10n.updatesSearchClear));
+              await feed.waitForSearch(_history, '');
+              await tester.pumpAndSettle();
+              expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+
+              final unfilteredPage = _holdUnfilteredHistoryHead(feed);
+              feed.server
+                ..delivered = true
+                .._seen = false
+                .._cleared = false;
+              feed.sync.port.emitCatchUp(accountId: _viewer);
+              await unfilteredPage.waitForCapture(unread: 2);
+              await feed.waitForSummary(2);
+              await tester.pumpAndSettle();
+              expect(tester.takeException(), isNull);
+              expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
+            } finally {
+              await tester.pumpWidget(const SizedBox.shrink());
+              await services.popScope();
+            }
+          }),
+        );
+      },
+    );
+  });
+
   group('History Read all with no unread search matches', () {
     test(
       'uses account-wide sweep eligibility with and without search',
@@ -1054,6 +1237,22 @@ void main() {
 (bool, bool) _readAll(UpdatesFeedCubit cubit) =>
     (cubit.state.sweepEligible, cubit.state.canReadAll);
 
+bool _isHistoryHead(WireSent request) =>
+    request.operationName == 'AttentionFeed' &&
+    request.variables['surface'] == null &&
+    request.variables['cursor'] == null;
+
+_HeldResponse _holdHistorySearch(_Feed feed) => feed.server.holdNext(
+  (request) => _isHistoryHead(request) && request.variables['search'] == 'a',
+);
+
+void _expectReconnectedSearch(_Feed feed, UpdatesFeedCubit history) {
+  expect(history.state.refreshError, isNull);
+  expect(history.state.searchText, 'a');
+  expect(feed.sent.lastWhere(_isHistoryHead).variables['search'], 'a');
+  expect(history.state.items.map((row) => row.id), [_readId]);
+}
+
 Future<List<int>> _clearSearch(
   _Feed feed,
   UpdatesFeedCubit cubit,
@@ -1307,6 +1506,7 @@ final class _ReceiptServer {
   bool emptySearchReportsZeroUnread = false;
   bool obligation = false;
   int newerReadCount = 0;
+  String readSearchTarget = 'Ntarget000001';
   String receiptId = _newId;
   _DeskReceipt? desk;
   bool _seen = false;
@@ -1442,6 +1642,7 @@ final class _ReceiptServer {
               _readId,
               _readTitle,
               searchWords: searchWords,
+              targetEntityId: readSearchTarget,
               seen: true,
               cleared: true,
             ),
@@ -1590,12 +1791,13 @@ Map<String, dynamic>? _matchingReceipt(
   String createdAt = _timestamp,
   String surface = AttentionSurface.activityWire,
   String? beaconId = 'Bbeacon000001',
+  String targetEntityId = 'Ntarget000001',
 }) {
   final payload = {
     'eventType': 'roomMessagePosted',
     if (beaconId != null) 'beaconId': beaconId,
     'coordinationItemId': 'Icoord0000001',
-    'targetEntityId': 'Ntarget000001',
+    'targetEntityId': targetEntityId,
     'messageId': id,
   };
   if (searchWords != null) {

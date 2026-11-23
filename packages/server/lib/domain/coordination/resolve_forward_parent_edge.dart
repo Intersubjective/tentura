@@ -39,3 +39,23 @@ String? resolveForwardParentEdgeId({
 
   return activeInboundEdges.first.id;
 }
+
+/// Follows the invite's provenance all the way back to its first forward.
+/// Acceptance supplies a reader that locks every visited edge until commit.
+Future<bool> hasLiveForwardParentChain(
+  String? parentEdgeId, {
+  required Future<({String? parentEdgeId, bool active})?> Function(
+    String edgeId,
+  )
+  readEdge,
+}) async {
+  final visited = <String>{};
+  var edgeId = parentEdgeId;
+  while (edgeId != null) {
+    if (!visited.add(edgeId)) return false;
+    final edge = await readEdge(edgeId);
+    if (edge == null || !edge.active) return false;
+    edgeId = edge.parentEdgeId;
+  }
+  return true;
+}

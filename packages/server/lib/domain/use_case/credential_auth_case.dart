@@ -152,10 +152,12 @@ final class CredentialAuthCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: inviteId,
     );
-    try {
-      return await _attention!.runAction(
+    final attention = _attention!;
+    Future<({String accountId, bool isNewAccount})> acceptInvite() {
+      return attention.runAction(
         actorUserId: null,
         action: (transaction) async {
+          String? lapsedRequestTitle;
           final user = await _userRepository.createInvitedWithCredential(
             invitationId: inviteId,
             type: type,
@@ -163,6 +165,9 @@ final class CredentialAuthCase extends UseCaseBase {
             displayName: displayName,
             publicData: publicData,
             contacts: contacts,
+            onRequestLapsed: invitation?.beaconId == null
+                ? null
+                : (title) => lapsedRequestTitle = title,
             onPostForwardCreated: switch (invitation) {
               final invitation? when invitation.beaconId != null =>
                 (beacon, recipientId) async {
@@ -192,6 +197,7 @@ final class CredentialAuthCase extends UseCaseBase {
                   accepterHandle: user.handle,
                 ),
                 sourceEventKey: 'invitation:$inviteId:accepted',
+                lapsedRequestTitle: lapsedRequestTitle,
               ),
             );
             await transaction.record(
@@ -199,12 +205,17 @@ final class CredentialAuthCase extends UseCaseBase {
                 actorUserId: invitation.issuer.id,
                 counterpartUserId: user.id,
                 sourceEventKey: 'invitation:$inviteId:mutual',
+                lapsedRequestTitle: lapsedRequestTitle,
               ),
             );
           }
           return (accountId: user.id, isNewAccount: true);
         },
       );
+    }
+
+    try {
+      return await attention.retryOnConflict(acceptInvite);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(
         type: type,

@@ -4,17 +4,18 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i5;
-import 'dart:typed_data' as _i9;
+import 'dart:typed_data' as _i10;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i3;
 import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i6;
-import 'package:tentura_server/domain/entity/task_entity.dart' as _i11;
+import 'package:tentura_server/domain/entity/invite_acceptance.dart' as _i8;
+import 'package:tentura_server/domain/entity/task_entity.dart' as _i12;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i2;
-import 'package:tentura_server/domain/port/image_repository_port.dart' as _i8;
-import 'package:tentura_server/domain/port/task_repository_port.dart' as _i10;
+import 'package:tentura_server/domain/port/image_repository_port.dart' as _i9;
+import 'package:tentura_server/domain/port/task_repository_port.dart' as _i11;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i4;
 
 // ignore_for_file: type=lint
@@ -85,6 +86,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     _i4.InvitedPostForwardCreated? onPostForwardCreated,
+    _i4.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvited, [], {
@@ -93,6 +95,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #displayName: displayName,
               #handle: handle,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i5.Future<_i2.UserEntity>.value(
               _FakeUserEntity_0(
@@ -103,6 +106,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #displayName: displayName,
                   #handle: handle,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),
@@ -153,6 +157,7 @@ class MockUserRepositoryPort extends _i1.Mock
     Map<String, Object?>? publicData,
     List<_i6.AssertedContact>? contacts = const [],
     _i4.InvitedPostForwardCreated? onPostForwardCreated,
+    _i4.InvitedRequestLapsed? onRequestLapsed,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -164,6 +169,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #publicData: publicData,
               #contacts: contacts,
               #onPostForwardCreated: onPostForwardCreated,
+              #onRequestLapsed: onRequestLapsed,
             }),
             returnValue: _i5.Future<_i2.UserEntity>.value(
               _FakeUserEntity_0(
@@ -177,6 +183,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #publicData: publicData,
                   #contacts: contacts,
                   #onPostForwardCreated: onPostForwardCreated,
+                  #onRequestLapsed: onRequestLapsed,
                 }),
               ),
             ),
@@ -411,6 +418,22 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<_i8.InviteAcceptance> acceptRequestInvite({
+    required String? invitationId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptRequestInvite, [], {
+              #invitationId: invitationId,
+              #userId: userId,
+            }),
+            returnValue: _i5.Future<_i8.InviteAcceptance>.value(
+              _i8.InviteAcceptance.accepted,
+            ),
+          )
+          as _i5.Future<_i8.InviteAcceptance>);
+
+  @override
   _i5.Future<bool> bindMutual({
     required String? invitationId,
     required String? userId,
@@ -433,23 +456,23 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockImageRepositoryPort extends _i1.Mock
-    implements _i8.ImageRepositoryPort {
+    implements _i9.ImageRepositoryPort {
   MockImageRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<_i9.Uint8List> get({required String? id}) =>
+  _i5.Future<_i10.Uint8List> get({required String? id}) =>
       (super.noSuchMethod(
             Invocation.method(#get, [], {#id: id}),
-            returnValue: _i5.Future<_i9.Uint8List>.value(_i9.Uint8List(0)),
+            returnValue: _i5.Future<_i10.Uint8List>.value(_i10.Uint8List(0)),
           )
-          as _i5.Future<_i9.Uint8List>);
+          as _i5.Future<_i10.Uint8List>);
 
   @override
   _i5.Future<String> put({
     required String? authorId,
-    required _i5.Stream<_i9.Uint8List>? bytes,
+    required _i5.Stream<_i10.Uint8List>? bytes,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#put, [], {#authorId: authorId, #bytes: bytes}),
@@ -572,13 +595,13 @@ class MockImageRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockTaskRepositoryPort extends _i1.Mock
-    implements _i10.TaskRepositoryPort {
+    implements _i11.TaskRepositoryPort {
   MockTaskRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<T?> acquire<T extends _i11.TaskEntity<_i11.TaskDetails>>() =>
+  _i5.Future<T?> acquire<T extends _i12.TaskEntity<_i12.TaskDetails>>() =>
       (super.noSuchMethod(
             Invocation.method(#acquire, []),
             returnValue: _i5.Future<T?>.value(),
@@ -586,7 +609,7 @@ class MockTaskRepositoryPort extends _i1.Mock
           as _i5.Future<T?>);
 
   @override
-  _i5.Future<String> schedule(_i11.TaskEntity<_i11.TaskDetails>? task) =>
+  _i5.Future<String> schedule(_i12.TaskEntity<_i12.TaskDetails>? task) =>
       (super.noSuchMethod(
             Invocation.method(#schedule, [task]),
             returnValue: _i5.Future<String>.value(

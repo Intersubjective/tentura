@@ -129,17 +129,20 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
   Future<void> insertInvitation({
     required String beaconId,
     required String issuerId,
+    String? parentEdgeId,
   }) => writer.execute(
     Sql.named(
       'INSERT INTO public.invitation '
-      '(id, user_id, beacon_id, addressee_name, created_at, updated_at) '
-      'VALUES (@id, @issuer, @beacon, @name, now(), now())',
+      '(id, user_id, beacon_id, addressee_name, parent_forward_edge_id, '
+      'created_at, updated_at) '
+      'VALUES (@id, @issuer, @beacon, @name, @parent, now(), now())',
     ),
     parameters: {
       'id': _invitation,
       'issuer': issuerId,
       'beacon': beaconId,
       'name': _newcomerName,
+      'parent': parentEdgeId,
     },
   );
 
@@ -322,7 +325,16 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
           kind: _kindRequest,
           policy: _policyOpen,
         );
-        await insertInvitation(beaconId: _request, issuerId: _helperId);
+        const parent = 'Fsignupreq001';
+        await writer.execute('''
+INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
+VALUES ('$parent', '$_request', '$_authorId', '$_helperId')
+''');
+        await insertInvitation(
+          beaconId: _request,
+          issuerId: _helperId,
+          parentEdgeId: parent,
+        );
 
         await path.signUp();
 
@@ -331,7 +343,7 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
       });
 
       test(
-        'refuses a Request that is no longer open and creates no edge',
+        'consumes an invite to a Request that is no longer open without forwarding',
         () async {
           await insertBeacon(
             id: _request,
@@ -341,9 +353,11 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
           );
           await insertInvitation(beaconId: _request, issuerId: _helperId);
 
-          await expectLater(path.signUp(), throwsA(_refusal));
+          await path.signUp();
 
-          await expectNothingMaterialized(_request, _helperId);
+          expect(await newcomerCount(), 1);
+          expect(await consumedInvitationCount(), 1);
+          expect(await forwardEdgeCount(_request, _helperId), 0);
         },
       );
 

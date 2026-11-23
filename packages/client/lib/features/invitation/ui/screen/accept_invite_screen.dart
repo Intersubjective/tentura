@@ -45,14 +45,16 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
   Widget build(BuildContext context) =>
       BlocConsumer<AcceptInviteCubit, AcceptInviteState>(
         listener: (context, state) {
-          if (state.needsConfirmation && !_confirmStarted) {
-            _confirmStarted = true;
-            unawaited(_runConfirmation(context, state));
+          if (state.needsConfirmation) {
+            if (!_confirmStarted) {
+              _confirmStarted = true;
+              unawaited(_runConfirmation(context, state));
+            }
             return;
           }
           final signupCode = state.pendingSignupCode;
           if (signupCode != null && signupCode.isNotEmpty) {
-            unawaited(_handleSignupNavigation(context, state, signupCode));
+            unawaited(_handleSignupNavigation(context, signupCode));
           }
         },
         builder: (context, state) => Scaffold(
@@ -75,26 +77,29 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
       return;
     }
     final cubit = context.read<AcceptInviteCubit>();
+    final signupCode = state.pendingSignupCode;
     final accepted =
         await InvitationAcceptDialog.show(
           context,
           profile: inviter,
           beacon: state.pendingBeacon,
+          signup: signupCode != null,
         ) ??
         false;
     if (!context.mounted) {
       return;
     }
-    if (accepted) {
-      await cubit.confirmAccept();
-    } else {
+    if (!accepted) {
       cubit.cancelAccept();
+    } else if (signupCode != null) {
+      await _handleSignupNavigation(context, signupCode);
+    } else {
+      await cubit.confirmAccept();
     }
   }
 
   Future<void> _handleSignupNavigation(
     BuildContext context,
-    AcceptInviteState state,
     String code,
   ) async {
     if (goToLanding(invitePath: '/invite/$code')) {

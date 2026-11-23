@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -368,7 +369,7 @@ void main() {
         userId: 'Ustranger',
       );
 
-      expect(ok, isTrue);
+      expect(ok, InviteAcceptance.accepted);
       expect(attention.recorded, hasLength(2));
       expect(
         attention.recorded[0],
@@ -507,7 +508,7 @@ void main() {
       );
     });
 
-    test('already-friends -> ok, never re-binds (retry-safe)', () async {
+    test('a friend claims an available invite without rebinding', () async {
       stubGetById(invitation());
       when(
         friendshipLookup.isReciprocalSubscribe(
@@ -515,8 +516,22 @@ void main() {
           peerId: issuerId,
         ),
       ).thenAnswer((_) async => true);
+      when(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ufriend',
+          bindFriendship: false,
+        ),
+      ).thenAnswer((_) async => true);
       final ok = await case_.acceptAsExisting(code: 'Iabc', userId: 'Ufriend');
-      expect(ok, isTrue);
+      expect(ok, InviteAcceptance.accepted);
+      verify(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ufriend',
+          bindFriendship: false,
+        ),
+      ).called(1);
       verifyNever(
         userRepo.bindMutual(
           invitationId: anyNamed('invitationId'),
@@ -550,7 +565,7 @@ void main() {
         code: 'Iabc',
         userId: 'Ustranger',
       );
-      expect(ok, isTrue);
+      expect(ok, InviteAcceptance.accepted);
       verify(
         userRepo.bindMutual(invitationId: 'Iabc', userId: 'Ustranger'),
       ).called(1);
@@ -609,25 +624,23 @@ void main() {
         ),
       );
       when(
-        userRepo.bindMutual(
+        userRepo.acceptRequestInvite(
           invitationId: 'Iabc',
           userId: 'Ustranger',
-          bindFriendship: false,
         ),
-      ).thenAnswer((_) async => true);
+      ).thenAnswer((_) async => InviteAcceptance.accepted);
 
       final ok = await case_.acceptAsExisting(
         code: 'Iabc',
         userId: 'Ustranger',
       );
 
-      expect(ok, isTrue);
+      expect(ok, InviteAcceptance.accepted);
       expect(attention.recorded, isEmpty);
       verify(
-        userRepo.bindMutual(
+        userRepo.acceptRequestInvite(
           invitationId: 'Iabc',
           userId: 'Ustranger',
-          bindFriendship: false,
         ),
       ).called(1);
     });

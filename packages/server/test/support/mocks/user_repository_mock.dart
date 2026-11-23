@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -39,6 +40,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     required String displayName,
     String? handle,
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   }) {
     throw UnimplementedError();
   }
@@ -65,6 +67,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
     InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
   }) {
     throw UnimplementedError();
   }
@@ -175,6 +178,14 @@ class UserRepositoryMock implements UserRepositoryPort {
   @override
   Future<void> deleteById({required String id}) async {
     storageByPublicKey.removeWhere((_, e) => e.id == id);
+  }
+
+  @override
+  Future<InviteAcceptance> acceptRequestInvite({
+    required String invitationId,
+    required String userId,
+  }) {
+    throw UnimplementedError();
   }
 
   @override

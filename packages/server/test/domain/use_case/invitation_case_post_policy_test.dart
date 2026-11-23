@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -49,8 +50,8 @@ final class _RecordingPostLock implements PostLockPort {
 /// accepting it. `run` performs the operation as the invite's issuer.
 typedef _Operation = ({
   String name,
-  Future<void> Function(String issuerId) run,
-  void Function(String issuerId) verifyEffect,
+  Future<Object?> Function(String issuerId) run,
+  void Function(String issuerId, BeaconKind kind) verifyEffect,
   void Function() verifyNoEffect,
   Matcher refusal,
 });
@@ -127,6 +128,25 @@ void main() {
     );
   }
 
+  void verifyRequestAcceptance() {
+    verify(
+      userRepo.acceptRequestInvite(
+        invitationId: _invitationId,
+        userId: _joinerId,
+      ),
+    ).called(1);
+    verifyNothingBound();
+  }
+
+  void stubRequestAcceptance(InviteAcceptance result) {
+    when(
+      userRepo.acceptRequestInvite(
+        invitationId: _invitationId,
+        userId: _joinerId,
+      ),
+    ).thenAnswer((_) async => result);
+  }
+
   void verifyBound({required bool bindFriendship}) {
     verify(
       userRepo.bindMutual(
@@ -146,7 +166,7 @@ void main() {
         addresseeName: 'Friend',
         beaconId: _beaconId,
       ),
-      verifyEffect: (issuerId) => verify(
+      verifyEffect: (issuerId, _) => verify(
         invitationRepo.create(
           issuerId: issuerId,
           addresseeName: anyNamed('addresseeName'),
@@ -168,9 +188,11 @@ void main() {
       name: 'accept',
       run: (issuerId) async {
         stubInvitation(issuerId);
-        await case_.accept(invitationId: _invitationId, userId: _joinerId);
+        return case_.accept(invitationId: _invitationId, userId: _joinerId);
       },
-      verifyEffect: (_) => verifyBound(bindFriendship: true),
+      verifyEffect: (_, kind) => kind == BeaconKind.request
+          ? verifyRequestAcceptance()
+          : verifyBound(bindFriendship: true),
       verifyNoEffect: verifyNothingBound,
       refusal: anyOf(isA<UnauthorizedException>(), isA<IdNotFoundException>()),
     ),
@@ -178,9 +200,11 @@ void main() {
       name: 'acceptAsExisting',
       run: (issuerId) async {
         stubInvitation(issuerId);
-        await case_.acceptAsExisting(code: _invitationId, userId: _joinerId);
+        return case_.acceptAsExisting(code: _invitationId, userId: _joinerId);
       },
-      verifyEffect: (_) => verifyBound(bindFriendship: false),
+      verifyEffect: (_, kind) => kind == BeaconKind.request
+          ? verifyRequestAcceptance()
+          : verifyBound(bindFriendship: false),
       verifyNoEffect: verifyNothingBound,
       refusal: anyOf(isA<UnauthorizedException>(), isA<IdNotFoundException>()),
     ),
@@ -336,7 +360,7 @@ void main() {
         test('lets the author issuer through under the Post lock', () async {
           await op.run(_authorId);
 
-          op.verifyEffect(_authorId);
+          op.verifyEffect(_authorId, BeaconKind.post);
           expect(postLock.lockedBeaconIds, [_beaconId]);
         });
       });
@@ -352,7 +376,7 @@ void main() {
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.post);
           expect(postLock.lockedBeaconIds, [_beaconId]);
         });
 
@@ -373,7 +397,7 @@ void main() {
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.post);
         });
 
         test('rejects a Post deleted while locking with postNotOpen', () async {
@@ -398,18 +422,35 @@ void main() {
       });
 
       group('when the beacon is no longer open', () {
-        test('refuses an invite to a Request', () async {
-          stubBeacon(
-            beacon(
-              kind: BeaconKind.request,
-              policy: BeaconForwardPolicyValue.open,
-              status: BeaconStatus.closed,
-            ),
-          );
+        if (op.name == 'create') {
+          test('refuses to issue an invite to a closed Request', () async {
+            stubBeacon(
+              beacon(
+                kind: BeaconKind.request,
+                policy: BeaconForwardPolicyValue.open,
+                status: BeaconStatus.closed,
+              ),
+            );
 
-          await expectLater(op.run(_nonAuthorId), throwsA(op.refusal));
-          op.verifyNoEffect();
-        });
+            await expectLater(op.run(_nonAuthorId), throwsA(op.refusal));
+            op.verifyNoEffect();
+          });
+        } else {
+          test('returns the lapse result for a closed Request', () async {
+            stubBeacon(
+              beacon(
+                kind: BeaconKind.request,
+                policy: BeaconForwardPolicyValue.open,
+                status: BeaconStatus.closed,
+              ),
+            );
+            stubRequestAcceptance(InviteAcceptance.requestLapsed);
+
+            expect(await op.run(_nonAuthorId), InviteAcceptance.requestLapsed);
+            op.verifyEffect(_nonAuthorId, BeaconKind.request);
+            expect(postLock.lockedBeaconIds, isEmpty);
+          });
+        }
 
         test('rejects a closed Post invite with postNotOpen', () async {
           stubBeacon(
@@ -433,10 +474,13 @@ void main() {
               policy: BeaconForwardPolicyValue.open,
             ),
           );
+          if (op.name != 'create') {
+            stubRequestAcceptance(InviteAcceptance.accepted);
+          }
 
           await op.run(_nonAuthorId);
 
-          op.verifyEffect(_nonAuthorId);
+          op.verifyEffect(_nonAuthorId, BeaconKind.request);
           expect(postLock.lockedBeaconIds, isEmpty);
         });
       });

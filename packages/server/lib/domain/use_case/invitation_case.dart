@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -124,37 +125,26 @@ final class InvitationCase extends UseCaseBase {
     if (firstRead.kind != BeaconKind.post) return createForBeacon(firstRead);
     return _attention!.runAction(
       actorUserId: userId,
-      action: (_) async =>
-          createForBeacon(await _beaconUnderPostLock(beaconId)),
+      action: (_) async => createForBeacon(await _postUnderLock(beaconId)),
     );
   }
 
-  /// Reads the beacon; for a Post takes the Post lock first and re-reads, so
-  /// everything the caller checks afterwards is judged under the lock. Must
-  /// run inside the caller's transaction.
-  Future<BeaconEntity> _beaconUnderPostLock(String beaconId) async {
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.kind != BeaconKind.post) return beacon;
+  /// Reads the Post under its mutation lock in the caller's transaction.
+  Future<BeaconEntity> _postUnderLock(String beaconId) async {
     await _postLock!.lockForPostMutation(beaconId);
     return _beaconRepository.getBeaconById(beaconId: beaconId);
   }
 
-  /// The invite's issuer must still be allowed to forward its beacon.
-  Future<void> _requireIssuerCanForward(InvitationEntity invitation) async {
-    final beacon = await _beaconUnderPostLock(invitation.beaconId!);
-    await _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
-  }
-
-  Future<void> _requireBeaconInviteForward({
+  Future<BeaconEntity> _lockPostInvite({
     required InvitationEntity invitation,
-    required BeaconEntity beacon,
+    required String beaconId,
+    required String userId,
   }) async {
+    final beacon = await _postUnderLock(beaconId);
+    await _requireUnblockedInvite(invitation, userId);
     if (!beacon.allowsForward ||
         await isExpiredPost(_beaconRepository, beacon)) {
-      if (beacon.kind == BeaconKind.post) {
-        throw const PostNotOpenException();
-      }
-      throw IdNotFoundException(id: invitation.id);
+      throw const PostNotOpenException();
     }
     if (!BeaconForwardPolicy.canForward(
       beacon: beacon,
@@ -164,6 +154,7 @@ final class InvitationCase extends UseCaseBase {
         description: 'Forwarding is off for this post',
       );
     }
+    return beacon;
   }
 
   /// Renames the addressee of the caller's own, still unconsumed invite.
@@ -210,17 +201,10 @@ final class InvitationCase extends UseCaseBase {
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
-    BeaconEntity? beacon;
     final beaconId = invitation.beaconId;
-    if (beaconId != null) {
-      beacon = await _previewBeaconForInvite(
-        beaconId: beaconId,
-        issuerId: invitation.issuer.id,
-        invitationExists: true,
-        invitationConsumed: invitation.isAccepted,
-        invitationExpired: invitation.isExpired,
-      );
-    }
+    final beacon = beaconId == null
+        ? null
+        : await _previewBeaconForInvite(invitation, beaconId, codeStatus);
 
     final InviteCallerStatus callerStatus;
     if (callerUserId == null) {
@@ -256,29 +240,70 @@ final class InvitationCase extends UseCaseBase {
     );
   }
 
-  Future<BeaconEntity?> _previewBeaconForInvite({
-    required String beaconId,
-    required String issuerId,
-    required bool invitationExists,
-    required bool invitationConsumed,
-    required bool invitationExpired,
-  }) async {
+  Future<InvitePreviewBeacon?> _previewBeaconForInvite(
+    InvitationEntity invitation,
+    String beaconId,
+    InviteCodeStatus codeStatus,
+  ) async {
     BeaconEntity beacon;
     try {
       beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    } on OwnerlessRequest catch (request) {
+      return codeStatus == InviteCodeStatus.available
+          ? InvitePreviewBeacon.lapsedRequest(
+              id: beaconId,
+              title: request.title,
+            )
+          : null;
     } catch (_) {
       return null;
     }
 
-    final issuerCanRead = await _guard.canReadContent(
+    final issuerId = invitation.issuer.id;
+    Future<bool> issuerCanReadContent() => _guard.canReadContent(
       beaconId: beaconId,
       viewerId: issuerId,
     );
+
+    if (beacon.kind == BeaconKind.request) {
+      if (codeStatus != InviteCodeStatus.available) return null;
+      final canForward = await BeaconForwardPolicy.canForwardRequestInvite(
+        beacon: beacon,
+        issuerId: issuerId,
+        issuerCanReadContent: issuerCanReadContent,
+      );
+      if (!canForward ||
+          !await hasLiveForwardParentChain(
+            invitation.parentForwardEdgeId,
+            readEdge: (edgeId) async {
+              final edge = await _forwardEdgeRepository.fetchById(edgeId);
+              return edge == null
+                  ? null
+                  : (
+                      parentEdgeId: edge.parentEdgeId,
+                      active: edge.cancelledAt == null,
+                    );
+            },
+          )) {
+        return InvitePreviewBeacon.lapsedRequest(
+          id: beacon.id,
+          title: beacon.title,
+        );
+      }
+      return InvitePreviewBeacon.visible(
+        id: beacon.id,
+        kind: beacon.kind,
+        title: beacon.title,
+        description: beacon.description,
+      );
+    }
+
+    final issuerCanRead = await issuerCanReadContent();
     final canPreview = BeaconVisibility.canPreviewInvite(
       BeaconInvitePreviewFacts(
-        invitationExists: invitationExists,
-        invitationConsumed: invitationConsumed,
-        invitationExpired: invitationExpired,
+        invitationExists: true,
+        invitationConsumed: codeStatus == InviteCodeStatus.consumed,
+        invitationExpired: codeStatus == InviteCodeStatus.expired,
         hasBeaconId: true,
         beaconStatus: beacon.status,
         beaconAllowsForward: beacon.allowsForward,
@@ -292,25 +317,32 @@ final class InvitationCase extends UseCaseBase {
 
     // A Post has no description of its own: its text is the root message.
     final rootId = beacon.postRootMessageId;
-    final description = beacon.kind == BeaconKind.post && rootId != null
+    final description = rootId != null
         ? (await _room?.getRoomMessageById(rootId))?.body ?? ''
         : beacon.description;
 
-    return BeaconEntity(
+    return InvitePreviewBeacon.visible(
       id: beacon.id,
       title: beacon.title,
       description: description,
-      author: beacon.author,
-      createdAt: beacon.createdAt,
-      updatedAt: beacon.updatedAt,
-      status: beacon.status,
       kind: beacon.kind,
     );
   }
 
-  Future<bool> accept({
+  Future<InviteAcceptance> accept({
     required String invitationId,
     required String userId,
+  }) => _accept(invitationId, userId, byCode: false);
+
+  Future<InviteAcceptance> acceptAsExisting({
+    required String code,
+    required String userId,
+  }) => _accept(code, userId, byCode: true);
+
+  Future<InviteAcceptance> _accept(
+    String invitationId,
+    String userId, {
+    required bool byCode,
   }) async {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
@@ -318,176 +350,195 @@ final class InvitationCase extends UseCaseBase {
     if (invitation == null) {
       throw IdNotFoundException(id: invitationId);
     }
-    if (await _userBlockRepository.isBlockedPair(
-      a: userId,
-      b: invitation.issuer.id,
-    )) {
+    await _requireUnblockedInvite(invitation, userId);
+    if (invitation.issuer.id == userId) {
+      throw const InvitationWrongException(
+        description: 'Cannot accept your own invite',
+      );
+    }
+    if (invitation.isExpired || (byCode && invitation.isAccepted)) {
       throw IdNotFoundException(id: invitationId);
     }
-    if (invitation.issuer.id == userId) {
-      throw const InvitationWrongException(
-        description: 'Cannot accept your own invite',
-      );
-    }
-    return _acceptAndRecord(
-      invitation: invitation,
-      userId: userId,
-      emitMutualConnection: true,
-      mutation: (_) async {
-        if (invitation.beaconId != null) {
-          await _requireIssuerCanForward(invitation);
-        }
-        return _userRepository.bindMutual(
-          invitationId: invitationId,
-          userId: userId,
-          bindFriendship: true,
-        );
-      },
-    );
-  }
 
-  Future<bool> acceptAsExisting({
-    required String code,
-    required String userId,
-  }) async {
-    final invitation = await _invitationRepository.getById(invitationId: code);
-    if (invitation == null) {
-      throw IdNotFoundException(id: code);
-    }
-    if (await _userBlockRepository.isBlockedPair(
-      a: userId,
-      b: invitation.issuer.id,
-    )) {
-      throw IdNotFoundException(id: code);
-    }
-    if (invitation.issuer.id == userId) {
-      throw const InvitationWrongException(
-        description: 'Cannot accept your own invite',
-      );
-    }
-    if (invitation.beaconId != null &&
-        (invitation.isAccepted || invitation.isExpired)) {
-      throw IdNotFoundException(id: code);
-    }
-    if (await _friendshipLookup.isReciprocalSubscribe(
-      viewerId: userId,
-      peerId: invitation.issuer.id,
-    )) {
-      if (invitation.beaconId != null) {
+    final beaconId = invitation.beaconId;
+    if (beaconId != null) {
+      final kind = await _inviteBeaconKind(beaconId);
+      if (kind == BeaconKind.request) {
         return _acceptAndRecord(
           invitation: invitation,
           userId: userId,
           emitInviteAccepted: false,
-          mutation: (transaction) => _acceptBeaconInviteOnly(
+          mutation: (_) => _acceptRequestInvite(invitation, userId),
+        );
+      }
+      if (byCode) {
+        return _acceptAndRecord(
+          invitation: invitation,
+          userId: userId,
+          emitInviteAccepted: false,
+          mutation: (transaction) => _acceptPostInviteOnly(
             invitation: invitation,
+            beaconId: beaconId,
             userId: userId,
             transaction: transaction,
           ),
         );
       }
-      return true;
     }
-    if (invitation.isAccepted || invitation.isExpired) {
-      throw IdNotFoundException(id: code);
-    }
-
-    if (invitation.beaconId != null) {
-      return _acceptAndRecord(
-        invitation: invitation,
-        userId: userId,
-        emitInviteAccepted: false,
-        mutation: (transaction) => _acceptBeaconInviteOnly(
-          invitation: invitation,
+    final alreadyFriends =
+        byCode &&
+        await _friendshipLookup.isReciprocalSubscribe(
+          viewerId: userId,
+          peerId: invitation.issuer.id,
+        );
+    return _acceptAndRecord(
+      invitation: invitation,
+      userId: userId,
+      emitMutualConnection: !alreadyFriends,
+      emitInviteAccepted: !alreadyFriends,
+      mutation: (_) async {
+        if (beaconId == null) {
+          await _lockSenderAndCheckInvite(invitation, userId);
+        } else {
+          await _lockPostInvite(
+            invitation: invitation,
+            beaconId: beaconId,
+            userId: userId,
+          );
+        }
+        final claimed = await _userRepository.bindMutual(
+          invitationId: invitationId,
           userId: userId,
-          transaction: transaction,
-        ),
-      );
-    }
-
-    return accept(invitationId: code, userId: userId);
+          bindFriendship: !alreadyFriends,
+        );
+        return InviteAcceptance.fromClaim(claimed: claimed);
+      },
+    );
   }
 
-  Future<bool> _acceptAndRecord({
+  Future<BeaconKind> _inviteBeaconKind(String beaconId) async {
+    try {
+      return (await _beaconRepository.getBeaconById(beaconId: beaconId)).kind;
+    } on OwnerlessRequest {
+      return BeaconKind.request;
+    }
+  }
+
+  Future<InviteAcceptance> _acceptRequestInvite(
+    InvitationEntity invitation,
+    String userId,
+  ) async {
+    await _lockSenderAndCheckInvite(invitation, userId);
+    return _userRepository.acceptRequestInvite(
+      invitationId: invitation.id,
+      userId: userId,
+    );
+  }
+
+  Future<void> _lockSenderAndCheckInvite(
+    InvitationEntity invitation,
+    String userId,
+  ) async {
+    if (_userBlockRepository case final UserBlockWriteLocks locks) {
+      await locks.lockInviteSender(invitation.issuer.id);
+    }
+    await _requireUnblockedInvite(invitation, userId);
+  }
+
+  Future<void> _requireUnblockedInvite(
+    InvitationEntity invitation,
+    String userId,
+  ) async {
+    if (await _userBlockRepository.isBlockedPair(
+      a: userId,
+      b: invitation.issuer.id,
+    )) {
+      throw IdNotFoundException(id: invitation.id);
+    }
+  }
+
+  Future<InviteAcceptance> _acceptAndRecord({
     required InvitationEntity invitation,
     required String userId,
-    required Future<bool> Function(AttentionTransaction transaction) mutation,
+    required Future<InviteAcceptance> Function(AttentionTransaction transaction)
+    mutation,
     bool emitMutualConnection = false,
     bool emitInviteAccepted = true,
-  }) => _attention!.runAction(
-    actorUserId: userId,
-    action: (transaction) async {
-      final accepted = await mutation(transaction);
-      if (accepted) {
-        if (emitInviteAccepted) {
-          final accepter = await _userRepository.getById(userId);
-          await transaction.record(
-            await _attentionIntents!.inviteAccepted(
-              notification: InviteAcceptedNotificationIntent(
-                inviterUserId: invitation.issuer.id,
-                accepterUserId: userId,
-                accepterDisplayName: accepter.displayName,
-                actionUrl: '/#/profile/view/$userId',
-                inviteOrigin: 'existing_account',
-                accepterHandle: accepter.handle,
+  }) {
+    final attention = _attention!;
+    Future<InviteAcceptance> acceptInvite() => attention.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final accepted = await mutation(transaction);
+        if (accepted == InviteAcceptance.accepted) {
+          if (emitInviteAccepted) {
+            final accepter = await _userRepository.getById(userId);
+            await transaction.record(
+              await _attentionIntents!.inviteAccepted(
+                notification: InviteAcceptedNotificationIntent(
+                  inviterUserId: invitation.issuer.id,
+                  accepterUserId: userId,
+                  accepterDisplayName: accepter.displayName,
+                  actionUrl: '/#/profile/view/$userId',
+                  inviteOrigin: 'existing_account',
+                  accepterHandle: accepter.handle,
+                ),
+                sourceEventKey: 'invitation:${invitation.id}:accepted',
               ),
-              sourceEventKey: 'invitation:${invitation.id}:accepted',
-            ),
-          );
+            );
+          }
+          if (emitMutualConnection) {
+            await transaction.record(
+              await _attentionIntents!.mutualConnectionFormed(
+                actorUserId: invitation.issuer.id,
+                counterpartUserId: userId,
+                sourceEventKey: 'invitation:${invitation.id}:mutual',
+              ),
+            );
+          }
         }
-        if (emitMutualConnection) {
-          await transaction.record(
-            await _attentionIntents!.mutualConnectionFormed(
-              actorUserId: invitation.issuer.id,
-              counterpartUserId: userId,
-              sourceEventKey: 'invitation:${invitation.id}:mutual',
-            ),
-          );
-        }
-      }
-      return accepted;
-    },
-  );
+        return accepted;
+      },
+    );
+    return attention.retryOnConflict(acceptInvite);
+  }
 
-  Future<bool> _acceptBeaconInviteOnly({
+  Future<InviteAcceptance> _acceptPostInviteOnly({
     required InvitationEntity invitation,
+    required String beaconId,
     required String userId,
     required AttentionTransaction transaction,
   }) async {
-    final beaconId = invitation.beaconId!;
     if (!await _guard.canReadContent(
       beaconId: beaconId,
       viewerId: invitation.issuer.id,
     )) {
       throw IdNotFoundException(id: invitation.id);
     }
-    final beacon = await _beaconUnderPostLock(beaconId);
-    if (await _userBlockRepository.isBlockedPair(
-      a: userId,
-      b: invitation.issuer.id,
-    )) {
-      throw IdNotFoundException(id: invitation.id);
-    }
-    await _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
+    final beacon = await _lockPostInvite(
+      invitation: invitation,
+      beaconId: beaconId,
+      userId: userId,
+    );
 
-    return _userRepository.bindMutual(
+    final claimed = await _userRepository.bindMutual(
       invitationId: invitation.id,
       userId: userId,
       bindFriendship: false,
-      onForwardCreated: beacon.kind == BeaconKind.post
-          ? () async {
-              await transaction.record(
-                await _attentionIntents!.relayReceived(
-                  beaconId: beacon.id,
-                  senderId: invitation.issuer.id,
-                  beaconAuthorId: beacon.author.id,
-                  recipientIds: [userId],
-                  beaconKind: beacon.kind,
-                  sourceEventKey: 'invitation:${invitation.id}:forward',
-                ),
-              );
-            }
-          : null,
+      onForwardCreated: () async {
+        await transaction.record(
+          await _attentionIntents!.relayReceived(
+            beaconId: beacon.id,
+            senderId: invitation.issuer.id,
+            beaconAuthorId: beacon.author.id,
+            recipientIds: [userId],
+            beaconKind: beacon.kind,
+            sourceEventKey: 'invitation:${invitation.id}:forward',
+          ),
+        );
+      },
     );
+    return InviteAcceptance.fromClaim(claimed: claimed);
   }
 
   Future<bool> delete({

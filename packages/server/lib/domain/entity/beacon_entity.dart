@@ -31,6 +31,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? addressLabel,
     DateTime? startAt,
     DateTime? endAt,
+    DateTime? expiresAt,
     String? context,
     Set<String>? tags,
     @Default(<String>{}) Set<String> needs,

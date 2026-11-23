@@ -87,10 +87,20 @@ const RU = {
   'You’re connected with {name}': '{name} уже в вашей сети',
   'Open Tentura to continue.': 'Откройте Tentura, чтобы продолжить.',
   '{name} invited you — Tentura': '{name} приглашает вас — Tentura',
+  '{name} shared a request with you': '{name} поделился с вами запросом',
+  'Accepting the invite in the app only gives you access to this request.':
+    'Принятие приглашения в приложении даст вам доступ только к этому запросу.',
+  '{name} shared a post with you': '{name} делится с вами постом',
+  'Accept the invite in the app to open the post.':
+    'Примите приглашение в приложении, чтобы открыть пост.',
   '{name} wants to connect': '{name} хочет добавить вас в свою сеть',
   'Accept the invite in the app to become friends.':
     'Примите приглашение в приложении, чтобы стать друзьями.',
   '{name} invited you to Tentura': '{name} приглашает вас в Tentura',
+  '{name} invited you to «{requestTitle}», but it has already closed.':
+    '{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт.',
+  "You're still welcome on Tentura, and you're now connected with {name}.":
+    'Вам по-прежнему рады в Тентуре, и теперь вы на связи с {name}.',
   'Something went wrong — Tentura': 'Что-то пошло не так — Tentura',
   'Something went wrong': 'Что-то пошло не так',
   'Please try opening this link again.':

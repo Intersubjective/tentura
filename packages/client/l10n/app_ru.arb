@@ -910,6 +910,12 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
+  "inviteAcceptBeaconAccessBody": "Принятие приглашения даст вам доступ только к этому запросу и добавит его в «Активность».",
+  "@inviteAcceptBeaconAccessBody": {
+    "context": "InvitationAcceptDialog"
+  },
+  "inviteAcceptPostTitle": "Принять приглашение к просмотру поста?",
+  "inviteAcceptPostAccessBody": "Принятие приглашения даст вам доступ к этому посту.",
   "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот запрос в «Активность».",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",
@@ -919,6 +925,9 @@
       }
     }
   },
+  "inviteLapsedTitle": "Запрос закрыт",
+  "inviteLapsedExistingBody": "{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт.",
+  "inviteLapsedSignupBody": "{name} пригласил вас в запрос «{requestTitle}», но он уже закрыт. Вам по-прежнему рады в Тентуре, и теперь вы на связи с {name}.",
   "tapToChooseLocation": "Нажмите, чтобы выбрать место",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"

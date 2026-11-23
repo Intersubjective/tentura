@@ -106,14 +106,20 @@ final class UserBlockCase extends UseCaseBase {
       await _hierarchyRepository.lockMutationScope();
       await _requireUserExists(blockedId);
       await _enforceRateLimit(blockerId);
+      if (_blocks case final UserBlockWriteLocks locks) {
+        await locks.lockForBlockCleanup(
+          blockerId: blockerId,
+          blockedId: blockedId,
+        );
+      }
+      // Direct blocks only — cascade-derived rows must never trigger cleanup
+      // (the user was never shown a warning for people they did not choose).
+      await _cleanupDirectPair(blockerId, blockedId, transaction);
       await _blocks.block(
         blockerId: blockerId,
         blockedId: blockedId,
         cascadeMode: cascadeMode,
       );
-      // Direct blocks only — cascade-derived rows must never trigger cleanup
-      // (the user was never shown a warning for people they did not choose).
-      await _cleanupDirectPair(blockerId, blockedId, transaction);
       await _blocks.applyWithdrawal(
         blockerId: blockerId,
         blockedId: blockedId,

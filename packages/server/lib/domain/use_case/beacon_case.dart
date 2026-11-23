@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
@@ -124,6 +125,7 @@ final class BeaconCase extends UseCaseBase {
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
     RemoteStoragePort remoteStorage, {
+    required ClosureRepositoryPort closureRepository,
     // Nullable for test construction. Injectable ignores nullable
     // dependencies when ordering, so these rely on their `order: 1` being
     // registered before this `order: 2` case.
@@ -131,7 +133,7 @@ final class BeaconCase extends UseCaseBase {
     PlanAttentionCase? planAttention,
     RequestChangeLogPort? changeLog,
     BeaconFactCardCase? factCards,
-  }) async => BeaconCase(
+  }) async => BeaconCase._(
     beaconRepository,
     imageRepository,
     imageObjectGc,
@@ -144,6 +146,7 @@ final class BeaconCase extends UseCaseBase {
     attentionIntents: attentionIntents,
     attention: attention,
     remoteStorage: remoteStorage,
+    closureRepository: closureRepository,
     beaconPlan: beaconPlan,
     planAttention: planAttention,
     changeLog: changeLog,
@@ -152,7 +155,28 @@ final class BeaconCase extends UseCaseBase {
     logger: logger,
   );
 
-  BeaconCase(
+  factory BeaconCase(
+    BeaconRepositoryPort beaconRepository,
+    ImageRepositoryPort imageRepository,
+    ImageObjectGcPort imageObjectGc,
+    TaskRepositoryPort tasksRepository,
+    CommitmentQueryCase commitmentQueryCase,
+    BeaconAccessGuard guard,
+    BeaconHierarchyRepositoryPort hierarchyRepository,
+    BeaconChildCreatePort childCreateCase,
+    BeaconLifecycleEffectsCase lifecycleEffects, {
+    required Env env,
+    required Logger logger,
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
+    RemoteStoragePort? remoteStorage,
+    BeaconPlanCase? beaconPlan,
+    PlanAttentionCase? planAttention,
+    RequestChangeLogPort? changeLog,
+    BeaconFactCardCase? factCards,
+  }) = BeaconCase._;
+
+  BeaconCase._(
     this._beaconRepository,
     this._imageRepository,
     this._imageObjectGc,
@@ -165,6 +189,7 @@ final class BeaconCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     this._remoteStorage,
+    this._closureRepository,
     this._beaconPlan,
     this._planAttention,
     this._changeLog,
@@ -187,6 +212,9 @@ final class BeaconCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
 
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+
+  /// Supplies the shared Request lock. Nullable for test construction.
+  final ClosureRepositoryPort? _closureRepository;
 
   final BeaconChildCreatePort _childCreateCase;
 
@@ -962,13 +990,19 @@ final class BeaconCase extends UseCaseBase {
     }
   }
 
+  Future<void> _lockTerminationScope(String beaconId) async {
+    await _hierarchyRepository.lockMutationScope();
+    // Serialize with invite acceptance before either path can lock the row.
+    await _closureRepository?.lockRequest(beaconId);
+  }
+
   /// Author cancels an open beacon with zero acknowledged committers (state 1).
   Future<BeaconCancelResult> beaconCancel({
     required String beaconId,
     required String userId,
   }) {
     Future<BeaconCancelResult> mutate(AttentionTransaction? transaction) async {
-      await _hierarchyRepository.lockMutationScope();
+      await _lockTerminationScope(beaconId);
       return _beaconRepository.runInBeaconStateTransaction(
         beaconId: beaconId,
         userId: userId,
@@ -1088,7 +1122,7 @@ final class BeaconCase extends UseCaseBase {
     Future<bool> mutate(
       AttentionTransaction? transaction,
     ) async {
-      await _hierarchyRepository.lockMutationScope();
+      await _lockTerminationScope(beaconId);
       return _beaconRepository.runInBeaconStateTransaction(
         beaconId: beaconId,
         userId: userId,

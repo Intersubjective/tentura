@@ -9,6 +9,8 @@ abstract interface class EmailNotificationPort {
   /// user is absent / push failed, a verified email exists, and the per-category
   /// cooldown allows it. [copy] is the recipient's rendered text (live
   /// identity, localized); when null the stored [title] and [body] are used.
+  /// An invite-accepted notification without rendered copy uses the
+  /// connections policy of [considerImmediateByCategory].
   Future<void> considerImmediate({
     required String recipientUserId,
     required NotificationKind kind,

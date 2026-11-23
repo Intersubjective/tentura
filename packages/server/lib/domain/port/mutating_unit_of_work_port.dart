@@ -6,3 +6,9 @@ abstract interface class MutatingUnitOfWorkPort {
     String? actorUserId,
   });
 }
+
+/// Retries a whole unit of work after a transient write conflict.
+abstract interface class RetryingMutatingUnitOfWorkPort
+    implements MutatingUnitOfWorkPort {
+  Future<T> retryOnConflict<T>(Future<T> Function() runTransaction);
+}

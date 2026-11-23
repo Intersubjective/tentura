@@ -105,12 +105,19 @@ void main() {
     );
   });
 
-  test('200 {ok: true} when already friends (retry-safe)', () async {
+  test('200 {ok: true} when a friend claims an available invite', () async {
     stubInvitation(invitation());
     when(
       friendshipLookup.isReciprocalSubscribe(
         viewerId: 'Ujoiner',
         peerId: _issuerId,
+      ),
+    ).thenAnswer((_) async => true);
+    when(
+      userRepo.bindMutual(
+        invitationId: 'Iabc',
+        userId: 'Ujoiner',
+        bindFriendship: false,
       ),
     ).thenAnswer((_) async => true);
 

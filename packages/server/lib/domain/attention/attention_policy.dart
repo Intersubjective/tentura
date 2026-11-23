@@ -786,6 +786,8 @@ class AttentionPolicy {
           ? _safeBeaconTitle(role.beaconTitle)
           : null,
       'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
+      if (role.lapsedRequestTitle case final title?)
+        'lapsedRequestTitle': _safeBeaconTitle(title) ?? '',
       'toStatus': _safeStatusName(role.toStatus),
       'fromStatus': _safeStatusName(role.fromStatus),
       'relatedBeaconId': _safeId(role.relatedBeaconId),

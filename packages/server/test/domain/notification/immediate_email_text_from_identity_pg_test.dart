@@ -34,6 +34,8 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
+import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
@@ -515,6 +517,67 @@ Future<void> main() async {
     });
   });
 
+  group('connection emails about unavailable Requests', () {
+    test(
+      'Russian recipients get a localized invitation acceptance email',
+      () async {
+        await setPreferences(_bob, locale: 'ru');
+        final intent = await intents.inviteAccepted(
+          notification: const InviteAcceptedNotificationIntent(
+            inviterUserId: _bob,
+            accepterUserId: _anna,
+            accepterDisplayName: 'Anna',
+            accepterHandle: 'anna',
+            actionUrl: '/#/profile/view/$_anna',
+            inviteOrigin: 'existing_account',
+          ),
+          sourceEventKey: 'invite-accepted:$_bob',
+          lapsedRequestTitle: 'Fix the roof',
+        );
+        final sent = await emailService().considerImmediateByCategory(
+          recipientUserId: intent.recipients.single.recipientId,
+          channelCollapseKey: intent.collapseKey,
+          title: intent.title,
+          body: intent.body,
+          actionUrl: intent.actionUrl,
+          categoryScope: 'connections',
+        );
+        expect(sent, isTrue);
+        const expectedBody =
+            'Уже был аккаунт в Tentura. Теперь вы связаны. '
+            'Запрос «Fix the roof» больше недоступен по этому приглашению.';
+        expect(sender.itemBodies, [expectedBody]);
+      },
+    );
+
+    test('Russian recipients get a localized connection email when the '
+        'actor has no display name and no rendered copy is supplied', () async {
+      await setPreferences(_bob, locale: 'ru');
+      await rename(_anna, '');
+      final intent = await intents.mutualConnectionFormed(
+        actorUserId: _anna,
+        counterpartUserId: _bob,
+        sourceEventKey: 'connection:$_anna:$_bob',
+        lapsedRequestTitle: 'Fix the roof',
+      );
+      expect(intent.kind, NotificationKind.inviteAccepted);
+      await emailService().considerImmediate(
+        recipientUserId: intent.recipients.single.recipientId,
+        kind: intent.kind,
+        beaconId: intent.beaconId ?? '',
+        channelCollapseKey: intent.collapseKey,
+        title: intent.title,
+        body: intent.body,
+        actionUrl: intent.actionUrl,
+        pushDelivered: false,
+      );
+      const expectedBody =
+          'Вы теперь связаны в Tentura. '
+          'Запрос «Fix the roof» больше недоступен по этому приглашению.';
+      expect(sender.itemBodies, [expectedBody]);
+    });
+  });
+
   group('a Post share email names the sharer and the Post', () {
     test(
       'English subject has the sentence and the unquoted Post label',
@@ -641,6 +704,7 @@ WHERE id = '$_post'
 
 final class _Sender extends Fake implements EmailSenderPort {
   final sent = <RenderedEmail>[];
+  final itemBodies = <String>[];
 
   @override
   Future<void> sendNotificationEmail({
@@ -649,6 +713,7 @@ final class _Sender extends Fake implements EmailSenderPort {
     required EmailNotificationContent content,
     String? listUnsubscribeUrl,
   }) async {
+    itemBodies.add(content.item.body);
     sent.add(
       const EmailTemplateRenderer().renderNotification(
         content: content,
