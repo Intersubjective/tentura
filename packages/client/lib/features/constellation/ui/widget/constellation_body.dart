@@ -1979,13 +1979,31 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return const SizedBox.shrink();
     }
     _measureFieldTopChromeHeight();
-    final selection = maybeConstellationSelection(context);
+    final preview = state.rearrangePreview;
+    final toolbar = ColoredBox(
+      color: theme.scaffoldBackgroundColor,
+      child: ConstellationArrangingToolbar(
+        cubit: cubit,
+        peopleTagsEnabled: widget.peopleTagsEnabled,
+        topEmbedded: true,
+      ),
+    );
     final topChrome = SingleChildScrollView(
       child: Column(
         key: _fieldTopChromeKey,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Keep the actions at the start of the capped viewport, ahead
+          // of notices and filters that may take up the remaining height.
+          if (preview != null) ...[
+            toolbar,
+            ConstellationRearrangePreviewBar(
+              movingCount: preview.movingCount,
+              onApply: () => unawaited(cubit.applyRearrangePreview()),
+              onCancel: cubit.cancelRearrangePreview,
+            ),
+          ],
           if (!state.isComposing) ...[
             const ConstellationFieldNotices(),
             const ConstellationEmptyFilterBanner(),
@@ -2012,49 +2030,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
           if (!state.isComposing) _buildTagRow(context),
           if (state.tagView case final view?)
             _buildTagViewHeader(context, cubit, view),
-          if (state.rearrangePreview case final preview?)
-            ConstellationRearrangePreviewBar(
-              movingCount: preview.movingCount,
-              onApply: () => unawaited(cubit.applyRearrangePreview()),
-              onCancel: cubit.cancelRearrangePreview,
-            ),
         ],
       ),
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: capHeight),
-      child: Stack(
-        children: [
-          topChrome,
-          if (selection != null)
-            BlocBuilder<
-              ConstellationSelectionCubit,
-              ConstellationMultiSelection
-            >(
-              bloc: selection,
-              buildWhen: (previous, current) =>
-                  previous.arranging != current.arranging,
-              builder: (context, selectionState) {
-                if (!selectionState.arranging) {
-                  return const SizedBox.shrink();
-                }
-                return Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: ColoredBox(
-                    color: theme.scaffoldBackgroundColor,
-                    child: ConstellationArrangingToolbar(
-                      cubit: cubit,
-                      peopleTagsEnabled: widget.peopleTagsEnabled,
-                      topEmbedded: true,
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
+      // Ordinary arranging keeps the map's origin stable for gestures.
+      child: preview == null
+          ? Stack(
+              children: [
+                topChrome,
+                Positioned(top: 0, left: 0, right: 0, child: toolbar),
+              ],
+            )
+          : topChrome,
     );
   }
 

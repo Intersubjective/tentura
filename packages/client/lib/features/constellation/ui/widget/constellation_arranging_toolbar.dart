@@ -142,72 +142,87 @@ class ConstellationArrangingToolbar extends StatelessWidget {
   }) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: tt.tightGap,
-      runSpacing: tt.tightGap,
-      children: [
-        IconButton(
-          key: const Key('constellation.arranging.undo'),
-          tooltip: l10n.constellationUndo,
-          onPressed: enabled && cubit.canUndoArrangement
-              ? () => unawaited(cubit.undoArrangement())
-              : null,
-          icon: const Icon(Icons.undo),
-        ),
-        IconButton(
-          key: const Key('constellation.arranging.redo'),
-          tooltip: l10n.constellationRedo,
-          onPressed: enabled && cubit.canRedoArrangement
-              ? () => unawaited(cubit.redoArrangement())
-              : null,
-          icon: const Icon(Icons.redo),
-        ),
-        TextButton.icon(
-          key: const Key('constellation.arranging.tidy'),
-          onPressed: enabled
-              ? () async {
-                  final count = await cubit.tidyUp();
-                  if (count > 0 && context.mounted) {
-                    showConstellationTidiedSnackBar(
-                      context,
-                      count: count,
-                      onUndo: cubit.undoArrangement,
-                    );
-                  }
-                }
-              : null,
-          icon: const Icon(Icons.auto_fix_high),
-          label: Text(l10n.constellationTidyUp),
-        ),
-        TextButton.icon(
-          key: const Key('constellation.arranging.select'),
-          onPressed: enabled
-              ? () => selection.setSelecting(!selection.state.selecting)
-              : null,
-          icon: Icon(
-            Icons.crop_square,
-            color: selection.state.selecting
-                ? Theme.of(context).colorScheme.primary
-                : null,
-          ),
-          label: Text(l10n.constellationArrangingSelect),
-        ),
-        IconButton(
-          key: const Key('constellation.arranging.more'),
-          tooltip: l10n.constellationArrangingMoreActions,
-          onPressed: enabled
-              ? () => ConstellationArrangeActions.showOverflowMenu(
+    final overflow = IconButton(
+      key: const Key('constellation.arranging.more'),
+      tooltip: l10n.constellationArrangingMoreActions,
+      onPressed: enabled
+          ? () => ConstellationArrangeActions.showOverflowMenu(
+              context,
+              cubit: cubit,
+            )
+          : null,
+      icon: Icon(
+        Icons.more_horiz,
+        semanticLabel: l10n.constellationArrangingMoreActions,
+      ),
+    );
+    final historyActions = [
+      IconButton(
+        key: const Key('constellation.arranging.undo'),
+        tooltip: l10n.constellationUndo,
+        onPressed: enabled && cubit.canUndoArrangement
+            ? () => unawaited(cubit.undoArrangement())
+            : null,
+        icon: const Icon(Icons.undo),
+      ),
+      IconButton(
+        key: const Key('constellation.arranging.redo'),
+        tooltip: l10n.constellationRedo,
+        onPressed: enabled && cubit.canRedoArrangement
+            ? () => unawaited(cubit.redoArrangement())
+            : null,
+        icon: const Icon(Icons.redo),
+      ),
+    ];
+    final tidy = TextButton.icon(
+      key: const Key('constellation.arranging.tidy'),
+      onPressed: enabled
+          ? () async {
+              final count = await cubit.tidyUp();
+              if (count > 0 && context.mounted) {
+                showConstellationTidiedSnackBar(
                   context,
-                  cubit: cubit,
-                )
-              : null,
-          icon: Icon(
-            Icons.more_horiz,
-            semanticLabel: l10n.constellationArrangingMoreActions,
-          ),
-        ),
-      ],
+                  count: count,
+                  onUndo: cubit.undoArrangement,
+                );
+              }
+            }
+          : null,
+      icon: const Icon(Icons.auto_fix_high),
+      label: Text(l10n.constellationTidyUp),
+    );
+    final select = TextButton.icon(
+      key: const Key('constellation.arranging.select'),
+      onPressed: enabled
+          ? () => selection.setSelecting(!selection.state.selecting)
+          : null,
+      icon: Icon(
+        Icons.crop_square,
+        color: selection.state.selecting
+            ? Theme.of(context).colorScheme.primary
+            : null,
+      ),
+      label: Text(l10n.constellationArrangingSelect),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            topEmbedded &&
+            windowClassForWidth(constraints.maxWidth) == WindowClass.compact;
+        return Wrap(
+          alignment: WrapAlignment.center,
+          spacing: tt.tightGap,
+          runSpacing: tt.tightGap,
+          children: [
+            ...historyActions,
+            // Keep the overflow and selection controls before the wider
+            // tidy command so it can wrap onto the next row.
+            if (compact) ...[overflow, select],
+            tidy,
+            if (!compact) ...[select, overflow],
+          ],
+        );
+      },
     );
   }
 }

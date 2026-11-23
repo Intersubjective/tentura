@@ -17,7 +17,9 @@ void main() {
         harness.cubit,
         arrangeV2Enabled: true,
         locale: const Locale('ru'),
+        surface: kPhoneSurface,
       );
+      expect(tester.getSize(find.byType(Scaffold)), kPhoneSurface);
 
       final ru = L10nRu();
       await tapConstellationArrangeOverflowAction(
@@ -32,8 +34,14 @@ void main() {
         find.text(ru.constellationRearrangePreview(count)),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('constellation-rearrange-apply')), findsOneWidget);
-      expect(find.byKey(const Key('constellation-rearrange-cancel')), findsOneWidget);
+      expect(
+        find.byKey(const Key('constellation-rearrange-apply')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('constellation-rearrange-cancel')),
+        findsOneWidget,
+      );
       expect(find.text(ru.planEditApply), findsOneWidget);
       expect(find.text(ru.buttonCancel), findsOneWidget);
     },
