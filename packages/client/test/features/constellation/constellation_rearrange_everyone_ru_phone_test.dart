@@ -10,7 +10,6 @@ void main() {
   testWidgets(
     'RU phone: Arrange → Rearrange everyone shows preview bar with Apply/Cancel',
     (tester) async {
-      await usePhoneSurface(tester);
       final harness = await arrangeHarness();
       await pumpArrangeBody(
         tester,
