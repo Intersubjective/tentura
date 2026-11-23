@@ -36,6 +36,8 @@ const _privateGraphTables = {
   'person_auto_tag_pref',
   'constellation_tag_magnet',
   'person_field_first_seen',
+  'phantom',
+  'phantom_merge',
 };
 
 const _enableEnforcement = "SET LOCAL tentura.owner_scope_enforce = 'on'";
