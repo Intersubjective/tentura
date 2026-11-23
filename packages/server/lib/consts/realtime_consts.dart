@@ -5,6 +5,7 @@
 const kRealtimeAlwaysEchoKinds = {
   'constellation_anchor',
   'person_tag',
+  'phantom',
   'room_seen',
   'constellation_field',
 };

@@ -71,6 +71,91 @@ fanOutPrivateReadCursor(
   );
 }
 
+/// Checks the production LISTEN-to-router path for a committed owner write.
+Future<void> expectPrivatePhantomSocketDelivery({
+  required Env databaseEnv,
+  required Connection writer,
+  required String owner,
+  required String otherAccount,
+  required Future<void> Function() mutate,
+}) async {
+  final dependencies = _Dependencies();
+  final notifications = await PgNotificationService.create(
+    databaseEnv,
+    const PostgresNotificationConnector(),
+  );
+  addTearDown(notifications.dispose);
+  final router = WebsocketRouterBase(
+    Env(realtimeActorEchoEnabled: false),
+    Logger('PrivatePhantomSocketDelivery'),
+    dependencies.authCase,
+    dependencies.userPresenceCase,
+    dependencies.friendshipLookup,
+    dependencies.coParticipantLookup,
+    dependencies.roomMessageSnapshotLookup,
+    dependencies.qaRealtimeSocketGate,
+    notifications,
+  );
+  addTearDown(router.dispose);
+  final ownerTab = _RecordingSession();
+  final otherOwnerTab = _RecordingSession();
+  final otherUser = _RecordingSession();
+  await dependencies.authenticate(router, ownerTab, owner);
+  await dependencies.authenticate(router, otherOwnerTab, owner);
+  await dependencies.authenticate(router, otherUser, otherAccount);
+  final sessions = [ownerTab, otherOwnerTab, otherUser];
+  expect(router.authenticatedSessions, unorderedEquals(sessions));
+  for (final session in sessions) {
+    session.sent.clear();
+  }
+
+  await mutate();
+
+  // Send a marker after the commit on the writer connection. Its arrival
+  // proves the router was listening and lets us check the bystander's frames.
+  const barrierId = 'phantom-delivery-barrier';
+  await writer.execute(
+    Sql.named("SELECT pg_notify('entity_changes', @payload)"),
+    parameters: {
+      'payload': jsonEncode({
+        'entity': 'profile',
+        'id': barrierId,
+        'event': 'update',
+        'user_ids': [otherAccount],
+      }),
+    },
+  );
+
+  Map<String, dynamic> decode(Object? frame) =>
+      jsonDecode(frame! as String) as Map<String, dynamic>;
+
+  await _waitUntil(
+    () => otherUser.sent.any((frame) {
+      final payload = decode(frame)['payload'];
+      return payload is Map && payload['id'] == barrierId;
+    }),
+    timeout: const Duration(seconds: 3),
+  );
+  expect(
+    otherUser.sent,
+    hasLength(1),
+    reason: 'Only the marker reaches the bystander',
+  );
+  for (final session in [ownerTab, otherOwnerTab]) {
+    expect(
+      session.sent,
+      hasLength(1),
+      reason: 'The committed phantom update reaches every owner tab',
+    );
+    final frame = decode(session.sent.single);
+    expect(frame['type'], 'subscription');
+    expect(frame['path'], 'entity_changes');
+    expect(frame['payload'], containsPair('entity', 'phantom'));
+    expect(frame['payload'], containsPair('event', 'update'));
+    expect(frame['payload'], containsPair('actor_user_id', owner));
+  }
+}
+
 @GenerateNiceMocks([
   MockSpec<UserRepositoryPort>(),
   MockSpec<InvitationRepositoryPort>(),
@@ -80,6 +165,49 @@ fanOutPrivateReadCursor(
   MockSpec<RoomMessageSnapshotLookupPort>(),
 ])
 void main() {
+  test(
+    'private phantom changes reach only the owner tabs when actor echo is off',
+    () async {
+      final dependencies = _Dependencies();
+      final handler = _EntityChangeHarness(
+        Env(realtimeActorEchoEnabled: false),
+        dependencies,
+      );
+      addTearDown(handler.disposeEntityChanges);
+      final ownerTab = _RecordingSession();
+      final otherOwnerTab = _RecordingSession();
+      final otherUser = _RecordingSession();
+      await dependencies.authenticate(handler, ownerTab, _actorId);
+      await dependencies.authenticate(handler, otherOwnerTab, _actorId);
+      await dependencies.authenticate(handler, otherUser, _affectedId);
+      final sessions = [ownerTab, otherOwnerTab, otherUser];
+      expect(handler.authenticatedSessions, unorderedEquals(sessions));
+      for (final session in sessions) {
+        session.sent.clear();
+      }
+
+      await handler.fanOutEntityChange({
+        'entity': 'phantom',
+        'id': _actorId,
+        'event': 'update',
+        'actor_user_id': _actorId,
+        'user_ids': [_actorId],
+        'revision': '1',
+      });
+
+      expect(otherUser.sent, isEmpty);
+      for (final session in [ownerTab, otherOwnerTab]) {
+        expect(session.sent, hasLength(1));
+        final frame =
+            jsonDecode(session.sent.single! as String) as Map<String, dynamic>;
+        expect(frame['type'], 'subscription');
+        expect(frame['path'], 'entity_changes');
+        expect(frame['payload'], containsPair('entity', 'phantom'));
+        expect(frame['payload'], containsPair('actor_user_id', _actorId));
+      }
+    },
+  );
+
   group('Private read cursors reach every session of the reader', () {
     for (final echo in [true, false]) {
       for (final scope in <String?>[null, 'CIquestions1']) {

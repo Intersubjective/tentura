@@ -331,6 +331,18 @@
         "packages/client/test/data/service/invalidation_service_person_tag_test.dart",
         "packages/server/test/data/database/person_tag_deferred_notification_pg_test.dart"
       ]
+    },
+    {
+      "wireKind": "phantom",
+      "acceptedWireKinds": ["phantom"],
+      "clientKind": "phantom",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_phantom_change"],
+      "impacts": ["constellation_field", "constellation_anchors"],
+      "tests": [
+        "packages/client/test/domain/entity/realtime/phantom_realtime_kind_test.dart",
+        "packages/server/test/data/database/phantom_realtime_notification_pg_test.dart"
+      ]
     }
   ]
 }

@@ -81,6 +81,7 @@ void main() {
         'notify_people_seen_change',
         'notify_room_seen_peer_change',
         'notify_person_tag_change',
+        'notify_phantom_change',
       },
     );
 
