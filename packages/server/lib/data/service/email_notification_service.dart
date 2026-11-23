@@ -61,6 +61,18 @@ class EmailNotificationService implements EmailNotificationPort {
     required bool pushDelivered,
     NotificationCopy? copy,
   }) async {
+    if (kind == NotificationKind.inviteAccepted && copy == null) {
+      await considerImmediateByCategory(
+        recipientUserId: recipientUserId,
+        channelCollapseKey: channelCollapseKey,
+        title: title,
+        body: body,
+        actionUrl: actionUrl,
+        categoryScope: NotificationCategory.connections.name,
+      );
+      return;
+    }
+
     final shares = kind == NotificationKind.newRelay
         ? (await _outbox.pendingForChannelCollapseKey(
                 accountId: recipientUserId,

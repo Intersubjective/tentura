@@ -2,8 +2,7 @@
 /// Russian.
 ///
 /// The English body is what gets stored when the notification is written;
-/// [forStoredBody] finds the variant again when a stored notification is
-/// delivered in another locale. One table for both sides keeps them in step.
+/// [russianForStoredBody] translates the stored body at delivery time.
 enum InviteAcceptedCopy {
   newAccount(
     en: 'Created an account via your invitation. You are now connected.',
@@ -23,6 +22,10 @@ enum InviteAcceptedCopy {
   final String en;
   final String ru;
 
+  static const _englishRequest = 'The Request';
+  static const _englishUnavailable =
+      ' is no longer available through this invitation.';
+
   static String withLapsedRequest(
     String body,
     String? requestTitle, {
@@ -33,8 +36,32 @@ enum InviteAcceptedCopy {
     final label = title.isEmpty ? '' : ' «$title»';
     final outcome = ru
         ? 'Запрос$label больше недоступен по этому приглашению.'
-        : 'The Request$label is no longer available through this invitation.';
+        : '$_englishRequest$label$_englishUnavailable';
     return '$body $outcome';
+  }
+
+  /// Translates fixed copy and its optional lapsed Request sentence.
+  static String? russianForStoredBody(String body) {
+    final separator = body.indexOf(' $_englishRequest');
+    if (separator == -1) return forStoredBody(body)?.ru;
+
+    final copy = forStoredBody(body.substring(0, separator));
+    if (copy == null) return null;
+
+    final suffix = body.substring(separator + 1);
+    if (suffix == '$_englishRequest$_englishUnavailable') {
+      return withLapsedRequest(copy.ru, '', ru: true);
+    }
+
+    const prefix = '$_englishRequest «';
+    const ending = '»$_englishUnavailable';
+    if (!suffix.startsWith(prefix) || !suffix.endsWith(ending)) return null;
+
+    final title = suffix.substring(
+      prefix.length,
+      suffix.length - ending.length,
+    );
+    return withLapsedRequest(copy.ru, title, ru: true);
   }
 
   /// The variant whose English body is exactly [body], or null.
