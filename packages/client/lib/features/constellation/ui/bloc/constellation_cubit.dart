@@ -342,7 +342,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// programmatic camera (null after a targeted one). An untouched fit-all
   /// camera follows the Field: it fits again when the viewport changes size
   /// or late Field data re-seats people ([_fieldFitAwaitsLayout]).
-  ({int cameraRevision, Size? viewport})? _lastFieldFit;
+  final _lastFieldFit =
+      ValueNotifier<
+        ({
+          int cameraRevision,
+          Size? viewport,
+          EdgeInsets insets,
+          Map<String, Offset> fittedTags,
+        })?
+      >(null);
 
   /// Saved tag magnets read after the last fit-all moved people; the fit is
   /// due again once their layout lands. A user's own moves never set it.
@@ -943,6 +951,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
+  Listenable get fieldFitChanges => _lastFieldFit;
+
+  Rect? fittedTagViewport(String id, Offset position) {
+    final fit = _lastFieldFit.value;
+    final viewport = graphController.viewportSize;
+    if (fit == null ||
+        fit.cameraRevision != graphController.cameraRevision.value ||
+        viewport == null ||
+        fit.viewport != viewport ||
+        fit.fittedTags[id] != position) {
+      return null;
+    }
+    final safe = fit.insets.deflateRect(Offset.zero & viewport);
+    return safe.isEmpty ? null : safe;
+  }
+
   Map<String, Size> Function()? _readTagMagnetControlSizes;
 
   /// The mounted tag layer supplies the full controls' viewport sizes.
@@ -1171,6 +1195,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
+    if (isClosed) return;
     _scene.rearrangePreviewScheduler?.cancel();
     _cancelForwardTreeReplay(bumpPulseTicker: false);
     _cancelPersonFocus();
@@ -1201,6 +1226,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _fieldCameraMinimapExpanded = false;
     _fieldCameraViewportSnapshot = EdgeInsets.zero;
     _resetFieldAutomaticFramingState();
+    _lastFieldFit.dispose();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
@@ -3554,28 +3580,39 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _runFieldFrame({required EdgeInsets insets, double? floor}) {
     if (floor == null) {
       final sizes = _readTagMagnetControlSizes?.call() ?? const {};
+      final fittedTags = <String, Offset>{};
+      final fixedControls = <({Offset centre, Size size})>[];
+      for (final MapEntry(key: id, value: centre) in _tagMagnets.entries) {
+        if (sizes[id] case final size?) {
+          fittedTags[id] = centre;
+          fixedControls.add((centre: centre, size: size));
+        }
+      }
       _scene.fitWholeField(
         insets,
-        fixedControls: [
-          for (final MapEntry(key: id, value: centre) in _tagMagnets.entries)
-            if (sizes[id] case final size?) (centre: centre, size: size),
-        ],
+        fixedControls: fixedControls,
       );
+      _recordProgrammaticFieldCamera(fitInsets: insets, fittedTags: fittedTags);
     } else {
       _scene.fitNodes(insets, minScale: floor, focus: 'fp:${_viewer.id}');
+      _recordProgrammaticFieldCamera();
     }
-    _recordProgrammaticFieldCamera(fitAll: floor == null);
   }
 
-  void _recordProgrammaticFieldCamera({bool fitAll = false}) {
+  void _recordProgrammaticFieldCamera({
+    EdgeInsets? fitInsets,
+    Map<String, Offset> fittedTags = const {},
+  }) {
     _fieldInitialFrameCompleted = true;
     _userInputRevisionAtLastProgrammaticFrame =
         graphController.userCameraInputRevision.value;
     _fieldPeerIdsAtLastProgrammaticFrame = _fieldPeerIdsExceptViewer();
-    _lastFieldFit = fitAll
+    _lastFieldFit.value = fitInsets != null
         ? (
             cameraRevision: graphController.cameraRevision.value,
             viewport: graphController.viewportSize,
+            insets: fitInsets,
+            fittedTags: fittedTags,
           )
         : null;
     _fieldFitAwaitsLayout = false;
@@ -3584,7 +3621,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// The last fit-all is still the camera, and the viewport has changed size
   /// or late Field data re-seated people since.
   bool get _fieldFitOutdated {
-    final fit = _lastFieldFit;
+    final fit = _lastFieldFit.value;
     return fit != null &&
         graphController.cameraRevision.value == fit.cameraRevision &&
         !_userMovedCameraSinceProgrammaticFrame &&
@@ -3612,7 +3649,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _fieldInitialFrameCompleted = false;
     _userInputRevisionAtLastProgrammaticFrame = null;
     _fieldPeerIdsAtLastProgrammaticFrame = null;
-    _lastFieldFit = null;
+    _lastFieldFit.value = null;
   }
 
   void _scheduleAutomaticFieldFraming() {

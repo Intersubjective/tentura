@@ -1490,6 +1490,14 @@ class ConstellationSceneController {
     const tolerance = 1e-6;
     final fitWidth = usable.width - tolerance;
     final fitHeight = usable.height - tolerance;
+
+    // Reserve clearance around controls too. On an axis where the control
+    // itself is too large, keep its centre in view.
+    double paddedExtent(double extent, double available, double scale) =>
+        extent <= available
+        ? math.min(extent + 2 * _fitPadding * scale, available)
+        : 0;
+
     Rect boundsAt(double scale) {
       var bounds = Rect.fromLTRB(
         relativeNodes.left * scale,
@@ -1498,12 +1506,11 @@ class ConstellationSceneController {
         relativeNodes.bottom * scale,
       ).inflate(math.max(_fitPadding * scale, nodeMargin));
       for (final control in controls) {
-        // Keep the centre on any axis that cannot fit the full control.
         bounds = bounds.expandToInclude(
           Rect.fromCenter(
             center: (control.centre - origin) * scale,
-            width: control.size.width <= fitWidth ? control.size.width : 0,
-            height: control.size.height <= fitHeight ? control.size.height : 0,
+            width: paddedExtent(control.size.width, fitWidth, scale),
+            height: paddedExtent(control.size.height, fitHeight, scale),
           ),
         );
       }

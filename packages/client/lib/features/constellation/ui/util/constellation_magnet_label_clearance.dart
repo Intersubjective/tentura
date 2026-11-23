@@ -2,39 +2,59 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 /// Moves [wanted] off every rect in [labels] it overlaps, by the shortest
-/// shift that clears them all, preferring a result inside [bounds]. A rect
-/// that overlaps nothing is returned untouched, so a magnet away from the
-/// node labels stays exactly where it was dropped.
+/// shift that clears them all, preferring a result inside [bounds].
+/// After fit-all, [fittedViewport] keeps the chip accessible.
 Rect clearMagnetOfLabels(
   Rect wanted,
   Iterable<Rect> labels, {
   required Rect bounds,
+  Rect? fittedViewport,
   double gap = 4,
 }) {
   final obstacles = [for (final label in labels) label.inflate(gap)];
   bool clear(Rect r) => !obstacles.any(r.overlaps);
-  if (clear(wanted)) return wanted;
+
+  var limit = fittedViewport ?? bounds;
+  if (fittedViewport != null) {
+    // An oversized control can still fit on the other axis.
+    limit = Rect.fromLTRB(
+      wanted.width > limit.width ? wanted.left : limit.left,
+      wanted.height > limit.height ? wanted.top : limit.top,
+      wanted.width > limit.width ? wanted.right : limit.right,
+      wanted.height > limit.height ? wanted.bottom : limit.bottom,
+    );
+  }
+  bool inside(Rect r) =>
+      r.left >= limit.left &&
+      r.top >= limit.top &&
+      r.right <= limit.right &&
+      r.bottom <= limit.bottom;
+  if ((fittedViewport == null || inside(wanted)) && clear(wanted)) {
+    return wanted;
+  }
 
   // Each step is also tried pulled back onto the map, so a label near the map
   // edge still leaves a clear spot that is fully visible.
+  final candidatesFrom = fittedViewport == null
+      ? obstacles.where(wanted.overlaps)
+      : obstacles.where(limit.overlaps);
+  final fittedPosition = fittedViewport == null ? null : _within(wanted, limit);
   final candidates = <Rect>[
-    for (final o in obstacles.where(wanted.overlaps))
+    ?fittedPosition,
+    for (final o in candidatesFrom)
       for (final step in [
         wanted.shift(Offset(0, o.top - wanted.bottom)),
         wanted.shift(Offset(0, o.bottom - wanted.top)),
         wanted.shift(Offset(o.left - wanted.right, 0)),
         wanted.shift(Offset(o.right - wanted.left, 0)),
-      ]) ...[step, _within(step, bounds)],
+      ]) ...[step, _within(step, limit)],
   ]..sort((a, b) => _shift(wanted, a).compareTo(_shift(wanted, b)));
 
-  bool inside(Rect r) =>
-      r.left >= bounds.left &&
-      r.top >= bounds.top &&
-      r.right <= bounds.right &&
-      r.bottom <= bounds.bottom;
   for (final candidate in candidates) {
-    if (clear(candidate) && inside(candidate)) return candidate;
+    if (inside(candidate) && clear(candidate)) return candidate;
   }
+  // Fit-all keeps the control accessible even if no clear spot fits.
+  if (fittedPosition != null) return fittedPosition;
   for (final candidate in candidates) {
     if (clear(candidate)) return candidate;
   }
