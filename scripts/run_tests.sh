@@ -193,17 +193,22 @@ touches_mr_area() {
   changed_in packages/server | grep -qE '(constellation|visib|meritrank|trust|graph|/migration/m[0-9]+\.dart)'
 }
 
+server_manual_suite() {
+  local f="$1"
+  if server_header_has_tag perf "$f" || server_header_has_tag load "$f"; then
+    log "skipping perf/load suite (manual measurement): $f"
+    return 0
+  fi
+  return 1
+}
+
 server_files() {
   local -a requested=("$@") files=()
   local f
   # perf and load suites are manual measurements on an idle machine (see the
   # header): an affected-tests selection must not pull them into a gate.
   for f in "${requested[@]}"; do
-    if server_header_has_tag perf "$f" || server_header_has_tag load "$f"; then
-      log "skipping perf/load suite (manual measurement): $f"
-    else
-      files+=("$f")
-    fi
+    server_manual_suite "$f" || files+=("$f")
   done
   (( ${#files[@]} > 0 )) || { log "no server test files"; return 0; }
   local j; j="$(concurrency server-files)"
@@ -257,6 +262,7 @@ server_pg() {
   # files fail with "No tests ran".
   local -a files=() isolated=() all f; mapfile -t all < <(server_tagged_files pg)
   for f in "${all[@]}"; do
+    if server_manual_suite "$f"; then continue; fi
     if ! server_header_has_tag mr "$f"; then
       if server_header_has_tag rss-isolated "$f"; then
         isolated+=("$f")
@@ -278,7 +284,10 @@ server_pg() {
 }
 
 server_mr() {
-  local -a files; mapfile -t files < <(server_tagged_files mr)
+  local -a files=() all f; mapfile -t all < <(server_tagged_files mr)
+  for f in "${all[@]}"; do
+    server_manual_suite "$f" || files+=("$f")
+  done
   (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
     run_chunked 45m dart test -j 1 --tags mr -x perf -x load -- "${files[@]}")
 }
