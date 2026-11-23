@@ -69,9 +69,20 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
     // Small accounts erase atomically; large ones commit in bounded chunks so
     // the DB lane is released between them.
     final atomic = ownedPublished.length + draftIds.length <= batchSize;
-    Future<void> step(Future<void> Function() fn) => atomic
-        ? fn()
-        : _attention.runAction(actorUserId: id, action: (_) => fn());
+    Future<void> runStep(
+      Future<void> Function() fn, {
+      required bool retryOnConflict,
+    }) {
+      Future<void> run() =>
+          _attention.runAction(actorUserId: id, action: (_) => fn());
+      return retryOnConflict ? _attention.retryOnConflict(run) : run();
+    }
+
+    Future<void> step(
+      Future<void> Function() fn, {
+      bool retryOnConflict = false,
+    }) => atomic ? fn() : runStep(fn, retryOnConflict: retryOnConflict);
+
     // Cleanup jobs are enqueued in the transaction that deleted the image rows.
     Future<void> enqueueGc(List<String> imageIds) async {
       for (final imageId in imageIds) {
@@ -195,11 +206,12 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
           await _erasure.deleteOrdinaryRoomMessagesAuthoredByUser(userId: id);
           await _users.deleteById(id: id);
         },
+        retryOnConflict: true,
       );
     }
 
     if (atomic) {
-      await _attention.runAction(actorUserId: id, action: (_) => erase());
+      await runStep(erase, retryOnConflict: true);
     } else {
       await erase();
     }
