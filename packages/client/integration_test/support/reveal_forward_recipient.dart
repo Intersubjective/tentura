@@ -24,6 +24,7 @@ Future<Finder> revealForwardRecipientCheckbox(
   );
   final elapsed = Stopwatch()..start();
   var searchPending = true;
+  Finder? activeSearch;
   await tester.pump();
   while (elapsed.elapsed < timeout) {
     if (tappableCheckbox.evaluate().isNotEmpty) return checkbox;
@@ -43,26 +44,25 @@ Future<Finder> revealForwardRecipientCheckbox(
       final position = controller.position;
       if (searchPending) {
         searchPending = false;
-        if (await _searchForRecipient(tester, picker, userId)
-            case final search?) {
+        activeSearch = await _searchForRecipient(tester, picker, userId);
+        if (activeSearch != null) {
           position.jumpTo(position.minScrollExtent);
-          await tester.pump();
-          if (elapsed.elapsed < timeout &&
-              tappableCheckbox.evaluate().isNotEmpty) {
-            return checkbox;
-          }
-          // A result can still sit behind compact search chrome. Restore
-          // the original list before continuing with scrolling.
-          await tester.enterText(search, '');
-          FocusManager.instance.primaryFocus?.unfocus();
           await tester.pump();
           continue;
         }
       }
+      final atEnd = position.pixels >= position.maxScrollExtent;
+      // A name can match several recipients. Scan the narrowed list before
+      // restoring the original list.
+      if (atEnd && activeSearch != null) {
+        await tester.enterText(activeSearch, '');
+        FocusManager.instance.primaryFocus?.unfocus();
+        activeSearch = null;
+      }
       // Adjacent viewports cover every row. A row built under a pinned bar
       // or in the scroll cache is centered by the next iteration.
       position.jumpTo(
-        position.pixels >= position.maxScrollExtent
+        atEnd
             ? position.minScrollExtent
             : (position.pixels + position.viewportDimension).clamp(
                 position.minScrollExtent,
