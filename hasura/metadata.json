@@ -749,6 +749,7 @@
                     "invited_id",
                     "user_id",
                     "addressee_name",
+                    "phantom_id",
                     "invite_origin",
                     "accepted_at",
                     "created_at",

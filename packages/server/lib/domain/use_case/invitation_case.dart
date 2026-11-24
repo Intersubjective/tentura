@@ -174,7 +174,9 @@ final class InvitationCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
     );
-    if (invitation == null || invitation.isAccepted || invitation.isExpired) {
+    if (invitation == null ||
+        invitation.isAccepted ||
+        invitation.isExpiredWithTtl(env.invitationTTL)) {
       throw IdNotFoundException(id: invitationId);
     }
     return invitation;
@@ -197,7 +199,7 @@ final class InvitationCase extends UseCaseBase {
 
     final codeStatus = invitation.isAccepted
         ? InviteCodeStatus.consumed
-        : invitation.isExpired
+        : invitation.isExpiredWithTtl(env.invitationTTL)
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
@@ -332,7 +334,8 @@ final class InvitationCase extends UseCaseBase {
   Future<InviteAcceptance> accept({
     required String invitationId,
     required String userId,
-  }) => _accept(invitationId, userId, byCode: false);
+    bool reportExpiry = false,
+  }) => _accept(invitationId, userId, byCode: false, reportExpiry: reportExpiry);
 
   Future<InviteAcceptance> acceptAsExisting({
     required String code,
@@ -343,6 +346,7 @@ final class InvitationCase extends UseCaseBase {
     String invitationId,
     String userId, {
     required bool byCode,
+    bool reportExpiry = false,
   }) async {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
@@ -356,7 +360,11 @@ final class InvitationCase extends UseCaseBase {
         description: 'Cannot accept your own invite',
       );
     }
-    if (invitation.isExpired || (byCode && invitation.isAccepted)) {
+    final isExpired = invitation.isExpiredWithTtl(env.invitationTTL);
+    if (isExpired && reportExpiry) {
+      throw const InvitationWrongException.expired();
+    }
+    if (isExpired || (byCode && invitation.isAccepted)) {
       throw IdNotFoundException(id: invitationId);
     }
 

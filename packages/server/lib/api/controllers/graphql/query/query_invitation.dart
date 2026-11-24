@@ -55,17 +55,20 @@ final class QueryInvitation extends GqlNodeBase {
       final e = await _invitationCase.fetchById(
         invitationId: InputFieldId.fromArgsNonNullable(args),
       );
-      final map = Map<String, dynamic>.from(e.asMapWithIssuer);
+      final isIssuer = jwt.sub == e.issuer.id;
+      final map = Map<String, dynamic>.from(e.asMapWithIssuer)
+        ..['addressee_name'] = isIssuer ? e.addresseeName : null
+        ..['phantom_id'] = isIssuer ? e.phantomId : null;
       final issuer = Map<String, dynamic>.from(map['issuer']! as Map);
       final issuerFriendship =
-          jwt.sub != e.issuer.id &&
+          !isIssuer &&
           await _voteUserFriendshipLookup.isReciprocalSubscribe(
             viewerId: jwt.sub,
             peerId: e.issuer.id,
           );
       issuer['is_mutual_friend'] = issuerFriendship;
       final issuerTrustsViewer =
-          jwt.sub != e.issuer.id &&
+          !isIssuer &&
           await _voteUserFriendshipLookup.isSubscribedTo(
             viewerId: e.issuer.id,
             peerId: jwt.sub,

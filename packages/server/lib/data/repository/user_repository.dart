@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invite_acceptance.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite/invite_origin.dart';
@@ -250,15 +251,7 @@ class UserRepository implements UserRepositoryPort {
         },
       );
 
-  @override
-  Future<UserEntity> createInvited({
-    required String invitationId,
-    required String publicKey,
-    required String displayName,
-    String? handle,
-    InvitedPostForwardCreated? onPostForwardCreated,
-    InvitedRequestLapsed? onRequestLapsed,
-  }) => _database.withJoinedTransaction<UserEntity>(() async {
+  Future<Invitation> _requirePendingInvitation(String invitationId) async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingleOrNull();
@@ -273,15 +266,26 @@ class UserRepository implements UserRepositoryPort {
         reason: InvitationWrongReason.used,
       );
     }
-    if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
+    if (InvitationEntity.hasExpired(
+      createdAt: invitation.createdAt.dateTime,
+      phantomId: invitation.phantomId,
+      ttl: _env.invitationTTL,
+    )) {
+      throw const InvitationWrongException.expired();
     }
+    return invitation;
+  }
 
+  @override
+  Future<UserEntity> createInvited({
+    required String invitationId,
+    required String publicKey,
+    required String displayName,
+    String? handle,
+    InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
+  }) => _database.withJoinedTransaction<UserEntity>(() async {
+    final invitation = await _requirePendingInvitation(invitationId);
     final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _database.managers.users.createReturning(
@@ -409,29 +413,7 @@ class UserRepository implements UserRepositoryPort {
     InvitedPostForwardCreated? onPostForwardCreated,
     InvitedRequestLapsed? onRequestLapsed,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
-    final invitation = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .getSingleOrNull();
-    if (invitation == null) {
-      throw const InvitationWrongException(
-        description: 'Invitation not found',
-      );
-    }
-    if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
-    }
-    if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
-    }
-
+    final invitation = await _requirePendingInvitation(invitationId);
     final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _createUserWithCredential(
@@ -969,28 +951,7 @@ class UserRepository implements UserRepositoryPort {
     required _InviteAcceptanceMode mode,
     Future<void> Function()? onForwardCreated,
   }) => _database.withJoinedTransaction(() async {
-    final invitation = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .getSingleOrNull();
-    if (invitation == null) {
-      throw const InvitationWrongException(
-        description: 'Invitation not found',
-      );
-    }
-    if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
-    } else if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
-    }
-
+    final invitation = await _requirePendingInvitation(invitationId);
     final beaconId = invitation.beaconId;
     final parentEdgeId = invitation.parentForwardEdgeId;
     final requestId = mode == _InviteAcceptanceMode.requestAdmission

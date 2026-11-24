@@ -15,6 +15,7 @@ InvitationEntity invitationModelToEntity(
   invited: invited == null ? null : userModelToEntity(invited, image: invitedImage),
   beaconId: model.beaconId,
   parentForwardEdgeId: model.parentForwardEdgeId,
+  phantomId: model.phantomId,
   addresseeName: model.addresseeName,
   createdAt: model.createdAt.dateTime,
   updatedAt: model.updatedAt.dateTime,

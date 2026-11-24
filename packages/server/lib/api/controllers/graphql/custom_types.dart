@@ -1619,6 +1619,7 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('beacon_id', graphQLString),
     // Issuer's private name for the invitee; nullable for legacy rows.
     field('addressee_name', graphQLString),
+    field('phantom_id', graphQLString),
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),

@@ -181,6 +181,12 @@ final class InvitationWrongException extends ExceptionBase {
          description: description ?? 'Wrong invitation code',
        );
 
+  const InvitationWrongException.expired()
+    : this(
+        description: 'Invitation expired!',
+        reason: InvitationWrongReason.expired,
+      );
+
   final InvitationWrongReason reason;
 }
 

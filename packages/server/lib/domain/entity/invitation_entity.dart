@@ -19,6 +19,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     UserEntity? invited,
     String? beaconId,
     String? parentForwardEdgeId,
+    String? phantomId,
 
     /// Issuer's private name for the invitee; copied to `user_contact` on
     /// consumption. Null only on legacy rows. Never expose to the invitee.
@@ -29,7 +30,19 @@ abstract class InvitationEntity with _$InvitationEntity {
 
   bool get isAccepted => invited != null;
 
-  bool get isExpired => createdAt.add(kInvitationTTL).isBefore(DateTime.now());
+  bool get isExpired => isExpiredWithTtl(kInvitationTTL);
+
+  bool isExpiredWithTtl(Duration ttl) => hasExpired(
+    createdAt: createdAt,
+    phantomId: phantomId,
+    ttl: ttl,
+  );
+
+  static bool hasExpired({
+    required DateTime createdAt,
+    required String? phantomId,
+    required Duration ttl,
+  }) => phantomId == null && createdAt.add(ttl).isBefore(DateTime.timestamp());
 
   Map<String, Object?> get asMap => {
     'id': id,
