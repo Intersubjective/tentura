@@ -41,16 +41,36 @@ final class PhantomMergeCase {
   final UserBlockRepositoryPort _blocks;
   final Logger _logger;
 
+  Future<bool> link({
+    required String ownerId,
+    required String phantomId,
+    required String userId,
+  }) async {
+    final result = await merge(
+      ownerId: ownerId,
+      phantomId: phantomId,
+      userId: userId,
+    );
+    return switch (result) {
+      PhantomMerged() => true,
+      PhantomMergeGuardFailure() => throw IdNotFoundException(id: phantomId),
+    };
+  }
+
+  /// An owner selecting a person from their Field omits [origin]. An explicit
+  /// origin runs the merge engine for an already authorized target.
   Future<PhantomMergeResult> merge({
     required String ownerId,
     required String phantomId,
     required String userId,
-    required int origin,
+    int? origin,
   }) {
-    final mergeOrigin = PhantomMergeOrigin.fromCode(origin);
+    final authorizedOrigin = origin == null
+        ? null
+        : PhantomMergeOrigin.fromCode(origin);
     final target = (ownerId: ownerId, phantomId: phantomId, userId: userId);
     return _ownerGraph.run({ownerId}, ownerId, (scope) async {
-      final result = await _mergeInScope(scope, target, mergeOrigin);
+      final result = await _mergeInScope(scope, target, authorizedOrigin);
       return result == PhantomMergeGuardFailure.deleted
           ? PhantomMergeGuardFailure.inactive
           : result;
@@ -60,9 +80,10 @@ final class PhantomMergeCase {
   Future<PhantomMergeResult> _mergeInScope(
     OwnerGraphScope scope,
     PhantomMergeTarget target,
-    PhantomMergeOrigin origin,
+    PhantomMergeOrigin? authorizedOrigin,
   ) async {
     final (:ownerId, :phantomId, :userId) = target;
+    final origin = authorizedOrigin ?? PhantomMergeOrigin.manualLink;
     if (origin == PhantomMergeOrigin.manualLink) {
       final joiningName = await _phantoms.lockInvitesAndFindJoiningName(
         scope,
@@ -78,6 +99,10 @@ final class PhantomMergeCase {
     if (userId == ownerId) return PhantomMergeGuardFailure.self;
     if (await _blocks.isBlockedPair(a: ownerId, b: userId)) {
       return PhantomMergeGuardFailure.blocked;
+    }
+    if (authorizedOrigin == null &&
+        !await _merges.isInFieldPopulation(scope, target)) {
+      throw IdNotFoundException(id: userId);
     }
 
     final mergeId = await _merges.merge(

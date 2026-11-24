@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/domain/entity/leased_job_retry.dart';
 
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
@@ -12,6 +13,7 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import 'field_population_sql.dart';
 import 'owner_graph_unit_of_work.dart';
 
 @LazySingleton(as: PhantomMergeRepositoryPort)
@@ -47,6 +49,33 @@ FOR UPDATE
             displayName: row.read<String>('display_name'),
             active: row.read<bool>('active'),
           );
+  }
+
+  @override
+  Future<bool> isInFieldPopulation(
+    OwnerGraphScope scope,
+    PhantomMergeTarget target,
+  ) async {
+    final (:ownerId, :userId, phantomId: _) = target;
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final row = await _database
+        .customSelect(
+          '''
+WITH $fieldPopulationCtesSql
+SELECT EXISTS (
+  SELECT 1 FROM public."user" u
+  WHERE u.id = \$3 AND NOT public.block_hides(\$1, u.id)
+    AND u.id IN (SELECT id FROM population)
+) AS eligible
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(kConstellationContext),
+            Variable.withString(userId),
+          ],
+        )
+        .getSingle();
+    return row.read<bool>('eligible');
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_case.dart';
+import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -73,6 +74,16 @@ final class MutationPhantom extends GqlNodeBase {
         ownerId: getCredentials(args).sub,
         id: _id.fromArgsNonNullable(args),
         rotate: true,
+      ),
+    ),
+    GraphQLObjectField(
+      'phantomLink',
+      graphQLBoolean.nonNullable(),
+      arguments: [_phantomId.field, _userId.field],
+      resolve: (_, args) => GetIt.I<PhantomMergeCase>().link(
+        ownerId: getCredentials(args).sub,
+        phantomId: _phantomId.fromArgsNonNullable(args),
+        userId: _userId.fromArgsNonNullable(args),
       ),
     ),
     GraphQLObjectField(

@@ -39,6 +39,11 @@ abstract interface class PhantomMergeRepositoryPort {
     PhantomMergeTarget target,
   );
 
+  Future<bool> isInFieldPopulation(
+    OwnerGraphScope scope,
+    PhantomMergeTarget target,
+  );
+
   /// Persists the guarded merge, its undo record and owner attention event.
   Future<String> merge(
     OwnerGraphScope scope,
