@@ -1,0 +1,3 @@
+mutation PhantomUpdate($id: String!, $name: String!, $emoji: String) {
+  phantomUpdate(id: $id, name: $name, emoji: $emoji)
+}

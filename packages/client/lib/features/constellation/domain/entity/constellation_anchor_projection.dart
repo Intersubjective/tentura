@@ -107,6 +107,25 @@ class ConstellationAnchorProjection {
     serverFilteredBeaconCount: 0,
   );
 
+  ConstellationAnchorProjection withoutPhantomAnchors() {
+    bool isPhantom(ConstellationAnchor anchor) =>
+        anchor.target.kind == ConstellationAnchorTargetKind.phantom;
+    if (!anchors.any(isPhantom)) return this;
+    return ConstellationAnchorProjection(
+      revision: revision,
+      anchors: [
+        for (final anchor in anchors)
+          if (!isPhantom(anchor)) anchor,
+      ],
+      pinnedPeers: pinnedPeers,
+      pinnedRequests: pinnedRequests,
+      supportPeers: supportPeers,
+      supportEdges: supportEdges,
+      serverFilteredBeaconIds: serverFilteredBeaconIds,
+      serverFilteredBeaconCount: serverFilteredBeaconCount,
+    );
+  }
+
   Map<String, Object> toFixtureMap() => {
     ...revision.toFixtureMap(),
     'serverFilteredBeaconCount': serverFilteredBeaconCount,

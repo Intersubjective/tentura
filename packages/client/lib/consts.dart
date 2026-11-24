@@ -274,6 +274,9 @@ const kBatonTogetherEnabled = true;
 /// Enables every client entry point of private people tags (#699, phase 1).
 const kPeopleTagsEnabled = true;
 
+/// Enables private Field entries for people who are not on Tentura yet.
+const kPhantomsEnabled = false;
+
 /// Gate for field membership without a Request (people tags #699): visible,
 /// bond and temporary people join the Constellation field on their own and
 /// the render cap follows the tag priority. Enabled by phase 1.

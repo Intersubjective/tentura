@@ -83,6 +83,16 @@ query ConstellationFieldFetch(
       personId
       state
     }
+    phantoms {
+      id
+      displayName
+      emoji
+      hasPrivateAvatar
+      ownTagIds
+      pinState
+      inviteState
+      createdAt
+    }
     anchorProjection {
       revision
       anchors {

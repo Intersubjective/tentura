@@ -1,0 +1,3 @@
+mutation PhantomDelete($id: String!) {
+  phantomDelete(id: $id)
+}

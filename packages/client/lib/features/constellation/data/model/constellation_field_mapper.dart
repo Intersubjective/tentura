@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/data/gql/_g/image_model_v2.data.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -81,8 +82,26 @@ ConstellationField mapConstellationFieldFromFieldFetch(
   peersCapped: payload.peersCapped,
   requestsCapped: payload.requestsCapped,
   directContactIds: payload.directContactIds.toList(growable: false),
+  phantoms:
+      payload.phantoms?.map(_mapPhantom).toList(growable: false) ?? const [],
   anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
 );
+
+Phantom _mapPhantom(
+  GConstellationFieldFetchData_constellationField_phantoms row,
+) {
+  final pinState = row.pinState;
+  return Phantom(
+    id: row.id,
+    displayName: row.displayName,
+    emoji: row.emoji,
+    hasPrivateAvatar: row.hasPrivateAvatar,
+    ownTagIds: row.ownTagIds.toList(growable: false),
+    pinState: pinState == null ? null : PhantomPinState.values.byName(pinState),
+    inviteState: PhantomInviteState.values.byName(row.inviteState),
+    createdAt: DateTime.parse(row.createdAt).toUtc(),
+  );
+}
 
 List<ConstellationMemberWeb> mapBeaconMemberWebs(
   Iterable<GBeaconMemberWebsData_beaconMemberWebs> webs,
@@ -530,15 +549,7 @@ ConstellationAnchor _mapWireAnchor({
   required String revision,
   required String placedAt,
 }) {
-  final target = ConstellationAnchorTarget.tryFromWire(
-    kindWire: targetKind.name,
-    targetId: targetId,
-  );
-  if (target == null) {
-    throw FormatException(
-      'Malformed constellation anchor target kind: ${targetKind.name}',
-    );
-  }
+  final target = mapWireAnchorTarget(targetKind, targetId);
   final positionValidation = ConstellationAnchorPosition.validate(
     xUnits: xUnits,
     yUnits: yUnits,
@@ -579,3 +590,12 @@ Gv2_ConstellationProjection projectionToWire(
 Gv2_ConstellationAnchorTargetKind targetKindToWire(
   ConstellationAnchorTargetKind kind,
 ) => Gv2_ConstellationAnchorTargetKind.valueOf(kind.wireValue);
+
+ConstellationAnchorTarget mapWireAnchorTarget(
+  Gv2_ConstellationAnchorTargetKind kind,
+  String id,
+) =>
+    ConstellationAnchorTarget.tryFromWire(kindWire: kind.name, targetId: id) ??
+    (throw FormatException(
+      'Malformed constellation anchor target kind: ${kind.name}',
+    ));

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'constellation_anchor_projection.dart';
 
@@ -58,6 +59,7 @@ abstract class ConstellationField with _$ConstellationField {
     @Default([]) List<ConstellationRequest> requests,
     @Default([]) List<ConstellationPost> posts,
     @Default([]) List<ConstellationMemberWeb> memberWebs,
+    @Default([]) List<Phantom> phantoms,
     @Default(false) bool peersCapped,
     @Default(false) bool requestsCapped,
 

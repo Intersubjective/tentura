@@ -1,0 +1,3 @@
+mutation PhantomInviteRotate($id: String!) {
+  phantomInviteRotate(id: $id)
+}

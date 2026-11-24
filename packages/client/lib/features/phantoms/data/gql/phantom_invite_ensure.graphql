@@ -1,0 +1,3 @@
+mutation PhantomInviteEnsure($id: String!) {
+  phantomInviteEnsure(id: $id)
+}

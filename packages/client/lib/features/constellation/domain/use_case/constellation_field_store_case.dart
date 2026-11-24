@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/parallel_wait_failure.dart';
@@ -86,17 +87,19 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
+    @ignoreParam this._phantomsEnabled = kPhantomsEnabled,
   }) {
     _subscriptions = [
       account.currentAccountChanges.listen(_onAccountChanged),
       _realtimeSyncCase
-          .changesFor(const {
+          .changesFor({
             RealtimeEntityKind.beacon,
             RealtimeEntityKind.forward,
             RealtimeEntityKind.participant,
             RealtimeEntityKind.roomMessage,
             RealtimeEntityKind.roomSeen,
             RealtimeEntityKind.constellationField,
+            if (_phantomsEnabled) RealtimeEntityKind.phantom,
           })
           .listen(_onFieldChange),
       _realtimeSyncCase
@@ -110,6 +113,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   final ClockPort _clock;
   final WakeUpPort _wakeUp;
   final RealtimeSyncCase _realtimeSyncCase;
+  final bool _phantomsEnabled;
 
   /// Minimum spacing between urgent realtime-driven FULL refreshes.
   static const _urgentSpacing = Duration(seconds: 2);
@@ -662,9 +666,26 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   }
 
   void _emit(ConstellationFieldStoreState state) {
-    _state = state;
+    var next = state;
+    final field = state.field;
+    if (!_phantomsEnabled && field != null) {
+      final projection = field.anchorProjection;
+      final visibleProjection = projection?.withoutPhantomAnchors();
+      if (field.phantoms.isNotEmpty ||
+          !identical(visibleProjection, projection)) {
+        next = ConstellationFieldStoreState(
+          field: field.copyWith(
+            phantoms: const [],
+            anchorProjection: visibleProjection,
+          ),
+          coveredRevision: state.coveredRevision,
+          generation: state.generation,
+        );
+      }
+    }
+    _state = next;
     if (!_changes.isClosed) {
-      _changes.add(state);
+      _changes.add(next);
     }
   }
 
