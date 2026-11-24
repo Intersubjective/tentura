@@ -113,6 +113,12 @@ final class ConstellationFieldSnapshotReader {
             !temporaryBeacons.containsKey(id))
           id,
     };
+    final population = {
+      ...visibleSet,
+      ...directContactIds,
+      ...bondContexts.keys,
+      ...temporaryBeacons.keys,
+    };
 
     final kept = await _cappedPeerIds(
       viewerId: viewerId,
@@ -240,7 +246,23 @@ final class ConstellationFieldSnapshotReader {
           peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
-    final taggedPeers = await _withPeopleTags(viewerId, peers, loadedAt);
+    final shownPeerIds = peerIds.difference({viewerId}).toList();
+    population
+      ..addAll(shownPeerIds)
+      ..remove(viewerId);
+    final (seen, linkHints) = await _readFirstSeenAndLinkHints(
+      viewerId,
+      shownPeerIds,
+      population,
+      loadedAt,
+    );
+    final taggedPeers = await _withPeopleTags(
+      viewerId,
+      peers,
+      shownPeerIds,
+      seen,
+      loadedAt,
+    );
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
@@ -252,6 +274,7 @@ final class ConstellationFieldSnapshotReader {
       requestsCapped: requestsCapped,
       posts: postFeed.posts,
       memberWebs: postFeed.memberWebs,
+      linkHints: linkHints,
       directContactIds: [
         for (final id in directContactIds)
           if (peerIds.contains(id)) id,
@@ -615,7 +638,7 @@ ORDER BY m.beacon_id, m.person_id
   /// [read]; the caller records them after the snapshot closes.
   List<String> unseenPeerIds = const [];
 
-  /// True when the viewer has no first-seen row at all (the backfill case).
+  /// True when the viewer has yet to complete the initial backfill.
   bool firstSeenBackfill = false;
 
   /// The peers kept under [kConstellationPeerCap], reserved ones aside:
@@ -710,22 +733,16 @@ ORDER BY person_id, tag_id
     return result;
   }
 
-  /// [peers] with the viewer's own tags, automatic tag kinds and first-seen
-  /// time; also notes who has no first-seen row yet.
+  /// [peers] with the viewer's own tags, automatic tags and first-seen times.
   Future<List<ConstellationPeerRecord>> _withPeopleTags(
     String viewerId,
     List<ConstellationPeerRecord> peers,
+    List<String> ids,
+    Map<String, DateTime?> seen,
     DateTime loadedAt,
   ) async {
-    final ids = [
-      for (final peer in peers)
-        if (peer.id != viewerId) peer.id,
-    ];
-    if (ids.isEmpty) {
-      return peers;
-    }
+    if (ids.isEmpty) return peers;
     final own = await _ownTagIds(viewerId, ids);
-    final idsVariable = Variable(TypedValue(Type.textArray, ids));
     final autoRows = await _database
         .customSelect(
           r'''
@@ -733,47 +750,15 @@ SELECT peer_id, kind::int AS kind
 FROM public.person_auto_tags($1, $2::text[])
 ORDER BY peer_id, kind
 ''',
-          variables: [Variable.withString(viewerId), idsVariable],
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, ids)),
+          ],
         )
         .get();
     final auto = <String, Set<int>>{};
     for (final row in autoRows) {
       (auto[row.read<String>('peer_id')] ??= {}).add(row.read<int>('kind'));
-    }
-    final seenRows = await _database
-        .customSelect(
-          r'''
-SELECT peer_id,
-       CASE WHEN isfinite(first_seen_at) THEN first_seen_at END AS seen_at
-FROM public.person_field_first_seen
-WHERE viewer_id = $1 AND peer_id = ANY($2::text[])
-''',
-          variables: [Variable.withString(viewerId), idsVariable],
-        )
-        .get();
-    final seen = {
-      for (final row in seenRows)
-        row.read<String>('peer_id'): readCustomSelectTimestamptz(
-          row.data['seen_at'],
-        ),
-    };
-    unseenPeerIds = [
-      for (final id in ids)
-        if (!seen.containsKey(id)) id,
-    ];
-    if (unseenPeerIds.isNotEmpty) {
-      firstSeenBackfill =
-          !(await _database
-                  .customSelect(
-                    r'''
-SELECT EXISTS (
-  SELECT 1 FROM public.person_field_first_seen WHERE viewer_id = $1
-) AS present
-''',
-                    variables: [Variable.withString(viewerId)],
-                  )
-                  .getSingle())
-              .read<bool>('present');
     }
     // The first response already shows later arrivals as New, even though
     // their first-seen rows are written after this read-only snapshot closes.
@@ -795,6 +780,90 @@ SELECT EXISTS (
             firstSeenAt: seen[peer.id],
           ),
     ];
+  }
+
+  Future<(Map<String, DateTime?>, List<ConstellationLinkHint>)>
+  _readFirstSeenAndLinkHints(
+    String viewerId,
+    List<String> shownPeerIds,
+    Set<String> population,
+    DateTime loadedAt,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+WITH initialization AS (
+  SELECT COALESCE((
+    SELECT backfill_pending FROM public.person_field_first_seen_init
+    WHERE viewer_id = $1
+  ), true) AS pending
+), named_phantoms AS (
+  SELECT id, created_at,
+         substring(lower(display_name) FROM '^[[:space:]]*([^[:space:]]+)') AS first_name
+  FROM public.phantom
+  WHERE owner_id = $1 AND merged_at IS NULL
+), sightings AS (
+  SELECT s.peer_id,
+         CASE WHEN isfinite(s.first_seen_at) THEN s.first_seen_at END AS seen_at
+  FROM public.person_field_first_seen s
+  CROSS JOIN initialization i
+  WHERE s.viewer_id = $1
+    AND s.peer_id = ANY(CASE WHEN i.pending THEN $2::text[] ELSE $3::text[] END)
+), hints AS (
+  SELECT p.id AS peer_id, h.id AS phantom_id
+  FROM named_phantoms h
+  JOIN public."user" p ON p.id = ANY($2::text[])
+  LEFT JOIN public.user_contact c ON c.viewer_id = $1 AND c.subject_id = p.id
+  LEFT JOIN public.person_field_first_seen s ON s.viewer_id = $1 AND s.peer_id = p.id
+  CROSS JOIN initialization i
+  WHERE char_length(h.first_name) >= 2
+    AND h.first_name IN (
+      substring(lower(p.display_name) FROM '^[[:space:]]*([^[:space:]]+)'),
+      substring(lower(c.contact_name) FROM '^[[:space:]]*([^[:space:]]+)')
+    )
+    AND COALESCE(s.first_seen_at, CASE WHEN i.pending
+      THEN '-infinity'::timestamptz ELSE $4::timestamptz END) > h.created_at
+    AND NOT EXISTS (
+      SELECT 1 FROM public.phantom_link_hint_dismissal d
+      WHERE d.phantom_id = h.id AND d.user_id = p.id
+    )
+)
+SELECT i.pending, m.peer_id, m.seen_at, m.phantom_id
+FROM initialization i
+LEFT JOIN (
+  SELECT peer_id, seen_at, NULL::text AS phantom_id FROM sightings
+  UNION ALL
+  SELECT peer_id, NULL::timestamptz, phantom_id FROM hints
+) m ON true
+ORDER BY m.phantom_id, m.peer_id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, population.toList())),
+            Variable(TypedValue(Type.textArray, shownPeerIds)),
+            Variable.withString(loadedAt.toIso8601String()),
+          ],
+        )
+        .get();
+    // The outer join returns the marker even when there are no peers.
+    firstSeenBackfill = rows.first.read<bool>('pending');
+    final seen = <String, DateTime?>{};
+    final linkHints = <ConstellationLinkHint>[];
+    for (final row in rows) {
+      final peerId = row.readNullable<String>('peer_id');
+      if (peerId == null) continue;
+      final phantomId = row.readNullable<String>('phantom_id');
+      if (phantomId == null) {
+        seen[peerId] = readCustomSelectTimestamptz(row.data['seen_at']);
+      } else {
+        linkHints.add((phantomId: phantomId, userId: peerId));
+      }
+    }
+    unseenPeerIds = [
+      for (final id in firstSeenBackfill ? population : shownPeerIds)
+        if (!seen.containsKey(id)) id,
+    ];
+    return (seen, linkHints);
   }
 
   Future<List<ConstellationRequestRecord>> _ownRequests({

@@ -58,14 +58,26 @@ final class ConstellationNewPeopleRepository
     required bool backfill,
     void Function()? onScopeWait,
   }) async {
-    if (peerIds.isEmpty) return;
+    if (peerIds.isEmpty && !backfill) return;
     await _ownerGraph.run({viewerId}, viewerId, (_) async {
+      if (backfill) {
+        await _database.customStatement(
+          r'''
+INSERT INTO public.person_field_first_seen_init (viewer_id, backfill_pending)
+SELECT id, false FROM public."user" WHERE id = $1
+ON CONFLICT (viewer_id) DO UPDATE SET backfill_pending = false
+WHERE person_field_first_seen_init.backfill_pending
+''',
+          [viewerId],
+        );
+      }
+      if (peerIds.isEmpty) return;
       final inserted = await _database.customWriteReturning(
         r'''
 INSERT INTO public.person_field_first_seen (viewer_id, peer_id, first_seen_at)
-SELECT $1, p, CASE WHEN $3::boolean THEN '-infinity'::timestamptz
+SELECT $1, p.id, CASE WHEN $3::boolean THEN '-infinity'::timestamptz
                      ELSE statement_timestamp() END
-FROM unnest($2::text[]) AS p
+FROM public."user" p WHERE p.id = ANY($2::text[])
 ON CONFLICT DO NOTHING
 RETURNING peer_id
 ''',

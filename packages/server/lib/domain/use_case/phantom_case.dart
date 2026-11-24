@@ -81,6 +81,21 @@ final class PhantomCase {
         return true;
       });
 
+  Future<bool> dismissLinkHint({
+    required String ownerId,
+    required String phantomId,
+    required String userId,
+  }) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
+    final found = await _repository.dismissLinkHint(
+      scope,
+      ownerId: ownerId,
+      phantomId: phantomId,
+      userId: userId,
+    );
+    if (!found) throw IdNotFoundException(id: phantomId);
+    return true;
+  });
+
   static void _validateEmoji(String? emoji) {
     if (emoji != null && emoji.runes.length > 8) {
       throw const IdWrongException(

@@ -4,6 +4,8 @@ import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 import 'constellation_anchor_projection.dart';
 import 'gql_public/image_public_record.dart';
 
+typedef ConstellationLinkHint = ({String phantomId, String userId});
+
 @immutable
 class ConstellationFieldSnapshot {
   ConstellationFieldSnapshot({
@@ -17,6 +19,7 @@ class ConstellationFieldSnapshot {
     this.posts = const [],
     this.memberWebs = const [],
     this.directContactIds = const [],
+    this.linkHints = const [],
     ConstellationAnchorProjection? anchorProjection,
   }) : anchorProjection =
            anchorProjection ?? ConstellationAnchorProjection.empty;
@@ -36,6 +39,7 @@ class ConstellationFieldSnapshot {
   /// [peers]; none of them counts against [peersCapped]. Empty in an
   /// ANCHORS read.
   final List<String> directContactIds;
+  final List<ConstellationLinkHint> linkHints;
   final ConstellationAnchorProjection anchorProjection;
 }
 

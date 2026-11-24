@@ -144,7 +144,7 @@ final class ConstellationFieldRepository
       actorUserId: viewerId,
       kind: MainDbWorkKind.full,
     );
-    if (reader.unseenPeerIds.isNotEmpty) {
+    if (reader.firstSeenBackfill || reader.unseenPeerIds.isNotEmpty) {
       await _recordFirstSeen(viewerId, reader);
     }
     return snapshot;

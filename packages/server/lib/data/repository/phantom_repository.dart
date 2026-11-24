@@ -102,4 +102,32 @@ SELECT id FROM owned
     );
     return count != 0;
   }
+
+  @override
+  Future<bool> dismissLinkHint(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String phantomId,
+    required String userId,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final rows = await _database.customWriteReturning(
+      r'''
+WITH owned AS (
+  SELECT id FROM public.phantom WHERE id = $1 AND owner_id = $2
+), dismissed AS (
+  INSERT INTO public.phantom_link_hint_dismissal (phantom_id, user_id)
+  SELECT owned.id, u.id FROM owned JOIN public."user" u ON u.id = $3
+  ON CONFLICT (phantom_id, user_id) DO NOTHING
+)
+SELECT id FROM owned
+''',
+      variables: [
+        Variable.withString(phantomId),
+        Variable.withString(ownerId),
+        Variable.withString(userId),
+      ],
+    );
+    return rows.isNotEmpty;
+  }
 }

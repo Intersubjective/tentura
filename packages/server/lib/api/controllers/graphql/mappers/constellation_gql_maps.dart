@@ -20,6 +20,10 @@ Map<String, dynamic> constellationFieldToGqlMap(
     snapshot.directContactIds,
     growable: false,
   ),
+  'linkHints': [
+    for (final hint in snapshot.linkHints)
+      {'phantomId': hint.phantomId, 'userId': hint.userId},
+  ],
   'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
   'memberWebs': snapshot.memberWebs
       .map(constellationMemberWebToGqlMap)

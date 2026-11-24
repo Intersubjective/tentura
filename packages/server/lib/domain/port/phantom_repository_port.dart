@@ -25,4 +25,12 @@ abstract interface class PhantomRepositoryPort {
     required String ownerId,
     required String id,
   });
+
+  /// Records the pair once and returns whether the entry belongs to the owner.
+  Future<bool> dismissLinkHint(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String phantomId,
+    required String userId,
+  });
 }

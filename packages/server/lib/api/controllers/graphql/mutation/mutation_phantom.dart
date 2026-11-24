@@ -16,6 +16,8 @@ final class MutationPhantom extends GqlNodeBase {
   static final _id = InputFieldString(fieldName: 'id');
   static final _name = InputFieldString(fieldName: 'name');
   static final _emoji = InputFieldString(fieldName: 'emoji');
+  static final _phantomId = InputFieldString(fieldName: 'phantomId');
+  static final _userId = InputFieldString(fieldName: 'userId');
   static final _position = GraphQLFieldInput(
     'position',
     gqlInputConstellationAnchorPosition,
@@ -51,6 +53,16 @@ final class MutationPhantom extends GqlNodeBase {
       resolve: (_, args) => _case.delete(
         ownerId: getCredentials(args).sub,
         id: _id.fromArgsNonNullable(args),
+      ),
+    ),
+    GraphQLObjectField(
+      'phantomHintDismiss',
+      graphQLBoolean.nonNullable(),
+      arguments: [_phantomId.field, _userId.field],
+      resolve: (_, args) => _case.dismissLinkHint(
+        ownerId: getCredentials(args).sub,
+        phantomId: _phantomId.fromArgsNonNullable(args),
+        userId: _userId.fromArgsNonNullable(args),
       ),
     ),
   ];

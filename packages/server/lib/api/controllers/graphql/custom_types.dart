@@ -63,6 +63,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlInputConstellationAnchorOp,
   gqlTypeConstellationAnchorOpResult,
   gqlTypeConstellationAnchorsApplyResult,
+  gqlTypeConstellationLinkHint,
   gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -1454,6 +1455,13 @@ final gqlTypeConstellationTagMagnet =
         field('revision', graphQLInt.nonNullable()),
       ]);
 
+final gqlTypeConstellationLinkHint =
+    GraphQLObjectType('ConstellationLinkHint', null)
+      ..fields.addAll([
+        field('phantomId', graphQLString.nonNullable()),
+        field('userId', graphQLString.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -1479,6 +1487,12 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        field(
+          'linkHints',
+          GraphQLListType(
+            gqlTypeConstellationLinkHint.nonNullable(),
+          ).nonNullable(),
+        ),
         // Everyone the viewer trusts directly (#246), each with a node in
         // `peers`; never capped. Empty in an ANCHORS read.
         field(
