@@ -128,12 +128,14 @@ abstract interface class ScopedConstellationAnchorRepositoryPort
     implements ConstellationAnchorRepositoryPort {
   /// Places [target] and invalidates older conditional writes for it and for
   /// [additionalWatermarkTargets]. An already-applied placement whose target
-  /// watermarks still match the placement is a no-op.
+  /// watermarks still match the placement is a no-op unless [forceRevision]
+  /// is set by a mutation that invalidates both targets even at equal positions.
   Future<void> upsertScoped({
     required OwnerGraphScope scope,
     required String viewerId,
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     required Set<ConstellationAnchorTarget> additionalWatermarkTargets,
+    bool forceRevision = false,
   });
 }

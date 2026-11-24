@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/invite/invite_origin.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
+import 'package:tentura_server/domain/port/phantom_merge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -98,8 +99,8 @@ class UserRepository implements UserRepositoryPort {
     final ownerId = invitation.userId;
     if (invitation.phantomId case final phantomId?) {
       final mergeOrigin = switch (origin) {
-        InviteOrigin.newAccount => 1,
-        InviteOrigin.existingAccount => 2,
+        InviteOrigin.newAccount => PhantomMergeOrigin.inviteNew,
+        InviteOrigin.existingAccount => PhantomMergeOrigin.inviteExisting,
       };
       await _database.customStatement(
         'INSERT INTO public.phantom_merge_job '
@@ -111,7 +112,7 @@ class UserRepository implements UserRepositoryPort {
           ownerId,
           userId,
           invitation.id,
-          mergeOrigin,
+          mergeOrigin.code,
         ],
       );
       return;

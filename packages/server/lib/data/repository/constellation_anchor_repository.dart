@@ -47,6 +47,7 @@ class ConstellationAnchorRepository
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     required Set<ConstellationAnchorTarget> additionalWatermarkTargets,
+    bool forceRevision = false,
   }) async {
     requireOwnerGraphScope(_db, scope, viewerId);
     final targets = {target, ...additionalWatermarkTargets};
@@ -62,10 +63,10 @@ WITH named_targets AS (
   SET person_id = CASE WHEN $3 = 'PERSON' THEN $4 END,
       beacon_id = CASE WHEN $3 = 'BEACON' THEN $4 END,
       phantom_id = CASE WHEN $3 = 'PHANTOM' THEN $4 END,
-      tombstone_at = NULL,
+      target_kind = $3, target_id = $4, tombstone_at = NULL,
       x_units = $5, y_units = $6, coordinate_space_version = $7
   WHERE a.viewer_id = $1 AND a.target_kind = $3 AND a.target_id = $4
-    AND (a.tombstone_at IS NOT NULL
+    AND ($10::boolean OR a.tombstone_at IS NOT NULL
       OR (a.x_units, a.y_units, a.coordinate_space_version)
          IS DISTINCT FROM ($5, $6, $7)
       OR EXISTS (
@@ -77,14 +78,14 @@ WITH named_targets AS (
   RETURNING revision
 ), placed AS (
   INSERT INTO public.constellation_anchor (
-    id, viewer_id, person_id, beacon_id, phantom_id,
+    id, viewer_id, person_id, beacon_id, phantom_id, target_kind, target_id,
     x_units, y_units, coordinate_space_version, revision, placed_at
   )
   SELECT $2, $1,
          CASE WHEN $3 = 'PERSON' THEN $4 END,
          CASE WHEN $3 = 'BEACON' THEN $4 END,
          CASE WHEN $3 = 'PHANTOM' THEN $4 END,
-         $5, $6, $7, 0, 'epoch'::timestamptz
+         $3, $4, $5, $6, $7, 0, 'epoch'::timestamptz
   WHERE NOT EXISTS (
     SELECT 1 FROM public.constellation_anchor
     WHERE viewer_id = $1 AND target_kind = $3 AND target_id = $4
@@ -109,6 +110,7 @@ DO UPDATE SET revision = EXCLUDED.revision
         position.coordinateSpaceVersion,
         TypedValue(Type.textArray, [for (final t in targets) t.kind.wireValue]),
         TypedValue(Type.textArray, [for (final t in targets) t.id]),
+        forceRevision,
       ],
     );
   }
