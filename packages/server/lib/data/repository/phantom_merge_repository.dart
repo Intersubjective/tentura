@@ -15,6 +15,7 @@ import 'package:tentura_server/utils/id.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'field_population_sql.dart';
 import 'owner_graph_unit_of_work.dart';
+import 'phantom_tag_transfer.dart';
 
 typedef _PinUndo = ({
   ConstellationAnchorPosition phantomPosition,
@@ -153,10 +154,20 @@ id = $1 AND lease_owner = $2 AND attempts = $3 AND state = 'queued'
     OwnerGraphScope scope,
     PhantomMergeJobLease job,
   ) async {
+    final variables = _claimVariables(scope, job);
+    // Erasure locks the account before cascading to the job. Match that order
+    // so a worker waiting on the account never holds the job row.
+    final account = await _database
+        .customSelect(
+          r'SELECT id FROM public."user" WHERE id = $1 FOR KEY SHARE',
+          variables: [Variable.withString(job.target.userId)],
+        )
+        .getSingleOrNull();
+    if (account == null) return false;
     final row = await _database
         .customSelect(
           'SELECT 1 FROM public.phantom_merge_job WHERE $_claimedJob FOR UPDATE',
-          variables: _claimVariables(scope, job),
+          variables: variables,
         )
         .getSingleOrNull();
     return row != null;
@@ -241,7 +252,12 @@ VALUES ($1, $2, $3, $4, $5, '{}'::jsonb)
     );
 
     final pinUndo = await _movePin(scope, target);
-    final tagsUndo = await _copyTags(target);
+    await transferPhantomTags(
+      _database,
+      scope,
+      ownerId: ownerId,
+      mergeId: mergeId,
+    );
     final contactUndo = await _writeContact(target, origin, displayName);
 
     await _database.customStatement(
@@ -253,11 +269,10 @@ WHERE user_id = $1 AND phantom_id = $2 AND invited_id IS NULL
     );
     await _database.customStatement(
       r'''
-UPDATE public.phantom_merge SET undo = $2::jsonb || $3::jsonb WHERE id = $1
+UPDATE public.phantom_merge SET undo = undo || $2::jsonb WHERE id = $1
 ''',
       [
         mergeId,
-        tagsUndo,
         jsonEncode({
           'pin': ?pinUndo,
           'contactName': {
@@ -373,10 +388,8 @@ WHERE id = $2 AND phantom_id IN (SELECT id FROM reactivated)
     );
     if (origin != PhantomMergeOrigin.manualLink) {
       final pair = [ownerId, target.userId];
-      await _database.customStatement(
-        r'SELECT public.trust_pair_lock($1, $2)',
-        pair,
-      );
+      // Like vote writes and Block, change the vote before locking its
+      // projection. Projecting takes the pair lock itself.
       await _database.customStatement(
         r'DELETE FROM public.vote_user WHERE subject = $1 AND object = $2',
         pair,
@@ -557,36 +570,6 @@ WHERE viewer_id = $1 AND target_kind = $2 AND target_id = $3
           'yUnits': position.yUnits,
           'coordinateSpaceVersion': position.coordinateSpaceVersion,
         };
-
-  Future<String> _copyTags(PhantomMergeTarget target) async {
-    final row = await _database.customWriteReturning(
-      r'''
-WITH original AS MATERIALIZED (
-  SELECT * FROM public.phantom_tag_member WHERE owner_id = $1 AND phantom_id = $2
-), inserted AS (
-  INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
-  SELECT tag_id, owner_id, $3, source FROM original
-  WHERE NOT public.block_hides($1, $3)
-  ON CONFLICT (tag_id, person_id) DO NOTHING
-  RETURNING membership_id
-)
-SELECT jsonb_build_object(
-  'phantomMemberships', COALESCE(
-    (SELECT jsonb_agg(to_jsonb(original) ORDER BY tag_id) FROM original), '[]'::jsonb
-  ),
-  'insertedMembershipIds', COALESCE(
-    (SELECT jsonb_agg(membership_id ORDER BY membership_id) FROM inserted), '[]'::jsonb
-  )
-)::text AS undo
-''',
-      variables: [
-        Variable.withString(target.ownerId),
-        Variable.withString(target.phantomId),
-        Variable.withString(target.userId),
-      ],
-    );
-    return row.single.read<String>('undo');
-  }
 
   Future<({String? before, String? written})> _writeContact(
     PhantomMergeTarget target,

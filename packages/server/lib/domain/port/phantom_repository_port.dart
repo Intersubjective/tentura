@@ -21,6 +21,13 @@ abstract interface class PhantomRepositoryPort {
     required String? emoji,
   });
 
+  /// Reads the committed join status for an owned entry without waiting on
+  /// the worker's owner scope.
+  Future<String?> findJoiningName({
+    required String ownerId,
+    required String id,
+  });
+
   /// Locks the owned person's invites and returns their name during a queued
   /// join. The locks remain held until the owner-graph transaction ends.
   Future<String?> lockInvitesAndFindJoiningName(

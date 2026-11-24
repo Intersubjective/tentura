@@ -283,10 +283,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
     if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
+      throw const InvitationWrongException.used();
     }
     if (InvitationEntity.hasExpired(
       createdAt: invitation.createdAt.dateTime,
@@ -296,6 +293,41 @@ class UserRepository implements UserRepositoryPort {
       throw const InvitationWrongException.expired();
     }
     return invitation;
+  }
+
+  Future<bool> _claimInvitation(
+    Invitation invitation,
+    String userId,
+    InviteOrigin origin,
+  ) async {
+    final updated =
+        await (_database.update(_database.invitations)..where(
+              (row) => row.id.equals(invitation.id) & row.invitedId.isNull(),
+            ))
+            .write(
+              InvitationsCompanion(
+                invitedId: Value(userId),
+                inviteOrigin: Value(origin.key),
+                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+    if (updated == 0 && invitation.phantomId != null) {
+      // The claim may have waited for a different joiner. Read the committed
+      // outcome so a consumed code and a deleted code keep distinct results.
+      await _requirePendingInvitation(invitation.id);
+    }
+    return updated != 0;
+  }
+
+  Future<void> _claimSignupInvitation(
+    Invitation invitation,
+    String userId,
+  ) async {
+    if (!await _claimInvitation(invitation, userId, InviteOrigin.newAccount)) {
+      throw const InvitationWrongException(
+        description: 'Can`t update invitation!',
+      );
+    }
   }
 
   @override
@@ -320,22 +352,7 @@ class UserRepository implements UserRepositoryPort {
       ),
     );
     await _createDeviceCredential(accountId: user.id, publicKey: publicKey);
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(user.id),
-                inviteOrigin: Value(InviteOrigin.newAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
-      throw const InvitationWrongException(
-        description: 'Can`t update invitation!',
-      );
-    }
+    await _claimSignupInvitation(invitation, user.id);
 
     await _finishInvitedSignup(
       invitation,
@@ -446,22 +463,7 @@ class UserRepository implements UserRepositoryPort {
       publicData: publicData,
       contacts: contacts,
     );
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(user.id),
-                inviteOrigin: Value(InviteOrigin.newAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
-      throw const InvitationWrongException(
-        description: 'Can`t update invitation!',
-      );
-    }
+    await _claimSignupInvitation(invitation, user.id);
 
     final descendantUser = await _database.managers.users
         .filter((e) => e.id(user.id))
@@ -936,8 +938,33 @@ class UserRepository implements UserRepositoryPort {
       );
 
   @override
-  Future<void> deleteById({required String id}) =>
-      _database.managers.users.filter((e) => e.id(id)).delete();
+  Future<void> deleteById({required String id}) async {
+    if (_database.mutatingTransactionIdentity == null) {
+      throw StateError('Account deletion requires the erasure transaction');
+    }
+    final account = await _database
+        .customSelect(
+          r'SELECT id FROM public."user" WHERE id = $1 FOR UPDATE',
+          variables: [Variable.withString(id)],
+        )
+        .getSingleOrNull();
+    if (account == null) return;
+
+    // An unchanged pin created by a link belongs to that link. Remove it
+    // before the account FK turns it into a retained map placement.
+    await _database.customStatement(
+      r'''
+DELETE FROM public.constellation_anchor a
+USING public.phantom_merge m
+WHERE m.user_id = $1 AND m.undone_at IS NULL
+  AND a.viewer_id = m.owner_id AND a.person_id = m.user_id
+  AND m.undo #> '{pin,previousPersonPosition}' = 'null'::jsonb
+  AND a.revision::text = m.undo #>> '{pin,personWatermark}'
+''',
+      [id],
+    );
+    await _database.managers.users.filter((e) => e.id(id)).delete();
+  }
 
   @override
   Future<InviteAcceptance> acceptRequestInvite({
@@ -1022,18 +1049,11 @@ class UserRepository implements UserRepositoryPort {
     // Claim the row first, atomically — everything below is a side effect
     // of a *successful* claim. A losing racer must get none of it (no
     // contact/forward/vote/trust-edge writes for an accept that didn't win).
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(userId),
-                inviteOrigin: Value(InviteOrigin.existingAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
+    if (!await _claimInvitation(
+      invitation,
+      userId,
+      InviteOrigin.existingAccount,
+    )) {
       return InviteAcceptance.notClaimed;
     }
     if (requestLapsed) return InviteAcceptance.requestLapsed;

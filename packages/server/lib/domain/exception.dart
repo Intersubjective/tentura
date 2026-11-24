@@ -195,6 +195,12 @@ final class InvitationWrongException extends ExceptionBase {
         reason: InvitationWrongReason.expired,
       );
 
+  const InvitationWrongException.used()
+    : this(
+        description: 'Invitation already used!',
+        reason: InvitationWrongReason.used,
+      );
+
   final InvitationWrongReason reason;
 }
 

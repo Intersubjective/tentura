@@ -112,8 +112,17 @@ FOR UPDATE OF i
 
     // Take a fresh snapshot after any wait on the accept transaction so we
     // can see the job that committed with the claim.
-    final joining = await _database.customSelect(
-      r'''
+    return findJoiningName(ownerId: ownerId, id: id);
+  }
+
+  @override
+  Future<String?> findJoiningName({
+    required String ownerId,
+    required String id,
+  }) async {
+    final joining = await _database
+        .customSelect(
+          r'''
 SELECT p.display_name
 FROM public.phantom p
 WHERE p.id = $1 AND p.owner_id = $2 AND EXISTS (
@@ -122,8 +131,9 @@ WHERE p.id = $1 AND p.owner_id = $2 AND EXISTS (
   WHERE i.phantom_id = p.id AND i.invited_id IS NOT NULL AND j.state = 'queued'
 )
 ''',
-      variables: variables,
-    ).getSingleOrNull();
+          variables: [Variable.withString(id), Variable.withString(ownerId)],
+        )
+        .getSingleOrNull();
     return joining?.read<String>('display_name');
   }
 

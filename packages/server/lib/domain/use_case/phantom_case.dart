@@ -96,15 +96,25 @@ final class PhantomCase {
     String ownerId,
     String id,
     Future<T> Function(OwnerGraphScope scope) action,
-  ) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
-    final name = await _repository.lockInvitesAndFindJoiningName(
-      scope,
+  ) async {
+    // A worker can still be linking this entry while its last committed
+    // state is queued. Reject the action before waiting on that worker.
+    final joining = await _repository.findJoiningName(
       ownerId: ownerId,
       id: id,
     );
-    if (name != null) throw PhantomJoiningException(name);
-    return action(scope);
-  });
+    if (joining != null) throw PhantomJoiningException(joining);
+
+    return _ownerGraph.run({ownerId}, ownerId, (scope) async {
+      final name = await _repository.lockInvitesAndFindJoiningName(
+        scope,
+        ownerId: ownerId,
+        id: id,
+      );
+      if (name != null) throw PhantomJoiningException(name);
+      return action(scope);
+    });
+  }
 
   Future<bool> dismissLinkHint({
     required String ownerId,

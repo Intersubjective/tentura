@@ -341,7 +341,8 @@ final class InvitationCase extends UseCaseBase {
     required String invitationId,
     required String userId,
     bool reportExpiry = false,
-  }) => _accept(invitationId, userId, byCode: false, reportExpiry: reportExpiry);
+  }) =>
+      _accept(invitationId, userId, byCode: false, reportExpiry: reportExpiry);
 
   Future<InviteAcceptance> acceptAsExisting({
     required String code,
@@ -365,6 +366,9 @@ final class InvitationCase extends UseCaseBase {
       throw const InvitationWrongException(
         description: 'Cannot accept your own invite',
       );
+    }
+    if (invitation.phantomId != null && invitation.isAccepted) {
+      throw const InvitationWrongException.used();
     }
     final isExpired = invitation.isExpiredWithTtl(env.invitationTTL);
     if (isExpired && reportExpiry) {
