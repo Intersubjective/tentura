@@ -1,4 +1,8 @@
+import 'dart:math' show max;
+
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart'
+    show ConstellationAnchorPhantomTarget;
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'package:tentura_server/consts/constellation_consts.dart';
@@ -92,7 +96,10 @@ final class ConstellationFieldSnapshotReader {
     // Everyone the viewer trusts directly is on the field (#246) and outside
     // the peer cap (Q6): a visible one as an ordinary peer, any other as a
     // contact node without content (Q5).
-    final directContactIds = await _directContactIds(viewerId);
+    final (:directContactIds, :phantoms) = await _directContactsAndPhantoms(
+      viewerId,
+      anchorProjection,
+    );
     final visibleSet = visiblePeerIds.toSet();
     final directVisibleIds = <String>{
       for (final id in directContactIds)
@@ -123,6 +130,7 @@ final class ConstellationFieldSnapshotReader {
     final kept = await _cappedPeerIds(
       viewerId: viewerId,
       context: context,
+      peerBudget: max(0, kConstellationPeerCap - phantoms.length),
       visiblePeerIds: visiblePeerIds,
       reservedPeerIds: reservedPeerIds,
       directContactIds: directContactIds.toSet(),
@@ -275,6 +283,7 @@ final class ConstellationFieldSnapshotReader {
       posts: postFeed.posts,
       memberWebs: postFeed.memberWebs,
       linkHints: linkHints,
+      phantoms: phantoms,
       directContactIds: [
         for (final id in directContactIds)
           if (peerIds.contains(id)) id,
@@ -283,6 +292,78 @@ final class ConstellationFieldSnapshotReader {
           ? anchorProjection
           : _withPinnedContactNodes(anchorProjection, contactOnlyIds),
     );
+  }
+
+  /// Reads explicit contacts and all active, owner-only phantoms together.
+  Future<({List<String> directContactIds, List<PhantomRecord> phantoms})>
+  _directContactsAndPhantoms(
+    String viewerId,
+    ConstellationAnchorProjection projection,
+  ) async {
+    final pinnedIds = {
+      for (final anchor in projection.anchors)
+        if (anchor.target case ConstellationAnchorPhantomTarget(:final id)) id,
+    };
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT vu.object AS id, false AS is_phantom, NULL::text AS display_name,
+       NULL::text AS emoji, NULL::text AS created_at,
+       NULL::text[] AS own_tag_ids, NULL::boolean AS has_live_invite
+FROM public.vote_user vu
+INNER JOIN public."user" u ON u.id = vu.object
+WHERE vu.subject = $1
+  AND vu.amount > 0
+  AND vu.object <> $1
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_block ub
+    WHERE (ub.blocker_id = $1 AND ub.blocked_id = vu.object)
+       OR (ub.blocker_id = vu.object AND ub.blocked_id = $1)
+  )
+UNION ALL
+SELECT p.id, true, p.display_name, p.emoji, p.created_at::text,
+       ARRAY(
+         SELECT m.tag_id FROM public.phantom_tag_member m
+         WHERE m.phantom_id = p.id AND m.owner_id = p.owner_id
+         ORDER BY m.tag_id
+       ),
+       EXISTS (
+         SELECT 1 FROM public.invitation i
+         WHERE i.phantom_id = p.id AND i.user_id = p.owner_id
+           AND i.invited_id IS NULL
+       )
+FROM public.phantom p
+WHERE p.owner_id = $1 AND p.merged_at IS NULL AND p.merged_user_id IS NULL
+ORDER BY id
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    final directContactIds = <String>[];
+    final phantoms = <PhantomRecord>[];
+    for (final row in rows) {
+      final id = row.read<String>('id');
+      if (row.read<bool>('is_phantom')) {
+        phantoms.add(
+          PhantomRecord(
+            id: id,
+            displayName: row.read<String>('display_name'),
+            emoji: row.readNullable<String>('emoji'),
+            ownTagIds: List<String>.unmodifiable(
+              row.read<List<Object?>>('own_tag_ids'),
+            ),
+            pinState: pinnedIds.contains(id) ? PhantomPinState.pinned : null,
+            inviteState: row.read<bool>('has_live_invite')
+                ? PhantomInviteState.live
+                : PhantomInviteState.none,
+            createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+          ),
+        );
+      } else {
+        directContactIds.add(id);
+      }
+    }
+    return (directContactIds: directContactIds, phantoms: phantoms);
   }
 
   /// Bond peers (people sharing a live Request with the viewer) outside
@@ -410,32 +491,6 @@ ORDER BY b.user_id, b.id
     }
     final dst = a.dst.compareTo(b.dst);
     return dst != 0 ? dst : a.tier.compareTo(b.tier);
-  }
-
-  /// People the viewer trusts directly (positive explicit trust, `vote_user`,
-  /// as the friends list reads it), with no block in either direction, in id
-  /// order. Unlike the visible set this needs no MeritRank round trip.
-  Future<List<String>> _directContactIds(String viewerId) async {
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT vu.object AS id
-FROM public.vote_user vu
-INNER JOIN public."user" u ON u.id = vu.object
-WHERE vu.subject = $1
-  AND vu.amount > 0
-  AND vu.object <> $1
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_block ub
-    WHERE (ub.blocker_id = $1 AND ub.blocked_id = vu.object)
-       OR (ub.blocker_id = vu.object AND ub.blocked_id = $1)
-  )
-ORDER BY vu.object
-''',
-          variables: [Variable.withString(viewerId)],
-        )
-        .get();
-    return [for (final row in rows) row.read<String>('id')];
   }
 
   ConstellationFieldRepository get _repo =>
@@ -641,12 +696,13 @@ ORDER BY m.beacon_id, m.person_id
   /// True when the viewer has yet to complete the initial backfill.
   bool firstSeenBackfill = false;
 
-  /// The peers kept under [kConstellationPeerCap], reserved ones aside:
+  /// The peers kept under [peerBudget], reserved ones aside:
   /// own-tagged > direct contacts > bond / temporary > BFS depth over the
   /// visible trust graph > id.
   Future<({Set<String> ids, bool capped})> _cappedPeerIds({
     required String viewerId,
     required String context,
+    required int peerBudget,
     required List<String> visiblePeerIds,
     required Set<String> reservedPeerIds,
     required Set<String> directContactIds,
@@ -661,7 +717,7 @@ ORDER BY m.beacon_id, m.person_id
       ])
         if (!reservedPeerIds.contains(id)) id,
     };
-    if (candidates.length <= kConstellationPeerCap) {
+    if (candidates.length <= peerBudget) {
       return (ids: candidates, capped: false);
     }
 
@@ -702,7 +758,7 @@ ORDER BY m.beacon_id, m.person_id
         final byDepth = (depth[a] ?? 1 << 30).compareTo(depth[b] ?? 1 << 30);
         return byDepth != 0 ? byDepth : a.compareTo(b);
       });
-    return (ids: ranked.take(kConstellationPeerCap).toSet(), capped: true);
+    return (ids: ranked.take(peerBudget).toSet(), capped: true);
   }
 
   /// The viewer's own tag ids per person among [personIds].

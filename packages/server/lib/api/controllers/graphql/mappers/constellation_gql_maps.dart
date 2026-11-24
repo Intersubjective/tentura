@@ -24,6 +24,19 @@ Map<String, dynamic> constellationFieldToGqlMap(
     for (final hint in snapshot.linkHints)
       {'phantomId': hint.phantomId, 'userId': hint.userId},
   ],
+  'phantoms': [
+    for (final phantom in snapshot.phantoms)
+      {
+        'id': phantom.id,
+        'displayName': phantom.displayName,
+        'emoji': phantom.emoji,
+        'hasPrivateAvatar': phantom.hasPrivateAvatar,
+        'ownTagIds': phantom.ownTagIds,
+        'pinState': phantom.pinState?.name,
+        'inviteState': phantom.inviteState.name,
+        'createdAt': phantom.createdAt.toIso8601String(),
+      },
+  ],
   'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
   'memberWebs': snapshot.memberWebs
       .map(constellationMemberWebToGqlMap)

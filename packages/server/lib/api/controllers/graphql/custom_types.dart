@@ -64,6 +64,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationAnchorOpResult,
   gqlTypeConstellationAnchorsApplyResult,
   gqlTypeConstellationLinkHint,
+  gqlTypeConstellationPhantom,
   gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -1464,6 +1465,22 @@ final gqlTypeConstellationLinkHint =
         field('userId', graphQLString.nonNullable()),
       ]);
 
+final gqlTypeConstellationPhantom =
+    GraphQLObjectType('ConstellationPhantom', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('emoji', graphQLString),
+        field('hasPrivateAvatar', graphQLBoolean.nonNullable()),
+        field(
+          'ownTagIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('pinState', graphQLString),
+        field('inviteState', graphQLString.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -1493,6 +1510,12 @@ final gqlTypeConstellationField =
           'linkHints',
           GraphQLListType(
             gqlTypeConstellationLinkHint.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'phantoms',
+          GraphQLListType(
+            gqlTypeConstellationPhantom.nonNullable(),
           ).nonNullable(),
         ),
         // Everyone the viewer trusts directly (#246), each with a node in

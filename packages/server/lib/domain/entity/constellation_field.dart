@@ -20,6 +20,7 @@ class ConstellationFieldSnapshot {
     this.memberWebs = const [],
     this.directContactIds = const [],
     this.linkHints = const [],
+    this.phantoms = const [],
     ConstellationAnchorProjection? anchorProjection,
   }) : anchorProjection =
            anchorProjection ?? ConstellationAnchorProjection.empty;
@@ -40,7 +41,36 @@ class ConstellationFieldSnapshot {
   /// ANCHORS read.
   final List<String> directContactIds;
   final List<ConstellationLinkHint> linkHints;
+  final List<PhantomRecord> phantoms;
   final ConstellationAnchorProjection anchorProjection;
+}
+
+enum PhantomPinState { pinned }
+
+enum PhantomInviteState { none, live }
+
+/// An active, private entry on its owner's Field.
+@immutable
+class PhantomRecord {
+  const PhantomRecord({
+    required this.id,
+    required this.displayName,
+    required this.emoji,
+    required this.ownTagIds,
+    required this.pinState,
+    required this.inviteState,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String displayName;
+  final String? emoji;
+  final List<String> ownTagIds;
+  final PhantomPinState? pinState;
+  final PhantomInviteState inviteState;
+  final DateTime createdAt;
+
+  bool get hasPrivateAvatar => false;
 }
 
 @immutable
