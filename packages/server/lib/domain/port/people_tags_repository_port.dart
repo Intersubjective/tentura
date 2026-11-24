@@ -51,8 +51,9 @@ abstract interface class PeopleTagsRepositoryPort {
   });
 
   /// Applies [ops] in order in one transaction. Adding someone a block hides
-  /// is skipped without a trace. Throws tagNotFound for a tag that is not
-  /// the owner's, invalidTag for the owner or an unknown person, and
+  /// is skipped without a trace. Phantom targets must be owned and active,
+  /// and can only be added manually. Throws tagNotFound for someone else's
+  /// tag, invalidTag for an invalid target or phantom source, and
   /// memberLimitReached when a tag would end over 1000 members.
   Future<void> applyMembers({
     required String ownerId,
@@ -61,7 +62,7 @@ abstract interface class PeopleTagsRepositoryPort {
     required List<PersonTagMemberOp> ops,
   });
 
-  /// Every own tag with its members, blocked people left out.
+  /// Every own tag with its members, omitting blocked people and merged phantoms.
   Future<List<PersonTagMembers>> memberships(String ownerId);
 
   /// Ids of the owner's tags that [personId] is in, in tag order.

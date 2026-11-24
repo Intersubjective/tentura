@@ -31,6 +31,23 @@ NOT EXISTS (
       OR (ub.blocker_id = m.person_id AND ub.blocked_id = $1))
 ''';
 
+const _activePhantomMembersSql = r'''
+SELECT m.tag_id, m.phantom_id
+  FROM public.phantom_tag_member m
+  JOIN public.phantom p ON p.id = m.phantom_id AND p.owner_id = m.owner_id
+ WHERE m.owner_id = $1 AND p.merged_at IS NULL
+''';
+
+const _listedMembersSql =
+    '''
+SELECT m.tag_id, m.person_id, m.source, false AS is_phantom
+  FROM public.person_tag_member m
+ WHERE m.owner_id = \$1 AND $_notBlockedSql
+UNION ALL
+SELECT p.tag_id, p.phantom_id, NULL::smallint, true
+  FROM ($_activePhantomMembersSql) p
+''';
+
 const _skippedSql = r'''
 UPDATE public.person_tag_suggestion_state
    SET consecutive_skips = CASE WHEN consecutive_skips + 1 >= 3
@@ -304,36 +321,66 @@ ON CONFLICT DO NOTHING
           peopleTagsCode: PeopleTagsExceptionCode.tagNotFound,
         );
       }
-      final added = {
-        for (final o in ops)
-          if (o.add) o.personId,
+      final operations = [
+        for (final op in ops) (op: op, isPhantom: op.personId.startsWith('PH')),
+      ];
+      final peopleToAdd = {
+        for (final (:op, :isPhantom) in operations)
+          if (op.add && !isPhantom) op.personId,
       }.toList();
+      final phantomIds = {
+        for (final (:op, :isPhantom) in operations)
+          if (isPhantom) op.personId,
+      }.toList();
+      // Validate against the current rows after acquiring the owner scope.
       final known = await _database
           .customSelect(
-            r'SELECT id FROM public."user" WHERE id = ANY($1::text[])',
-            variables: [Variable(TypedValue(Type.textArray, added))],
+            r'''
+SELECT id FROM public."user" WHERE id = ANY($1::text[])
+UNION ALL
+SELECT id FROM public.phantom
+ WHERE id = ANY($2::text[]) AND owner_id = $3 AND merged_at IS NULL
+''',
+            variables: [
+              Variable(TypedValue(Type.textArray, peopleToAdd)),
+              Variable(TypedValue(Type.textArray, phantomIds)),
+              Variable.withString(ownerId),
+            ],
           )
           .get();
-      if (known.length != added.length) {
+      if (known.length != peopleToAdd.length + phantomIds.length ||
+          operations.any(
+            (entry) =>
+                entry.isPhantom &&
+                entry.op.add &&
+                entry.op.source != kPersonTagSourceManual,
+          )) {
         throw PeopleTagsException(
           peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
         );
       }
-      for (final o in ops) {
+      for (final (op: o, :isPhantom) in operations) {
+        final (table, memberId) = isPhantom
+            ? ('phantom_tag_member', 'phantom_id')
+            : ('person_tag_member', 'person_id');
         if (o.add) {
-          await _database.customStatement(
-            r'''
-INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
-SELECT $1::text, $2::text, $3::text, $4::int
+          const unlessBlocked = r'''
  WHERE NOT EXISTS (
    SELECT 1 FROM public.user_block ub
     WHERE (ub.blocker_id = $2 AND ub.blocked_id = $3)
        OR (ub.blocker_id = $3 AND ub.blocked_id = $2))
+''';
+          await _database.customStatement(
+            '''
+INSERT INTO public.$table (tag_id, owner_id, $memberId, source)
+SELECT \$1::text, \$2::text, \$3::text, \$4::int
+${isPhantom ? '' : unlessBlocked}
 ON CONFLICT DO NOTHING
 ''',
             [o.tagId, ownerId, o.personId, o.source],
           );
         } else if (o.keep) {
+          if (isPhantom) continue;
           await _database.customStatement(
             '''
 UPDATE public.person_tag_member SET source = $kPersonTagSourceManual
@@ -343,9 +390,9 @@ UPDATE public.person_tag_member SET source = $kPersonTagSourceManual
           );
         } else {
           await _database.customStatement(
-            r'''
-DELETE FROM public.person_tag_member
- WHERE tag_id = $1 AND owner_id = $2 AND person_id = $3
+            '''
+DELETE FROM public.$table
+ WHERE tag_id = \$1 AND owner_id = \$2 AND $memberId = \$3
 ''',
             [o.tagId, ownerId, o.personId],
           );
@@ -353,9 +400,16 @@ DELETE FROM public.person_tag_member
       }
       final over = await _database
           .customSelect(
-            'SELECT 1 FROM public.person_tag_member '
-            r'WHERE owner_id = $1 AND tag_id = ANY($2::text[]) '
-            r'GROUP BY tag_id HAVING count(*) > $3',
+            '''
+SELECT 1
+  FROM (
+    SELECT tag_id FROM public.person_tag_member WHERE owner_id = \$1
+    UNION ALL
+    SELECT tag_id FROM ($_activePhantomMembersSql) p
+  ) members
+ WHERE tag_id = ANY(\$2::text[])
+ GROUP BY tag_id HAVING count(*) > \$3
+''',
             variables: [
               Variable.withString(ownerId),
               Variable(
@@ -385,6 +439,7 @@ DELETE FROM public.person_tag_member
     final rows = await _database
         .customSelect(
           '''
+WITH members AS ($_listedMembersSql)
 SELECT t.id AS tag_id,
        coalesce(
          array_agg(m.person_id ORDER BY m.person_id)
@@ -401,8 +456,7 @@ SELECT t.id AS tag_id,
            FILTER (WHERE m.source = $kPersonTagSourceInherited),
          '{}'::text[]) AS inviter_ids
   FROM public.person_tag t
-  LEFT JOIN public.person_tag_member m
-    ON m.tag_id = t.id AND $_notBlockedSql
+  LEFT JOIN members m ON m.tag_id = t.id
   LEFT JOIN public.invite_genealogy g
     ON g.descendant_user_id = m.person_id
    AND m.source = $kPersonTagSourceInherited
@@ -681,18 +735,15 @@ VALUES ($1, $2, $3, $4::jsonb)
   /// Members per tag, blocked people left out, and of those the ones off the
   /// owner's Field: not visible (the transaction-memoised closed form, no
   /// MeritRank call of its own), not a bond, contact or pinned person. The
-  /// visible set is only read when some member is left.
+  /// visible set is only read when a registered member is left.
   Future<Map<String, ({int count, int off})>> _counts(String ownerId) async {
     final rows = await _database
         .customSelect(
           '''
-WITH live AS MATERIALIZED (
-  SELECT m.tag_id, m.person_id FROM public.person_tag_member m
-   WHERE m.owner_id = \$1 AND $_notBlockedSql
-),
+WITH live AS MATERIALIZED ($_listedMembersSql),
 visible AS MATERIALIZED (
   SELECT public.person_visible_peer_ids_tx(\$1, '') AS ids
-   WHERE EXISTS (SELECT 1 FROM live)
+   WHERE EXISTS (SELECT 1 FROM live WHERE NOT is_phantom)
 ),
 near AS MATERIALIZED (
   SELECT vu.object AS id FROM public.vote_user vu
@@ -706,7 +757,8 @@ near AS MATERIALIZED (
 SELECT l.tag_id,
        count(*) AS member_count,
        count(*) FILTER (
-         WHERE NOT (l.person_id = ANY(
+         WHERE NOT l.is_phantom
+           AND NOT (l.person_id = ANY(
                  coalesce((SELECT v.ids FROM visible v), '{}'::text[])))
            AND NOT EXISTS (SELECT 1 FROM near n WHERE n.id = l.person_id)
        ) AS off_field_count
