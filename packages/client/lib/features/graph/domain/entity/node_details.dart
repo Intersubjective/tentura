@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/features/graph/domain/entity/forwards_recipient_marker.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_node_spec.dart'
     show FieldBeaconGlyph;
@@ -36,6 +37,7 @@ sealed class NodeDetails {
     UserNode() => 'u:$id',
     BeaconNode() => 'b:$id',
     FieldPersonNode() => 'fp:$id',
+    FieldPhantomNode() => FieldPhantomNode.graphIdFor(id),
     FieldBeaconNode() => 'fr:$id',
     FieldDraftNode() => 'fd:$id',
     GenealogyUserNode() => 'gu:$id',
@@ -362,6 +364,53 @@ final class FieldPersonNode extends NodeDetails {
       other.ring == ring &&
       other.isKept == isKept &&
       other.person == person;
+}
+
+/// A private Field marker for someone without a Tentura account.
+final class FieldPhantomNode extends NodeDetails {
+  const FieldPhantomNode({
+    required this.phantom,
+    super.pinned,
+    super.size,
+  });
+
+  static const graphPrefix = 'fh:';
+
+  static String graphIdFor(String id) => '$graphPrefix$id';
+
+  final Phantom phantom;
+
+  @override
+  String get id => phantom.id;
+
+  @override
+  String get userId => '';
+
+  @override
+  String get label => phantom.displayName;
+
+  @override
+  bool get hasImage => false;
+
+  @override
+  double get score => 0;
+
+  @override
+  double get rScore => 0;
+
+  @override
+  FieldPhantomNode copyWithPinned(bool isPinned) => FieldPhantomNode(
+    phantom: phantom,
+    pinned: isPinned,
+    size: size,
+  );
+
+  @override
+  int get hashCode => Object.hash(super.hashCode, phantom);
+
+  @override
+  bool operator ==(Object other) =>
+      super == other && other is FieldPhantomNode && other.phantom == phantom;
 }
 
 /// Request or Post satellite on the Constellation field map.

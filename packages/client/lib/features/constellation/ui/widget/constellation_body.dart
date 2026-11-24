@@ -933,6 +933,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
       cubit.selectPerson(null);
     } else if (state.selectedRequestId != null) {
       unawaited(_dismissRequestPreview(cubit));
+    } else if (state.selectedPhantomId != null) {
+      cubit.selectPhantom(null);
     } else {
       return;
     }
@@ -988,6 +990,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     if (state.selectedPersonId != null) cubit.selectPerson(null);
+    if (state.selectedPhantomId != null) cubit.selectPhantom(null);
     if (cubit.state.selectedRequestId != null) {
       unawaited(_dismissRequestPreview(cubit));
     }
@@ -1699,6 +1702,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               previous.loadError != current.loadError ||
               previous.selectedPersonId != current.selectedPersonId ||
               previous.selectedRequestId != current.selectedRequestId ||
+              previous.selectedPhantomId != current.selectedPhantomId ||
               previous.expandedPersonIds != current.expandedPersonIds ||
               previous.viewMode != current.viewMode ||
               previous.tagView != current.tagView ||
@@ -1809,7 +1813,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               );
                               final panelOpen =
                                   cubit.state.selectedPersonId != null ||
-                                  cubit.state.selectedRequestId != null;
+                                  cubit.state.selectedRequestId != null ||
+                                  cubit.state.selectedPhantomId != null;
                               if (!cubit.state.isComposing &&
                                   cubit.state.placementPhase ==
                                       ConstellationPlacementPhase.idle &&
@@ -2769,6 +2774,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             panelVisible && node.id == state.selectedPersonId,
                       ),
                     ),
+                  FieldPhantomNode() => _ConstellationMapNode(
+                    detail: _detail,
+                    child: _ConstellationPhantomMarker(
+                      selected: state.selectedPhantomId == node.id,
+                      child: GraphNodeWidget(
+                        key: TestIds.key(TestIds.graphNode(node.graphNodeId)),
+                        nodeDetails: node,
+                      ),
+                    ),
+                  ),
                   FieldBeaconNode(request: final request?) =>
                     _ConstellationMapNode(
                       detail: _detail,
@@ -3173,6 +3188,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     };
     final selected = switch (node) {
       FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
+      FieldPhantomNode() => node.id == state.selectedPhantomId,
       FieldBeaconNode(request: final request?) =>
         state.selectedRequestId == request.id,
       FieldBeaconNode(post: final post?) => state.selectedRequestId == post.id,
@@ -3251,7 +3267,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       onTap: () => _onNodeTap(context, cubit, node),
       neighbourOffsets: () => _neighbourOffsets(node.graphNodeId),
       child: _ConstellationMapNodeFocus(
-        circle: node is FieldPersonNode,
+        circle: node is FieldPersonNode || node is FieldPhantomNode,
         onActivate: () => _onNodeTap(context, cubit, node),
         onKeyboardFocus: () => _revealFocusedNode(cubit, node),
         child: ExcludeSemantics(child: marker),
@@ -3826,6 +3842,55 @@ class _DistrictMarker extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _ConstellationPhantomMarker extends StatefulWidget {
+  const _ConstellationPhantomMarker({
+    required this.selected,
+    required this.child,
+  });
+
+  final bool selected;
+  final Widget child;
+
+  @override
+  State<_ConstellationPhantomMarker> createState() =>
+      _ConstellationPhantomMarkerState();
+}
+
+class _ConstellationPhantomMarkerState
+    extends State<_ConstellationPhantomMarker> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Opacity(
+        opacity: widget.selected || _hovered ? 1 : 0.65,
+        child: Badge(
+          key: const Key('constellation.phantom.ghost_badge'),
+          backgroundColor: scheme.surfaceContainerHighest,
+          // The marker's accessible label also includes its localized status.
+          label: const Text('👻'),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: tt.graphPhantomAccent,
+                width: tt.tightGap / 2,
+              ),
+            ),
+            position: DecorationPosition.foreground,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ConstellationMapNode extends StatelessWidget {

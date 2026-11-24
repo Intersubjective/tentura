@@ -28,6 +28,7 @@ class ConstellationVisibilityBar extends StatelessWidget {
         final visibleTotal =
             counts.requests +
             counts.posts +
+            counts.phantoms +
             counts.people.values.fold<int>(0, (sum, n) => sum + n);
         if (visibleTotal == 0) {
           return const SizedBox.shrink();
@@ -89,6 +90,15 @@ class ConstellationVisibilityBar extends StatelessWidget {
             shown: visibility.posts,
             next: (shown) => visibility.copyWith(posts: shown),
           ),
+          if (counts.phantoms > 0)
+            chip(
+              key: 'phantoms',
+              label: l10n.constellationShowPhantoms,
+              hint: l10n.constellationShowPhantomsHint,
+              count: counts.phantoms,
+              shown: visibility.phantoms,
+              next: (shown) => visibility.copyWith(phantoms: shown),
+            ),
           for (final degree in ConstellationTrustDegree.values)
             chip(
               key: 'degree.${degree.name}',

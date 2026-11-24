@@ -19,6 +19,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.textMuted,
     required this.textFaint,
     required this.graphEdgePath,
+    required this.graphPhantomAccent,
     required this.info,
     required this.good,
     required this.warn,
@@ -88,6 +89,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
 
   /// Constellation / graph person-path edge stroke (tier-1/2/stub).
   final Color graphEdgePath;
+  final Color graphPhantomAccent;
 
   /// Info / mine / edit (sky family).
   final Color info;
@@ -246,6 +248,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     textMuted: p.textMuted,
     textFaint: p.textFaint,
     graphEdgePath: p.textMuted,
+    graphPhantomAccent: p.graphPhantomAccent,
     info: p.info,
     good: p.good,
     warn: p.warn,
@@ -433,6 +436,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     Color? textMuted,
     Color? textFaint,
     Color? graphEdgePath,
+    Color? graphPhantomAccent,
     Color? info,
     Color? good,
     Color? warn,
@@ -500,6 +504,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       textMuted: textMuted ?? this.textMuted,
       textFaint: textFaint ?? this.textFaint,
       graphEdgePath: graphEdgePath ?? this.graphEdgePath,
+      graphPhantomAccent: graphPhantomAccent ?? this.graphPhantomAccent,
       info: info ?? this.info,
       good: good ?? this.good,
       warn: warn ?? this.warn,
@@ -600,6 +605,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
       textFaint: Color.lerp(textFaint, other.textFaint, t)!,
       graphEdgePath: Color.lerp(graphEdgePath, other.graphEdgePath, t)!,
+      graphPhantomAccent:
+          Color.lerp(graphPhantomAccent, other.graphPhantomAccent, t) ??
+          graphPhantomAccent,
       info: Color.lerp(info, other.info, t)!,
       good: Color.lerp(good, other.good, t)!,
       warn: Color.lerp(warn, other.warn, t)!,

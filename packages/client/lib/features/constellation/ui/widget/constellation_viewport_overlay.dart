@@ -273,6 +273,7 @@ class _ConstellationViewportOverlayState
       1,
       tt.graphLabelMaxWidthPerson,
     ),
+    FieldPhantomNode(:final label) => (label, 1, tt.graphLabelMaxWidthPerson),
     FieldBeaconNode(request: final request?) => _requestLabelSpec(
       request,
       l10n,
@@ -395,6 +396,7 @@ class _ConstellationViewportOverlayState
     return switch (node) {
       FieldPersonNode(:final person) =>
         cubit.fieldPersonById(person.id)?.pinState != null,
+      FieldPhantomNode() => true,
       FieldBeaconNode(request: final request?) =>
         request.isPlaceholder ||
             constellationRequestStatusPresentation(
@@ -416,6 +418,7 @@ class _ConstellationViewportOverlayState
       buildWhen: (previous, current) =>
           previous.selectedPersonId != current.selectedPersonId ||
           previous.selectedRequestId != current.selectedRequestId ||
+          previous.selectedPhantomId != current.selectedPhantomId ||
           previous.graphRevision != current.graphRevision ||
           previous.viewMode != current.viewMode,
       builder: (context, state) {
@@ -527,6 +530,9 @@ class _ConstellationViewportOverlayState
                   0,
                 FieldBeaconNode(request: final request?)
                     when request.id == selectedRequestId =>
+                  0,
+                FieldPhantomNode(:final id)
+                    when id == state.selectedPhantomId =>
                   0,
                 FieldPersonNode(:final person) when person.id == viewerId => 1,
                 FieldPersonNode() => 2,

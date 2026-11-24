@@ -17,7 +17,7 @@ import '../bloc/constellation_cubit.dart';
 bool constellationFieldHasNoContacts(
   ConstellationField field,
   String viewerId,
-) => field.peers.every((p) => p.id == viewerId);
+) => field.phantoms.isEmpty && field.peers.every((p) => p.id == viewerId);
 
 /// People › Invitations, where a new invite link is made.
 void _openInvitations() => unawaited(GetIt.I<AppNavigator>().openInvitations());

@@ -29,6 +29,7 @@ class ConstellationVisibility {
   const ConstellationVisibility({
     this.requests = true,
     this.posts = true,
+    this.phantoms = true,
     this.firstDegree = true,
     this.secondDegree = true,
     this.furtherDegrees = true,
@@ -48,6 +49,7 @@ class ConstellationVisibility {
     return ConstellationVisibility(
       requests: read('requests'),
       posts: read('posts'),
+      phantoms: read('phantoms'),
       firstDegree: read('first'),
       secondDegree: read('second'),
       furtherDegrees: read('further'),
@@ -59,6 +61,7 @@ class ConstellationVisibility {
 
   final bool requests;
   final bool posts;
+  final bool phantoms;
   final bool firstDegree;
   final bool secondDegree;
   final bool furtherDegrees;
@@ -67,7 +70,12 @@ class ConstellationVisibility {
   final bool fieldHoldHintDismissed;
 
   bool get showsEverything =>
-      requests && posts && firstDegree && secondDegree && furtherDegrees;
+      requests &&
+      posts &&
+      phantoms &&
+      firstDegree &&
+      secondDegree &&
+      furtherDegrees;
 
   bool get hidesPeople => !(firstDegree && secondDegree && furtherDegrees);
 
@@ -89,6 +97,7 @@ class ConstellationVisibility {
   ConstellationVisibility copyWith({
     bool? requests,
     bool? posts,
+    bool? phantoms,
     bool? firstDegree,
     bool? secondDegree,
     bool? furtherDegrees,
@@ -96,6 +105,7 @@ class ConstellationVisibility {
   }) => ConstellationVisibility(
     requests: requests ?? this.requests,
     posts: posts ?? this.posts,
+    phantoms: phantoms ?? this.phantoms,
     firstDegree: firstDegree ?? this.firstDegree,
     secondDegree: secondDegree ?? this.secondDegree,
     furtherDegrees: furtherDegrees ?? this.furtherDegrees,
@@ -106,6 +116,7 @@ class ConstellationVisibility {
   Map<String, Object?> toJson() => {
     'requests': requests,
     'posts': posts,
+    'phantoms': phantoms,
     'first': firstDegree,
     'second': secondDegree,
     'further': furtherDegrees,
@@ -117,6 +128,7 @@ class ConstellationVisibility {
       other is ConstellationVisibility &&
       other.requests == requests &&
       other.posts == posts &&
+      other.phantoms == phantoms &&
       other.firstDegree == firstDegree &&
       other.secondDegree == secondDegree &&
       other.furtherDegrees == furtherDegrees &&
@@ -126,6 +138,7 @@ class ConstellationVisibility {
   int get hashCode => Object.hash(
     requests,
     posts,
+    phantoms,
     firstDegree,
     secondDegree,
     furtherDegrees,
@@ -216,6 +229,12 @@ ConstellationField constellationVisibleField({
   if (visibility.showsEverything) {
     return field;
   }
+  if (visibility.requests && visibility.posts && !visibility.hidesPeople) {
+    return field.copyWith(
+      phantoms: const [],
+      anchorProjection: field.anchorProjection?.withoutPhantomAnchors(),
+    );
+  }
   final byDegree = !visibility.hidesPeople
       ? const <String, ConstellationTrustDegree>{}
       : degrees ?? constellationTrustDegrees(field: field, viewerId: viewerId);
@@ -263,6 +282,7 @@ ConstellationField constellationVisibleField({
     ],
     requests: requests,
     posts: posts,
+    phantoms: visibility.phantoms ? field.phantoms : const [],
     memberWebs: [
       for (final web in field.memberWebs)
         if (keptBeaconIds.contains(web.beaconId) && shown(web.personId)) web,
@@ -283,7 +303,7 @@ ConstellationField constellationVisibleField({
                   ),
                   ConstellationAnchorTargetKind.beacon =>
                     !hiddenBeaconIds.contains(anchor.target.id),
-                  ConstellationAnchorTargetKind.phantom => true,
+                  ConstellationAnchorTargetKind.phantom => visibility.phantoms,
                 })
                   anchor,
             ],
@@ -356,6 +376,7 @@ Set<String> constellationHiddenItemHolderIds({
 typedef ConstellationVisibilityCounts = ({
   int requests,
   int posts,
+  int phantoms,
   Map<ConstellationTrustDegree, int> people,
 });
 
@@ -395,5 +416,10 @@ ConstellationVisibilityCounts constellationVisibilityCounts({
               (post.isPinned && anchoredBeaconIds.contains(post.id))))
         post,
   ];
-  return (requests: requestIds.length, posts: posts.length, people: people);
+  return (
+    requests: requestIds.length,
+    posts: posts.length,
+    phantoms: field.phantoms.length,
+    people: people,
+  );
 }

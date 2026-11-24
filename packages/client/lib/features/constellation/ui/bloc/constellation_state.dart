@@ -63,6 +63,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(<String>{}) Set<String> expandedPersonIds,
     String? selectedPersonId,
     String? selectedRequestId,
+    String? selectedPhantomId,
     @Default(ConstellationViewMode.map) ConstellationViewMode viewMode,
     @Default(0) int graphRevision,
     Object? loadError,

@@ -10850,6 +10850,18 @@
   "@constellationShowPostsHint": {
     "context": "Field: tooltip of the Posts show/hide switch (#645)"
   },
+  "constellationShowPhantoms": "Not here yet",
+  "@constellationShowPhantoms": {
+    "context": "Field filter chip for people who do not have an account yet"
+  },
+  "constellationShowPhantomsHint": "Show or hide people who are not on Tentura yet",
+  "@constellationShowPhantomsHint": {
+    "context": "Tooltip for the same show or hide filter"
+  },
+  "constellationPhantomStatus": "Not on Tentura yet",
+  "@constellationPhantomStatus": {
+    "context": "Status of a person without an account in the Field List and search"
+  },
   "constellationShowDegreeFirst": "1st degree",
   "@constellationShowDegreeFirst": {
     "context": "Field: switch for people the viewer trusts directly (#645)"

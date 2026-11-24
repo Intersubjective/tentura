@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
@@ -300,13 +301,36 @@ class _ConstellationPersonSearchButtonState
     final query = raw.trim();
     final viewerId = cubit.viewerId;
 
+    final phantomSuggestions = [
+      for (final phantom in cubit.shownField?.phantoms ?? const <Phantom>[])
+        if (constellationNameMatches(phantom.displayName, query))
+          ListTile(
+            key: Key('constellation.field_search.phantom.${phantom.id}'),
+            title: Text(phantom.displayName, overflow: TextOverflow.ellipsis),
+            subtitle: Text(l10n.constellationPhantomStatus),
+            onTap: () {
+              controller.closeView(null);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                cubit.focusPhantom(
+                  phantom.id,
+                  insets: cubit.fieldCameraViewportInsets(
+                    context,
+                    contextPanelVisible: false,
+                  ),
+                );
+              });
+            },
+          ),
+    ];
+
     if (cubit.fieldSearchCase == null) {
-      return _localPeopleSuggestions(
-        context,
-        cubit,
-        controller,
-        _localPeopleMatches(cubit, raw, viewerId: viewerId),
-      ).toList();
+      final localPeople = _localPeopleMatches(cubit, raw, viewerId: viewerId);
+      return [
+        if (localPeople.isNotEmpty || phantomSuggestions.isEmpty)
+          ..._localPeopleSuggestions(context, cubit, controller, localPeople),
+        ...phantomSuggestions,
+      ];
     }
 
     if (query.isEmpty) {
@@ -348,26 +372,6 @@ class _ConstellationPersonSearchButtonState
         ? _localPeopleMatches(cubit, raw, viewerId: viewerId)
         : const <ConstellationFieldPerson>[];
 
-    if (!useOfflinePeople &&
-        serverPeopleFiltered.isEmpty &&
-        _viewState.resolvedResults.requests.isEmpty &&
-        _viewState.resolvedResults.posts.isEmpty &&
-        localPeople.isEmpty) {
-      final onlyViewer =
-          serverPeople.isNotEmpty &&
-          serverPeople.every((hit) => hit.id == viewerId);
-      return [
-        ListTile(
-          key: const Key('constellation.field_search.empty'),
-          title: Text(
-            onlyViewer
-                ? l10n.constellationFieldSearchSelfOnly
-                : l10n.constellationFieldSearchEmpty,
-          ),
-        ),
-      ];
-    }
-
     final widgets = <Widget>[];
 
     if (useOfflinePeople) {
@@ -379,16 +383,18 @@ class _ConstellationPersonSearchButtonState
           ),
         );
       }
-      widgets.addAll(
-        _localPeopleSuggestions(
-          context,
-          cubit,
-          controller,
-          localPeople,
-          grouped: true,
-        ),
-      );
-      return widgets;
+      if (localPeople.isNotEmpty || phantomSuggestions.isEmpty) {
+        widgets.addAll(
+          _localPeopleSuggestions(
+            context,
+            cubit,
+            controller,
+            localPeople,
+            grouped: true,
+          ),
+        );
+      }
+      return [...widgets, ...phantomSuggestions];
     }
 
     if (serverPeopleFiltered.isNotEmpty) {
@@ -426,6 +432,8 @@ class _ConstellationPersonSearchButtonState
         );
       }
     }
+
+    widgets.addAll(phantomSuggestions);
 
     if (_viewState.resolvedResults.requests.isNotEmpty) {
       widgets.add(

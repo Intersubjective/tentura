@@ -894,14 +894,36 @@ class ConstellationSceneController {
 
     layoutEgoId = viewer.id;
     layoutPaths = paths;
-    layoutKeptPeerIds = keptPeerIds;
+    final phantomNodes = [
+      if (!isComposing && forwardTree == null && tagViewAlgorithm == null)
+        for (final phantom in field.phantoms)
+          FieldPhantomNode(
+            phantom: phantom,
+            pinned: phantom.pinState != null,
+          ),
+    ];
+    final phantomGraphIds = {
+      for (final node in phantomNodes) node.graphNodeId,
+    };
+    layoutKeptPeerIds = phantomGraphIds.isEmpty
+        ? keptPeerIds
+        : {...keptPeerIds, ...phantomGraphIds};
     final anchors = overlay?.anchors ?? const <ConstellationAnchor>[];
+    layoutAnchorByNodeId = {
+      for (final anchor in anchors)
+        (anchor.target.kind == ConstellationAnchorTargetKind.phantom
+                ? FieldPhantomNode.graphIdFor(anchor.target.id)
+                : anchor.target.graphNodeId):
+            anchor.position,
+    };
     // Hard pins only: ids with an anchor coordinate. Peers listed as pinned
     // without a person anchor must not block automatic placement.
     layoutPinnedPersonIds = {
       for (final anchor in anchors)
         if (anchor.target.kind == ConstellationAnchorTargetKind.person)
           anchor.target.id,
+      for (final id in phantomGraphIds)
+        if (layoutAnchorByNodeId.containsKey(id)) id,
     };
     layoutPinnedRequestIds = {
       for (final anchor in anchors)
@@ -911,10 +933,6 @@ class ConstellationSceneController {
     layoutSupportPersonIds = {
       if (overlay != null)
         for (final peer in overlay.supportPeers) peer.id,
-    };
-    layoutAnchorByNodeId = {
-      for (final entry in constellationAnchorsByNodeId(anchors).entries)
-        entry.key: entry.value.position,
     };
     final drawnSatellites = constellationDrawnSatellites(
       plan,
@@ -1315,6 +1333,7 @@ class ConstellationSceneController {
       edges: edges,
     );
 
+    nodes.addAll(phantomNodes);
     final previous = graphController.renderSnapshot;
     final previousNodeIds = previous.topology.nodesById.keys.toSet();
     graphController.reconcileTopology(
@@ -1597,7 +1616,9 @@ class ConstellationSceneController {
       }
       bounds = bounds == null ? rect : bounds.expandToInclude(rect);
       final payload = sceneNode.payload;
-      if (payload is FieldPersonNode || payload is FieldBeaconNode) {
+      if (payload is FieldPersonNode ||
+          payload is FieldBeaconNode ||
+          payload is FieldPhantomNode) {
         maxBodyRadius = math.max(maxBodyRadius, sceneNode.size.width / 2);
       }
     }
@@ -1735,7 +1756,9 @@ class ConstellationSceneController {
       return null;
     }
     final payload = sceneNode.payload;
-    if (payload is! FieldPersonNode && payload is! FieldBeaconNode) {
+    if (payload is! FieldPersonNode &&
+        payload is! FieldBeaconNode &&
+        payload is! FieldPhantomNode) {
       return null;
     }
     final bounds = constellationPlacedNodeBounds(

@@ -139,6 +139,11 @@ class TenturaColorPalette {
   /// Alias: info tone == brand.
   Color get info => brand;
 
+  /// Outline for private Field entries without a Tentura account.
+  Color get graphPhantomAccent => brightness == Brightness.dark
+      ? const Color(0xFFC4B5FD)
+      : const Color(0xFF6D28D9);
+
   /// Picks a stable avatar hue for [key] (usually a user id).
   TenturaSwatch avatarHueFor(String key) {
     // FNV-1a + a 32-bit finaliser: ids share long prefixes, and a plain

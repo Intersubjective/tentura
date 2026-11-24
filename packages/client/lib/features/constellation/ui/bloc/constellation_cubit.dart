@@ -565,6 +565,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ),
         selectedRequestId: beaconId,
         selectedPersonId: null,
+        selectedPhantomId: null,
       ),
     );
     _rebuildGraphWithoutLayout();
@@ -2219,6 +2220,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         viewMode: ConstellationViewMode.map,
         selectedPersonId: null,
         selectedRequestId: null,
+        selectedPhantomId: null,
       ),
     );
     _recomposeAndLayout();
@@ -3188,13 +3190,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectedRequestId != _searchPickBeaconId &&
         !_searchRevealedBeaconIds.contains(selectedRequestId) &&
         !composition.eligibleRequestIds.contains(selectedRequestId);
-    if (!clearPerson && !clearRequest) {
+    final selectedPhantomId = state.selectedPhantomId;
+    final clearPhantom =
+        selectedPhantomId != null &&
+        !(shownField?.phantoms.any(
+              (phantom) => phantom.id == selectedPhantomId,
+            ) ??
+            false);
+    if (!clearPerson && !clearRequest && !clearPhantom) {
       return;
     }
     emit(
       state.copyWith(
         selectedPersonId: clearPerson ? null : selectedPersonId,
         selectedRequestId: clearRequest ? null : selectedRequestId,
+        selectedPhantomId: clearPhantom ? null : selectedPhantomId,
       ),
     );
   }
@@ -3273,6 +3283,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         selectedRequestId: requestId,
         selectedPersonId: requestId != null ? null : state.selectedPersonId,
+        selectedPhantomId: requestId != null ? null : state.selectedPhantomId,
       ),
     );
     if (requestId != null && requestById(requestId)?.isPlaceholder != true) {
@@ -5080,6 +5091,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         !chain.path.contains(person.id) &&
             !selectedMutualTrustIds.contains(person.id),
       FieldBeaconNode(:final userId) => userId != chain.path.last,
+      FieldPhantomNode() => false,
       _ => true,
     };
   }
@@ -5353,6 +5365,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectRequest(request.id);
       case FieldBeaconNode(post: final post?):
         selectRequest(post.id);
+      case FieldPhantomNode(:final id):
+        selectPhantom(id);
       default:
         break;
     }
@@ -5431,6 +5445,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         selectedPersonId: personId,
         selectedRequestId: personId != null ? null : state.selectedRequestId,
+        selectedPhantomId: personId != null ? null : state.selectedPhantomId,
       ),
     );
     _ensureMutualTrust();
@@ -5442,6 +5457,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } else {
       _scene.rebuild(_rebuildGraphWithoutLayout);
     }
+  }
+
+  void selectPhantom(String? id) {
+    if (isClosed || state.selectedPhantomId == id) return;
+    if (id != null) {
+      if (state.selectedPersonId != null) selectPerson(null);
+      if (state.selectedRequestId != null) selectRequest(null);
+      _clearSearchPickSession();
+    }
+    emit(state.copyWith(selectedPhantomId: id));
+  }
+
+  void focusPhantom(String id, {required EdgeInsets insets}) {
+    final position = graphController.getPositionOrNullForId(
+      FieldPhantomNode.graphIdFor(id),
+    );
+    if (position == null) return;
+    selectPhantom(id);
+    graphController.jumpToPosition(position, viewportInsets: insets);
   }
 
   void togglePersonRequestsExpanded(String personId) {
