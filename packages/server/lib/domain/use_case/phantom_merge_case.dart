@@ -57,6 +57,19 @@ final class PhantomMergeCase {
     };
   }
 
+  Future<bool> unmerge({required String ownerId, required String phantomId}) =>
+      _ownerGraph.run({ownerId}, ownerId, (scope) async {
+        final mergeId = await _merges.lockCurrentMerge(
+          scope,
+          ownerId: ownerId,
+          phantomId: phantomId,
+        );
+        if (mergeId == null) throw IdNotFoundException(id: phantomId);
+        await _phantoms.requireActiveCapacity(scope, ownerId);
+        await _merges.unmerge(scope, ownerId: ownerId, mergeId: mergeId);
+        return true;
+      });
+
   /// An owner selecting a person from their Field omits [origin]. An explicit
   /// origin runs the merge engine for an already authorized target.
   Future<PhantomMergeResult> merge({

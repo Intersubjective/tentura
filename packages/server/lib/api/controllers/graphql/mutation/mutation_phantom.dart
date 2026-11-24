@@ -87,6 +87,15 @@ final class MutationPhantom extends GqlNodeBase {
       ),
     ),
     GraphQLObjectField(
+      'phantomUnmerge',
+      graphQLBoolean.nonNullable(),
+      arguments: [_phantomId.field],
+      resolve: (_, args) => GetIt.I<PhantomMergeCase>().unmerge(
+        ownerId: getCredentials(args).sub,
+        phantomId: _phantomId.fromArgsNonNullable(args),
+      ),
+    ),
+    GraphQLObjectField(
       'phantomHintDismiss',
       graphQLBoolean.nonNullable(),
       arguments: [_phantomId.field, _userId.field],

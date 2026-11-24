@@ -13,8 +13,6 @@ import 'contact_case.dart';
 final class PhantomCase {
   const PhantomCase(this._ownerGraph, this._repository, this._anchors);
 
-  static const _activeCap = 200;
-
   final OwnerGraphTransactionPort _ownerGraph;
   final PhantomRepositoryPort _repository;
   final ScopedConstellationAnchorRepositoryPort _anchors;
@@ -29,9 +27,7 @@ final class PhantomCase {
     _validateEmoji(emoji);
     final id = generateId('PH');
     return _ownerGraph.run({ownerId}, ownerId, (scope) async {
-      if (await _repository.countActive(scope, ownerId) >= _activeCap) {
-        throw const PhantomCapReachedException();
-      }
+      await _repository.requireActiveCapacity(scope, ownerId);
       await _repository.insert(
         scope,
         ownerId: ownerId,

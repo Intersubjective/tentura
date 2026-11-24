@@ -9,9 +9,11 @@ import 'dart:mirrors' as vm;
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:postgres/postgres.dart';
+import 'package:shelf_plus/shelf_plus.dart' show Handler, Request;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
@@ -21,10 +23,12 @@ import 'package:tentura_server/domain/port/constellation_anchor_repository_port.
 import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
+import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/contact_case.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_case.dart';
+import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/owner_graph_contention.dart';
@@ -477,6 +481,342 @@ Future<void> main() async {
         );
       });
     }
+
+    group('Unlinking a merged phantom', () {
+      late _UnlinkApi api;
+
+      setUpAll(() async {
+        api = _UnlinkApi((await getIt.getAsync<RootRouter>()).routeHandler());
+      });
+
+      Future<void> linkManually() async {
+        await fixture.seedOutgoingVote();
+        await api.link(fixture.phantom);
+        await fixture.expectLinkedForUndo(_Origin.manualLink);
+      }
+
+      Future<void> unlink() async {
+        final reply = await api.unmerge(fixture.phantom);
+        expect(reply, {
+          'data': {'phantomUnmerge': true},
+        });
+      }
+
+      test('restores the map entry in its tags and removes only copied '
+          'account memberships', () async {
+        final shared = await fixture.tag('Shared tag', [
+          fixture.phantom,
+          _person,
+        ]);
+        final copied = await fixture.tag('Copied tag', [fixture.phantom]);
+        final original = (await fixture.personMemberships()).single;
+        expect(original['tag_id'], shared);
+
+        await linkManually();
+
+        final inserted = (await fixture.personMemberships()).singleWhere(
+          (row) => row['tag_id'] == copied,
+        );
+        expect((await fixture.undo())['insertedMembershipIds'], [
+          inserted['membership_id'],
+        ]);
+        expect(await fixture.visibleMemberships(), {
+          shared: [_person],
+          copied: [_person],
+        });
+
+        await unlink();
+
+        expect(await fixture.visibleMemberships(), {
+          shared: unorderedEquals([fixture.phantom, _person]),
+          copied: [fixture.phantom],
+        });
+        expect(await fixture.personMemberships(), [original]);
+      });
+
+      test(
+        'keeps an account membership removed and re-added after linking',
+        () async {
+          final tag = await fixture.tag('Neighbours', [fixture.phantom]);
+          await linkManually();
+          final inserted = (await fixture.personMemberships()).single;
+
+          await fixture.changeAccountMembership(tag, add: false);
+          expect(await fixture.personMemberships(), isEmpty);
+          await fixture.changeAccountMembership(tag, add: true);
+          final readded = (await fixture.personMemberships()).single;
+          expect(readded['membership_id'], isNot(inserted['membership_id']));
+
+          await unlink();
+
+          expect(await fixture.personMemberships(), [readded]);
+          expect(await fixture.visibleMemberships(), {
+            tag: unorderedEquals([fixture.phantom, _person]),
+          });
+        },
+      );
+
+      for (final hadAccountPin in [false, true]) {
+        test(
+          hadAccountPin
+              ? 'restores both pins to their original positions and advances both watermarks'
+              : 'restores the private pin, removes the copied account pin and advances both watermarks',
+          () async {
+            if (hadAccountPin) {
+              await fixture.pin(
+                const ConstellationAnchorPersonTarget(_person),
+                _personPosition,
+              );
+            }
+            await fixture.pin(
+              ConstellationAnchorPhantomTarget(fixture.phantom),
+              _phantomPosition,
+            );
+            await linkManually();
+            expect(await fixture.livePinPositions(), {
+              ('PERSON', _person): _phantomPosition.toFixtureMap(),
+            });
+            final before = await fixture.watermarks();
+
+            await unlink();
+
+            expect(await fixture.livePinPositions(), {
+              ('PHANTOM', fixture.phantom): _phantomPosition.toFixtureMap(),
+              if (hadAccountPin)
+                ('PERSON', _person): _personPosition.toFixtureMap(),
+            });
+            await fixture.expectAdvancedWatermarks(before);
+          },
+        );
+      }
+
+      test('keeps a later account pin move without restoring the private '
+          'pin and advances both watermarks', () async {
+        await fixture.pin(
+          ConstellationAnchorPhantomTarget(fixture.phantom),
+          _phantomPosition,
+        );
+        await linkManually();
+        final linked = await fixture.watermarks();
+        await fixture.pin(
+          const ConstellationAnchorPersonTarget(_person),
+          _personPosition,
+        );
+        final moved = await fixture.livePinPositions();
+        expect(moved, {('PERSON', _person): _personPosition.toFixtureMap()});
+        final before = await fixture.watermarks();
+        expect(before['PERSON'], greaterThan(linked['PERSON']!));
+
+        await unlink();
+
+        expect(await fixture.livePinPositions(), moved);
+        await fixture.expectAdvancedWatermarks(before);
+      });
+
+      for (final oldName in [null, 'Old']) {
+        test(
+          oldName == null
+              ? 'removes the invite-written contact name when there was no previous name'
+              : 'restores the previous contact name after an invitation link',
+          () async {
+            if (oldName != null) await fixture.editContactName(oldName);
+            expect(await fixture.contactName(_person), oldName);
+            await fixture.linkByAcceptedInvite();
+            expect(await fixture.contactName(_person), _initialName);
+
+            await unlink();
+
+            expect(await fixture.contactName(_person), oldName);
+            if (oldName == null) expect(await fixture.contactRows(), isEmpty);
+          },
+        );
+      }
+
+      test(
+        'keeps a contact name the owner edited after an invitation link',
+        () async {
+          await fixture.editContactName('Old');
+          await fixture.linkByAcceptedInvite();
+          expect(await fixture.contactName(_person), _initialName);
+          await fixture.editContactName('Updated by owner');
+
+          await unlink();
+
+          expect(await fixture.contactName(_person), 'Updated by owner');
+        },
+      );
+
+      for (final hadVote in [false, true]) {
+        test(
+          hadVote
+              ? 'withdraws pre-existing outgoing trust and re-projects the invite pair'
+              : 'withdraws invite-created outgoing trust and keeps the reverse vote',
+          () async {
+            if (hadVote) await fixture.seedOutgoingVote();
+            final priorVote = await fixture.pairVotes();
+            expect(priorVote, hasLength(hadVote ? 1 : 0));
+            await fixture.linkByAcceptedInvite();
+            final linkedVotes = await fixture.pairVotes();
+            expect(linkedVotes.map((row) => row['subject']), [_owner, _person]);
+            if (hadVote) expect(linkedVotes.first, priorVote.single);
+            final linkedProjection = await fixture.projectedTrust(
+              fixture.writer,
+            );
+            final withoutVote = await fixture.projectionWithoutOutgoingVote();
+            expect(linkedProjection, isNot(withoutVote));
+            expect(await fixture.pairVotes(), linkedVotes);
+
+            await unlink();
+
+            expect(await fixture.pairVotes(), [linkedVotes.last]);
+            expect(await fixture.projectedTrust(fixture.writer), withoutVote);
+          },
+        );
+      }
+
+      test(
+        'withdraws outgoing trust after an invitation creates an account',
+        () async {
+          final user = await fixture.linkByAcceptedInvite(
+            origin: _Origin.inviteNew,
+          );
+          final linkedVotes = await fixture.pairVotes(user: user);
+          expect(
+            linkedVotes.map((row) => row['subject']),
+            unorderedEquals([_owner, user]),
+          );
+          final reverse = linkedVotes.singleWhere(
+            (row) => row['subject'] == user,
+          );
+
+          await unlink();
+
+          expect(await fixture.pairVotes(user: user), [reverse]);
+        },
+      );
+
+      test('preserves outgoing trust after a manual link', () async {
+        await linkManually();
+        final before = await fixture.pairVotes();
+        expect(before.single['subject'], _owner);
+
+        await unlink();
+
+        expect(await fixture.pairVotes(), before);
+      });
+
+      test(
+        'clears the active link and marks its audit record undone',
+        () async {
+          await linkManually();
+          final previous = (await fixture.mergeRows()).single;
+
+          await unlink();
+
+          expect(
+            await fixture.phantomRow(),
+            allOf(
+              containsPair('merged_user_id', isNull),
+              containsPair('merged_at', isNull),
+              containsPair('merge_origin', isNull),
+              containsPair('current_merge_id', isNull),
+            ),
+          );
+          expect(await fixture.mergeRows(), [
+            allOf(
+              containsPair('id', previous['id']),
+              containsPair('undone_at', isA<DateTime>()),
+            ),
+          ]);
+        },
+      );
+
+      test('leaves the private entry without a live invite until a new one is '
+          'requested', () async {
+        final oldCode = await api.ensureInvite(fixture.phantom);
+        expect((await fixture.liveInvites()).single['id'], oldCode);
+        await linkManually();
+        expect(await fixture.liveInvites(), isEmpty);
+
+        await unlink();
+
+        expect(await fixture.liveInvites(), isEmpty);
+        final newCode = await api.ensureInvite(fixture.phantom);
+        expect(newCode, isNot(oldCode));
+        expect((await fixture.liveInvites()).single['id'], newCode);
+      });
+
+      test(
+        'returns not-found to another account and preserves the merge and account data',
+        () async {
+          await fixture.prepareInviteLinkWithTagsAndPin();
+          final before = await fixture.unlinkSnapshot();
+
+          final reply = await api.unmerge(fixture.phantom, actor: _otherPerson);
+
+          expect(
+            await fixture.unlinkSnapshot(),
+            before,
+            reason:
+                'The merge, copied membership, account pin and contact name '
+                'must survive the rejected unlink.',
+          );
+          _expectUnlinkRefused(reply, containsPair('code', '1002'));
+        },
+      );
+
+      test('refuses to reactivate an entry at the cap and preserves the '
+          'entire invitation link', () async {
+        await fixture.prepareInviteLinkWithTagsAndPin();
+        await fixture.seedActiveEntriesAtCap();
+        expect(await fixture.activeEntryCount(), 200);
+        final before = await fixture.unlinkSnapshot();
+
+        final reply = await api.unmerge(fixture.phantom);
+
+        expect(await fixture.activeEntryCount(), 200);
+        expect(await fixture.unlinkSnapshot(), before);
+        _expectUnlinkRefused(
+          reply,
+          containsPair('reason', 'phantom_cap_reached'),
+        );
+      });
+
+      test(
+        'refuses to reactivate a map entry whose linked account was erased',
+        () async {
+          await linkManually();
+          final linked = await fixture.phantomRow();
+
+          await fixture.eraseLinkedAccount();
+          final orphan = await fixture.phantomRow();
+          final orphanMergeRows = await fixture.mergeRows();
+          expect(
+            orphan,
+            allOf(
+              containsPair('merged_at', linked['merged_at']),
+              containsPair('merge_origin', linked['merge_origin']),
+              containsPair('merged_user_id', isNull),
+              containsPair('current_merge_id', isNull),
+            ),
+          );
+          expect(
+            orphanMergeRows,
+            isEmpty,
+            reason: 'Account erasure cascades to the merge audit record (§3).',
+          );
+
+          final reply = await api.unmerge(fixture.phantom);
+
+          expect(await fixture.phantomRow(), orphan);
+          expect(await fixture.mergeRows(), orphanMergeRows);
+          _expectUnlinkRefused(
+            reply,
+            containsPair('code', allOf(isA<String>(), isNot('1000'))),
+          );
+        },
+      );
+    });
   }, skip: skip);
 }
 
@@ -487,6 +827,72 @@ typedef _Merge =
       required String userId,
       required int origin,
     });
+
+void _expectUnlinkRefused(Map<String, Object?> reply, Matcher extensions) {
+  expect(reply['errors'], [
+    containsPair('extensions', extensions),
+  ], reason: jsonEncode(reply));
+  expect((reply['data'] as Map<String, Object?>?)?['phantomUnmerge'], isNull);
+}
+
+final class _UnlinkApi {
+  const _UnlinkApi(this._handler);
+
+  final Handler _handler;
+
+  Future<void> link(String phantom) async {
+    final reply = await _post(
+      r'mutation Link($phantomId: String!, $userId: String!) { '
+      r'phantomLink(phantomId: $phantomId, userId: $userId) }',
+      {'phantomId': phantom, 'userId': _person},
+    );
+    expect(reply, {
+      'data': {'phantomLink': true},
+    });
+  }
+
+  Future<String> ensureInvite(String phantom) async {
+    final reply = await _post(
+      r'mutation EnsureInvite($id: String!) { phantomInviteEnsure(id: $id) }',
+      {'id': phantom},
+    );
+    expect(reply['errors'], isNull, reason: jsonEncode(reply));
+    final data = reply['data']! as Map<String, Object?>;
+    return data['phantomInviteEnsure']! as String;
+  }
+
+  Future<Map<String, Object?>> unmerge(
+    String phantom, {
+    String actor = _owner,
+  }) => _post(
+    r'mutation Unlink($phantomId: String!) { '
+    r'phantomUnmerge(phantomId: $phantomId) }',
+    {'phantomId': phantom},
+    actor: actor,
+  );
+
+  Future<Map<String, Object?>> _post(
+    String query,
+    Map<String, Object?> variables, {
+    String actor = _owner,
+  }) async {
+    final token = getIt<AuthCase>().issueAccessToken(actor).rawToken;
+    final response = await _handler(
+      Request(
+        'POST',
+        Uri.parse('http://127.0.0.1:2080/api/v2/graphql'),
+        headers: {
+          'content-type': 'application/json',
+          'authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'query': query, 'variables': variables}),
+      ),
+    );
+    final body = await response.readAsString();
+    expect(response.statusCode, 200, reason: body);
+    return jsonDecode(body) as Map<String, Object?>;
+  }
+}
 
 // Resolve the production case at runtime while it has no importable API.
 // Check the tear-off before calling it through Dart's named-argument syntax.
@@ -859,5 +1265,195 @@ ORDER BY occurrence.id, recipient.account_id
       'contact names': await contactRows(),
       'merge attention events': await mergeAttentionEvents(),
     };
+  }
+}
+
+extension on _Fixture {
+  Future<void> expectLinkedForUndo(
+    _Origin origin, {
+    String user = _person,
+  }) async {
+    final merge = (await mergeRows()).single;
+    expect(
+      await phantomRow(),
+      allOf(
+        containsPair('merged_user_id', user),
+        containsPair('merged_at', isA<DateTime>()),
+        containsPair('merge_origin', origin.code),
+        containsPair('current_merge_id', merge['id']),
+      ),
+    );
+    expect(merge['undone_at'], isNull);
+  }
+
+  Future<String> linkByAcceptedInvite({
+    _Origin origin = _Origin.inviteExisting,
+  }) async {
+    final user = await accept(await createInvite(), origin);
+    await getIt<PhantomMergeCase>().runDue(
+      leaseOwner: 'unlink-test-worker',
+      clock: () => DateTime.now().toUtc(),
+    );
+    await expectLinkedForUndo(origin, user: user);
+    return user;
+  }
+
+  Future<void> editContactName(String name) => getIt<ContactCase>().set(
+    viewerId: _owner,
+    subjectId: _person,
+    contactName: name,
+  );
+
+  Future<void> changeAccountMembership(String tag, {required bool add}) =>
+      getIt<PeopleTagsRepositoryPort>().applyMembers(
+        ownerId: _owner,
+        clientOpId: 'members-${_nextOperation++}',
+        fingerprint: '$tag-$add',
+        ops: [
+          PersonTagMemberOp(tagId: tag, personId: _person, add: add, source: 0),
+        ],
+      );
+
+  Future<Map<(Object?, Object?), Map<String, Object?>>>
+  livePinPositions() async => {
+    for (final row in await pinRows())
+      if (row['tombstone_at'] == null)
+        (row['target_kind'], row['target_id']): {
+          'xUnits': row['x_units'],
+          'yUnits': row['y_units'],
+          'coordinateSpaceVersion': row['coordinate_space_version'],
+        },
+  };
+
+  Future<void> expectAdvancedWatermarks(Map<String, int> before) async {
+    expect(await watermarks(), {
+      'PERSON': greaterThan(before['PERSON']!),
+      'PHANTOM': greaterThan(before['PHANTOM']!),
+    });
+  }
+
+  Future<void> seedOutgoingVote() async {
+    await _sql(
+      '''
+INSERT INTO public.vote_user (subject, object, amount)
+VALUES (@owner, @person, 1)
+''',
+      {'owner': _owner, 'person': _person},
+    );
+  }
+
+  Future<List<Map<String, Object?>>> pairVotes({String user = _person}) =>
+      _rows(
+        '''
+SELECT * FROM public.vote_user
+WHERE (subject = @owner AND object = @person)
+   OR (subject = @person AND object = @owner)
+ORDER BY subject
+''',
+        {'owner': _owner, 'person': user},
+      );
+
+  Future<List<List<Object?>>> projectedTrust(Session session) async => [
+    for (final row in await session.execute(
+      Sql.named('''
+SELECT subject, object, trust_w, wall_d, target_w, prev_sent_weight
+FROM public.user_trust_edge
+WHERE (subject = @owner AND object = @person)
+   OR (subject = @person AND object = @owner)
+ORDER BY subject
+'''),
+      parameters: {'owner': _owner, 'person': _person},
+    ))
+      row.toList(),
+  ];
+
+  Future<List<List<Object?>>> projectionWithoutOutgoingVote() => writer.runTx((
+    tx,
+  ) async {
+    const pair = {'owner': _owner, 'person': _person};
+    await tx.execute(
+      Sql.named(
+        'DELETE FROM public.vote_user WHERE subject = @owner AND object = @person',
+      ),
+      parameters: pair,
+    );
+    await tx.execute(
+      Sql.named('SELECT public.trust_project_pair(@owner, @person)'),
+      parameters: pair,
+    );
+    final projection = await projectedTrust(tx);
+    await tx.rollback();
+    return projection;
+  });
+
+  Future<void> prepareInviteLinkWithTagsAndPin() async {
+    final tagId = await tag('Neighbours', [phantom]);
+    await pin(ConstellationAnchorPhantomTarget(phantom), _phantomPosition);
+    await editContactName('Old');
+    await linkByAcceptedInvite();
+    final membership = (await personMemberships()).single;
+    expect(
+      membership,
+      allOf(
+        containsPair('tag_id', tagId),
+        containsPair('person_id', _person),
+      ),
+    );
+    expect((await undo())['insertedMembershipIds'], [
+      membership['membership_id'],
+    ]);
+    expect(await livePinPositions(), {
+      ('PERSON', _person): _phantomPosition.toFixtureMap(),
+    });
+    expect(await contactRows(), [
+      allOf(
+        containsPair('subject_id', _person),
+        containsPair('contact_name', _initialName),
+      ),
+    ]);
+    expect((await pairVotes()).map((row) => row['subject']), [_owner, _person]);
+  }
+
+  Future<Map<String, Object?>> unlinkSnapshot() async => {
+    'entry': await phantomRow(),
+    'merge records': await mergeRows(),
+    'original tag memberships': await phantomMemberships(),
+    'account tag memberships': await personMemberships(),
+    'pins': await pinRows(),
+    'pin watermarks': await watermarks(),
+    'contact names': await contactRows(),
+    'votes': await pairVotes(),
+    'trust projection': await projectedTrust(writer),
+    'live invites': await liveInvites(),
+  };
+
+  Future<void> seedActiveEntriesAtCap() async {
+    await writer.executeWithOwnerScopes(
+      [_owner],
+      Sql.named('''
+INSERT INTO public.phantom (id, owner_id, display_name)
+SELECT 'PHc' || lpad(to_hex(n), 11, '0'), @owner, 'Existing contact'
+FROM generate_series(1, 200) AS n
+'''),
+      parameters: {'owner': _owner},
+    );
+  }
+
+  Future<Object?> activeEntryCount() async => (await _sql(
+    '''
+SELECT count(*) FROM public.phantom WHERE owner_id = @owner AND merged_at IS NULL
+''',
+    {'owner': _owner},
+  )).single.single;
+
+  Future<void> eraseLinkedAccount() async {
+    final deleted = await writer.runTx((tx) async {
+      await tx.execute("SET LOCAL tentura.owner_scope_enforce = 'on'");
+      return tx.execute(
+        Sql.named('DELETE FROM public."user" WHERE id = @person RETURNING id'),
+        parameters: {'person': _person},
+      );
+    });
+    expect(deleted.single.single, _person);
   }
 }

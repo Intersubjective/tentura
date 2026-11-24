@@ -138,4 +138,11 @@ abstract interface class ScopedConstellationAnchorRepositoryPort
     required Set<ConstellationAnchorTarget> additionalWatermarkTargets,
     bool forceRevision = false,
   });
+
+  /// Invalidates older conditional writes without changing the placements.
+  Future<void> advanceScopedWatermarks({
+    required OwnerGraphScope scope,
+    required String viewerId,
+    required Set<ConstellationAnchorTarget> targets,
+  });
 }

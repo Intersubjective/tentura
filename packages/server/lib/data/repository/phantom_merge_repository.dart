@@ -16,6 +16,12 @@ import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'field_population_sql.dart';
 import 'owner_graph_unit_of_work.dart';
 
+typedef _PinUndo = ({
+  ConstellationAnchorPosition phantomPosition,
+  ConstellationAnchorPosition? previousPersonPosition,
+  int personWatermark,
+});
+
 @LazySingleton(as: PhantomMergeRepositoryPort)
 final class PhantomMergeRepository implements PhantomMergeRepositoryPort {
   const PhantomMergeRepository(this._database, this._anchors, this._contacts);
@@ -279,6 +285,183 @@ WHERE owner_id = $1 AND id = $2
     return mergeId;
   }
 
+  @override
+  Future<String?> lockCurrentMerge(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String phantomId,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT m.id FROM public.phantom p
+JOIN public.phantom_merge m ON m.id = p.current_merge_id
+  AND m.phantom_id = p.id AND m.owner_id = p.owner_id
+  AND m.user_id = p.merged_user_id AND m.origin = p.merge_origin
+WHERE p.owner_id = $1 AND p.id = $2 AND p.merged_at IS NOT NULL
+  AND m.undone_at IS NULL
+FOR UPDATE OF p, m
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(phantomId),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('id');
+  }
+
+  @override
+  Future<void> unmerge(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String mergeId,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final merge = await _database
+        .customSelect(
+          r'''
+SELECT phantom_id, user_id, origin, undo->>'pin' AS pin,
+       undo #>> '{contactName,before}' AS previous_name,
+       undo #>> '{contactName,written}' AS written_name
+FROM public.phantom_merge WHERE owner_id = $1 AND id = $2
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(mergeId),
+          ],
+        )
+        .getSingle();
+    final target = (
+      ownerId: ownerId,
+      phantomId: merge.read<String>('phantom_id'),
+      userId: merge.read<String>('user_id'),
+    );
+    final origin = PhantomMergeOrigin.fromCode(merge.read<int>('origin'));
+    final pin = _decodePinUndo(merge.readNullable<String>('pin'));
+    await _database.customStatement(
+      r'''
+DELETE FROM public.person_tag_member AS member
+USING public.phantom_merge AS m
+WHERE m.id = $3 AND member.owner_id = $1 AND member.person_id = $2
+  AND member.membership_id IN (
+    SELECT value::uuid FROM jsonb_array_elements_text(m.undo->'insertedMembershipIds')
+  )
+''',
+      [ownerId, target.userId, mergeId],
+    );
+    await _database.customStatement(
+      r'''
+WITH reactivated AS (
+  UPDATE public.phantom
+  SET merged_user_id = NULL, merged_at = NULL, merge_origin = NULL,
+      current_merge_id = NULL, revision = revision + 1, updated_at = now()
+  WHERE owner_id = $1 AND current_merge_id = $2 AND id = $3
+  RETURNING id
+)
+UPDATE public.phantom_merge SET undone_at = now()
+WHERE id = $2 AND phantom_id IN (SELECT id FROM reactivated)
+''',
+      [ownerId, mergeId, target.phantomId],
+    );
+    await _restorePins(scope, target, pin);
+    await _restoreContactName(
+      target,
+      previous: merge.readNullable<String>('previous_name'),
+      written: merge.readNullable<String>('written_name'),
+    );
+    if (origin != PhantomMergeOrigin.manualLink) {
+      final pair = [ownerId, target.userId];
+      await _database.customStatement(
+        r'SELECT public.trust_pair_lock($1, $2)',
+        pair,
+      );
+      await _database.customStatement(
+        r'DELETE FROM public.vote_user WHERE subject = $1 AND object = $2',
+        pair,
+      );
+      await _database.customStatement(
+        r'SELECT public.trust_project_pair($1, $2)',
+        pair,
+      );
+    }
+  }
+
+  Future<void> _restorePins(
+    OwnerGraphScope scope,
+    PhantomMergeTarget target,
+    _PinUndo? pin,
+  ) async {
+    final (:ownerId, :phantomId, :userId) = target;
+    final person = ConstellationAnchorPersonTarget(userId);
+    final phantom = ConstellationAnchorPhantomTarget(phantomId);
+    if (pin == null ||
+        pin.personWatermark != await _targetWatermark(ownerId, person)) {
+      await _anchors.advanceScopedWatermarks(
+        scope: scope,
+        viewerId: ownerId,
+        targets: {person, phantom},
+      );
+      return;
+    }
+
+    final prior = pin.previousPersonPosition;
+    if (prior == null) {
+      await _deletePin(ownerId, person);
+    } else {
+      await _anchors.upsertScoped(
+        scope: scope,
+        viewerId: ownerId,
+        target: person,
+        position: prior,
+        additionalWatermarkTargets: const {},
+        forceRevision: true,
+      );
+    }
+    await _anchors.upsertScoped(
+      scope: scope,
+      viewerId: ownerId,
+      target: phantom,
+      position: pin.phantomPosition,
+      additionalWatermarkTargets: {if (prior == null) person},
+      forceRevision: true,
+    );
+  }
+
+  static _PinUndo? _decodePinUndo(String? pin) => pin == null
+      ? null
+      : switch (jsonDecode(pin)) {
+          {
+            'phantomPosition': final phantom,
+            'previousPersonPosition': final previous,
+            'personWatermark': final int watermark,
+          } =>
+            (
+              phantomPosition: _decodePosition(phantom),
+              previousPersonPosition: previous == null
+                  ? null
+                  : _decodePosition(previous),
+              personWatermark: watermark,
+            ),
+          _ => throw StateError('Invalid merge pin undo record'),
+        };
+
+  static ConstellationAnchorPosition _decodePosition(Object? value) =>
+      switch (value) {
+        {
+          'xUnits': final num x,
+          'yUnits': final num y,
+          'coordinateSpaceVersion': final int version,
+        } =>
+          ConstellationAnchorPosition(
+            xUnits: x.toDouble(),
+            yUnits: y.toDouble(),
+            coordinateSpaceVersion: version,
+          ),
+        _ => throw StateError('Invalid merge pin position'),
+      };
+
   Future<Map<String, Object?>?> _movePin(
     OwnerGraphScope scope,
     PhantomMergeTarget target,
@@ -315,39 +498,54 @@ WHERE viewer_id = $1 AND (
     }
     final phantomPosition = positions['PHANTOM'];
     if (phantomPosition == null) return null;
+    final person = ConstellationAnchorPersonTarget(userId);
+    final phantom = ConstellationAnchorPhantomTarget(phantomId);
 
     await _anchors.upsertScoped(
       scope: scope,
       viewerId: ownerId,
-      target: ConstellationAnchorPersonTarget(userId),
+      target: person,
       position: phantomPosition,
-      additionalWatermarkTargets: {ConstellationAnchorPhantomTarget(phantomId)},
+      additionalWatermarkTargets: {phantom},
       forceRevision: true,
     );
-    await _database.customStatement(
-      r'''
-DELETE FROM public.constellation_anchor
-WHERE viewer_id = $1 AND target_kind = 'PHANTOM' AND target_id = $2
-''',
-      [ownerId, phantomId],
-    );
-    final watermark = await _database
-        .customSelect(
-          r'''
-SELECT revision FROM public.constellation_anchor_target_watermark
-WHERE viewer_id = $1 AND target_kind = 'PERSON' AND target_id = $2
-''',
-          variables: [
-            Variable.withString(ownerId),
-            Variable.withString(userId),
-          ],
-        )
-        .getSingle();
+    await _deletePin(ownerId, phantom);
+    final watermark = await _targetWatermark(ownerId, person);
+    if (watermark == null) throw StateError('Merge pin watermark is missing');
     return {
       'phantomPosition': _positionJson(phantomPosition),
       'previousPersonPosition': _positionJson(positions['PERSON']),
-      'personWatermark': watermark.read<int>('revision'),
+      'personWatermark': watermark,
     };
+  }
+
+  Future<void> _deletePin(String ownerId, ConstellationAnchorTarget target) =>
+      _database.customStatement(
+        r'''
+DELETE FROM public.constellation_anchor
+WHERE viewer_id = $1 AND target_kind = $2 AND target_id = $3
+''',
+        [ownerId, target.kind.wireValue, target.id],
+      );
+
+  Future<int?> _targetWatermark(
+    String ownerId,
+    ConstellationAnchorTarget target,
+  ) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT revision FROM public.constellation_anchor_target_watermark
+WHERE viewer_id = $1 AND target_kind = $2 AND target_id = $3
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(target.kind.wireValue),
+            Variable.withString(target.id),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<int>('revision');
   }
 
   static Map<String, Object>? _positionJson(
@@ -399,15 +597,8 @@ SELECT jsonb_build_object(
     final pair = [Variable.withString(ownerId), Variable.withString(userId)];
 
     while (true) {
-      final existing = await _database.customSelect(
-        r'''
-SELECT contact_name FROM public.user_contact
-WHERE viewer_id = $1 AND subject_id = $2 FOR UPDATE
-''',
-        variables: pair,
-      ).getSingleOrNull();
-      if (existing != null) {
-        final before = existing.read<String>('contact_name');
+      final before = await _lockContactName(ownerId, userId);
+      if (before != null) {
         if (origin == PhantomMergeOrigin.manualLink) {
           return (before: before, written: null);
         }
@@ -433,6 +624,41 @@ RETURNING 1
       // An unscoped contact edit inserted the row after our read. Lock and
       // read it on a fresh snapshot before deciding what to record or write.
     }
+  }
+
+  Future<void> _restoreContactName(
+    PhantomMergeTarget target, {
+    required String? previous,
+    required String? written,
+  }) async {
+    if (written == null || previous == written) return;
+    final (:ownerId, :userId, phantomId: _) = target;
+    if (await _lockContactName(ownerId, userId) != written) return;
+    if (previous == null) {
+      await _contacts.delete(viewerId: ownerId, subjectId: userId);
+    } else {
+      await _contacts.upsert(
+        viewerId: ownerId,
+        subjectId: userId,
+        contactName: previous,
+      );
+    }
+  }
+
+  Future<String?> _lockContactName(String ownerId, String userId) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT contact_name FROM public.user_contact
+WHERE viewer_id = $1 AND subject_id = $2 FOR UPDATE
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(userId),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('contact_name');
   }
 
   Future<void> _recordOwnerAttention(

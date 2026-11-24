@@ -116,6 +116,36 @@ DO UPDATE SET revision = EXCLUDED.revision
   }
 
   @override
+  Future<void> advanceScopedWatermarks({
+    required OwnerGraphScope scope,
+    required String viewerId,
+    required Set<ConstellationAnchorTarget> targets,
+  }) async {
+    requireOwnerGraphScope(_db, scope, viewerId);
+    await lockConstellationViewerCursor(_db, viewerId);
+    await _db.customStatement(
+      r'''
+WITH advanced AS (
+  UPDATE public.constellation_anchor_cursor
+  SET revision = revision + 1 WHERE viewer_id = $1
+  RETURNING revision
+)
+INSERT INTO public.constellation_anchor_target_watermark
+  (viewer_id, target_kind, target_id, revision)
+SELECT $1, t.kind, t.id, advanced.revision
+FROM unnest($2::text[], $3::text[]) AS t(kind, id) CROSS JOIN advanced
+ON CONFLICT (viewer_id, target_kind, target_id)
+DO UPDATE SET revision = EXCLUDED.revision
+''',
+      [
+        viewerId,
+        TypedValue(Type.textArray, [for (final t in targets) t.kind.wireValue]),
+        TypedValue(Type.textArray, [for (final t in targets) t.id]),
+      ],
+    );
+  }
+
+  @override
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,

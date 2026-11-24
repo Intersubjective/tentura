@@ -1,3 +1,4 @@
+import '../exception.dart';
 import 'owner_graph_transaction_port.dart';
 
 abstract interface class PhantomRepositoryPort {
@@ -50,4 +51,16 @@ abstract interface class PhantomRepositoryPort {
     required String phantomId,
     required String userId,
   });
+}
+
+extension PhantomActivation on PhantomRepositoryPort {
+  Future<void> requireActiveCapacity(
+    OwnerGraphScope scope,
+    String ownerId,
+  ) async {
+    const activeCap = 200;
+    if (await countActive(scope, ownerId) >= activeCap) {
+      throw const PhantomCapReachedException();
+    }
+  }
 }

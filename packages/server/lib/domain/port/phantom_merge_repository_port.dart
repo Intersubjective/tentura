@@ -52,6 +52,21 @@ abstract interface class PhantomMergeRepositoryPort {
     required String displayName,
   });
 
+  /// Locks an owned, current merge and returns its ID. Active and orphaned
+  /// entries have no undoable merge.
+  Future<String?> lockCurrentMerge(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String phantomId,
+  });
+
+  /// Reverses the current merge locked in [scope].
+  Future<void> unmerge(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String mergeId,
+  });
+
   Future<List<PhantomMergeJobLease>> claimJobs({
     required String leaseOwner,
     required DateTime now,
