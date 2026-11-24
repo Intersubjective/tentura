@@ -24,6 +24,7 @@ GraphNodeId constellationGraphNodeIdForTarget(
       '${TenturaGraphNodeKind.fieldPerson}:${target.id}',
     ConstellationAnchorTargetKind.beacon =>
       '${TenturaGraphNodeKind.fieldRequest}:${target.id}',
+    ConstellationAnchorTargetKind.phantom => target.mapKey,
   };
 }
 

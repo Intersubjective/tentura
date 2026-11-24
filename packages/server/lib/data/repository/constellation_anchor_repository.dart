@@ -14,6 +14,7 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import '../mapper/constellation_anchor_mapper.dart';
 import 'constellation_layout_snapshot_repository.dart'
     show insertConstellationLayoutSnapshot;
 import 'constellation_viewer_tx.dart';
@@ -126,7 +127,7 @@ DO UPDATE SET revision = EXCLUDED.revision
         _db,
         viewerId,
       );
-      final existingTargets = await _existingUpsertTargets(ops);
+      final existingTargets = await _existingUpsertTargets(viewerId, ops);
       final recordedRows = await _db
           .customSelect(
             r'''
@@ -243,6 +244,7 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
             !const {
               'constellation_anchor_person_id_fkey',
               'constellation_anchor_beacon_id_fkey',
+              'constellation_anchor_phantom_id_fkey',
             }.contains(error.constraintName)) {
           rethrow;
         }
@@ -278,6 +280,7 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
   );
 
   Future<Set<ConstellationAnchorTarget>> _existingUpsertTargets(
+    String viewerId,
     List<AnchorApplyOp> ops,
   ) async {
     final targets = [
@@ -291,11 +294,15 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
         WITH targets AS (
           SELECT * FROM unnest($1::text[], $2::text[]) AS t(kind, id)
         )
-        SELECT t.kind, t.id FROM targets t
+        SELECT t.kind AS target_kind, t.id AS target_id FROM targets t
         JOIN public."user" u ON u.id = t.id WHERE t.kind = 'PERSON'
         UNION ALL
         SELECT t.kind, t.id FROM targets t
         JOIN public.beacon b ON b.id = t.id WHERE t.kind = 'BEACON'
+        UNION ALL
+        SELECT t.kind, t.id FROM targets t
+        JOIN public.phantom p ON p.id = t.id
+        WHERE t.kind = 'PHANTOM' AND p.owner_id = $3 AND p.merged_at IS NULL
       ''',
           variables: [
             Variable(
@@ -307,16 +314,11 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
             Variable(
               TypedValue(Type.textArray, targets.map((t) => t.id).toList()),
             ),
+            Variable<String>(viewerId),
           ],
         )
         .get();
-    return {
-      for (final row in rows)
-        if (row.read<String>('kind') == 'PERSON')
-          ConstellationAnchorTarget.person(row.read<String>('id'))
-        else
-          ConstellationAnchorTarget.beacon(row.read<String>('id')),
-    };
+    return rows.map(readConstellationAnchorTarget).toSet();
   }
 
   Future<Map<ConstellationAnchorTarget, ConstellationAnchor>> _storedAnchors(
@@ -327,54 +329,33 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
     final rows = await _db
         .customSelect(
           r'''
-        SELECT person_id, beacon_id, x_units, y_units,
+        SELECT target_kind, target_id, x_units, y_units,
                coordinate_space_version, revision::text AS revision,
                placed_at::text AS placed_at
         FROM public.constellation_anchor
         WHERE viewer_id = $1
-          AND (person_id = ANY($2::text[]) OR beacon_id = ANY($3::text[]))
+          AND tombstone_at IS NULL
+          AND (target_kind, target_id) IN (
+            SELECT * FROM unnest($2::text[], $3::text[])
+          )
       ''',
           variables: [
             Variable<String>(viewerId),
             Variable(
               TypedValue(Type.textArray, [
-                for (final t in targets)
-                  if (t.kind == ConstellationAnchorTargetKind.person) t.id,
+                for (final t in targets) t.kind.wireValue,
               ]),
             ),
             Variable(
-              TypedValue(Type.textArray, [
-                for (final t in targets)
-                  if (t.kind == ConstellationAnchorTargetKind.beacon) t.id,
-              ]),
+              TypedValue(Type.textArray, [for (final t in targets) t.id]),
             ),
           ],
         )
         .get();
-    final anchors = <ConstellationAnchorTarget, ConstellationAnchor>{};
-    for (final row in rows) {
-      final personId = row.readNullable<String>('person_id');
-      final target = personId != null
-          ? ConstellationAnchorTarget.person(personId)
-          : ConstellationAnchorTarget.beacon(row.read<String>('beacon_id'));
-      anchors[target] = ConstellationAnchor(
-        target: target,
-        position: ConstellationAnchorPosition(
-          xUnits: row.read<double>('x_units'),
-          yUnits: row.read<double>('y_units'),
-          coordinateSpaceVersion: row.read<int>('coordinate_space_version'),
-        ),
-        revision: switch (ConstellationAnchorRevision.parseDecimalString(
-          row.read<String>('revision'),
-        )) {
-          ConstellationAnchorRevisionParsed(:final revision) => revision,
-          ConstellationAnchorRevisionMalformed() =>
-            ConstellationAnchorRevision.zero,
-        },
-        placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
-      );
-    }
-    return anchors;
+    return {
+      for (final anchor in rows.map(readConstellationAnchor))
+        anchor.target: anchor,
+    };
   }
 
   String _opFingerprint(AnchorApplyOp op) {

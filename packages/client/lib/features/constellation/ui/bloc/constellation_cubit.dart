@@ -2736,6 +2736,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         !field.requests.any((r) => r.id == target.id) &&
             !field.posts.any((p) => p.id == target.id) &&
             !projection.pinnedRequests.any((r) => r.id == target.id),
+      ConstellationAnchorTargetKind.phantom =>
+        !projection.anchors.any((anchor) => anchor.target == target),
     };
   }
 

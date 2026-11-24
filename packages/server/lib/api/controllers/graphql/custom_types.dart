@@ -1268,7 +1268,7 @@ final gqlEnumConstellationProjection = enumTypeFromStrings(
 
 final gqlEnumConstellationAnchorTargetKind = enumTypeFromStrings(
   'ConstellationAnchorTargetKind',
-  const ['PERSON', 'BEACON'],
+  const ['PERSON', 'BEACON', 'PHANTOM'],
 );
 
 final gqlTypeConstellationAnchor =

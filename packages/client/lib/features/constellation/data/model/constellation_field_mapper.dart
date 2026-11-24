@@ -578,9 +578,4 @@ Gv2_ConstellationProjection projectionToWire(
 
 Gv2_ConstellationAnchorTargetKind targetKindToWire(
   ConstellationAnchorTargetKind kind,
-) => switch (kind) {
-  ConstellationAnchorTargetKind.person =>
-    Gv2_ConstellationAnchorTargetKind.PERSON,
-  ConstellationAnchorTargetKind.beacon =>
-    Gv2_ConstellationAnchorTargetKind.BEACON,
-};
+) => Gv2_ConstellationAnchorTargetKind.valueOf(kind.wireValue);

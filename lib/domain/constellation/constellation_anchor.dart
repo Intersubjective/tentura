@@ -5,17 +5,19 @@ import 'constellation_geometry.dart';
 /// Wire / GraphQL target kind for constellation anchors (C1).
 enum ConstellationAnchorTargetKind {
   person('PERSON'),
-  beacon('BEACON');
+  beacon('BEACON'),
+  phantom('PHANTOM');
 
   const ConstellationAnchorTargetKind(this.wireValue);
 
   final String wireValue;
 
   static ConstellationAnchorTargetKind? fromWire(String wire) => switch (wire) {
-        'PERSON' => ConstellationAnchorTargetKind.person,
-        'BEACON' => ConstellationAnchorTargetKind.beacon,
-        _ => null,
-      };
+    'PERSON' => ConstellationAnchorTargetKind.person,
+    'BEACON' => ConstellationAnchorTargetKind.beacon,
+    'PHANTOM' => ConstellationAnchorTargetKind.phantom,
+    _ => null,
+  };
 
   /// Lexical paint-order tie-break (C1): `BEACON` before `PERSON`.
   String get paintOrderKey => wireValue;
@@ -54,10 +56,15 @@ sealed class ConstellationAnchorTarget {
       return null;
     }
     return switch (kind) {
-      ConstellationAnchorTargetKind.person =>
-        ConstellationAnchorPersonTarget(targetId),
-      ConstellationAnchorTargetKind.beacon =>
-        ConstellationAnchorBeaconTarget(targetId),
+      ConstellationAnchorTargetKind.person => ConstellationAnchorPersonTarget(
+        targetId,
+      ),
+      ConstellationAnchorTargetKind.beacon => ConstellationAnchorBeaconTarget(
+        targetId,
+      ),
+      ConstellationAnchorTargetKind.phantom => ConstellationAnchorPhantomTarget(
+        targetId,
+      ),
     };
   }
 }
@@ -95,6 +102,26 @@ final class ConstellationAnchorBeaconTarget extends ConstellationAnchorTarget {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ConstellationAnchorBeaconTarget && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(kind, id);
+}
+
+@immutable
+final class ConstellationAnchorPhantomTarget extends ConstellationAnchorTarget {
+  const ConstellationAnchorPhantomTarget(this.id);
+
+  @override
+  final String id;
+
+  @override
+  ConstellationAnchorTargetKind get kind =>
+      ConstellationAnchorTargetKind.phantom;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationAnchorPhantomTarget && other.id == id;
 
   @override
   int get hashCode => Object.hash(kind, id);

@@ -231,6 +231,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             peers.remove(target.id);
           case ConstellationAnchorTargetKind.beacon:
             requests.remove(target.id);
+          case ConstellationAnchorTargetKind.phantom:
+            break;
         }
         continue;
       }
@@ -242,6 +244,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         case ConstellationAnchorTargetKind.beacon:
           final record = requestRecords[target.id];
           if (record != null) requests[target.id] = record;
+        case ConstellationAnchorTargetKind.phantom:
+          break;
       }
     }
     final advance =

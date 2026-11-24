@@ -48,8 +48,25 @@ Future<void> main() async {
         fixture = _Pins(target);
         await fixture.open(throughVersion: _previousVersion);
         await fixture.reset();
-        await fixture.pin(_Pins.targets['Request']!);
-        await fixture.pin(_Pins.targets['person']!);
+        // Seed the historical schema directly. The current pin repository
+        // expects the target identity and placeholder columns added later.
+        const viewer = _Pins.viewer;
+        const position = _Pins.position;
+        await withPgOwnerScopes(fixture.writer, [viewer], (tx) async {
+          await tx.execute('''
+INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
+''');
+          await tx.execute('''
+INSERT INTO public.constellation_anchor (
+  id, viewer_id, person_id, beacon_id, x_units, y_units,
+  coordinate_space_version, revision, placed_at
+) VALUES
+  ('CA000000000001', '$viewer', NULL, '${_Pins.beacon}',
+   ${position.xUnits}, ${position.yUnits}, ${position.coordinateSpaceVersion}, 0, 'epoch'),
+  ('CA000000000002', '$viewer', '${_Pins.person}', NULL,
+   ${position.xUnits}, ${position.yUnits}, ${position.coordinateSpaceVersion}, 0, 'epoch')
+''');
+        });
       });
       tearDownAll(() async => fixture.close());
 
@@ -112,6 +129,9 @@ Future<void> main() async {
             final liveTargetColumn = switch (target.kind) {
               ConstellationAnchorTargetKind.beacon => 'beacon_id',
               ConstellationAnchorTargetKind.person => 'person_id',
+              ConstellationAnchorTargetKind.phantom => throw StateError(
+                'Placeholders were added after this migration',
+              ),
             };
             final original = liveAfterUpgrade.singleWhere(
               (row) => row[liveTargetColumn] == target.id,

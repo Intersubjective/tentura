@@ -283,6 +283,7 @@ ConstellationField constellationVisibleField({
                   ),
                   ConstellationAnchorTargetKind.beacon =>
                     !hiddenBeaconIds.contains(anchor.target.id),
+                  ConstellationAnchorTargetKind.phantom => true,
                 })
                   anchor,
             ],
