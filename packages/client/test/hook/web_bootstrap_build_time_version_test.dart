@@ -23,7 +23,7 @@ void main() {
 
   group('web bootstrap versions are assigned at build time', () {
     test(
-      'the coordinated client release stamps its version into the built bootstrap URL',
+      'the current client release stamps its version into the built bootstrap URL',
       () async {
         final packageVersion = Pubspec.parse(
           _sourcePubspec.readAsStringSync(),
@@ -64,7 +64,7 @@ void main() {
           _bootstrapVersion(
             fixture.file('build/web/index.html').readAsStringSync(),
           ),
-          '7.65.0',
+          packageVersion,
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),

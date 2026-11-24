@@ -160,8 +160,28 @@ class ConstellationAppBarRow extends StatelessWidget {
       );
     }
 
-    // On a phone (#659) the bar keeps the title, the person search and a
-    // full-size Map/List toggle; everything else goes into a menu.
+    final createButton = composer == null
+        ? null
+        : PopupMenuButton<ConstellationCreateAction>(
+            key: const Key('constellation.app_bar.create_here'),
+            tooltip: l10n.constellationCreateHere,
+            icon: const Icon(Icons.add),
+            popUpAnimationStyle: AnimationStyle.noAnimation,
+            itemBuilder: (_) => constellationCreateMenuItems(
+              l10n,
+              phantomsEnabled: cubit.phantomsEnabled,
+            ),
+            onSelected: (action) => unawaited(
+              startConstellationCreate(
+                context,
+                action: action,
+                cubit: cubit,
+                composer: composer,
+              ),
+            ),
+          );
+    // On a phone the person action gets a visible button when enabled. The
+    // remaining map actions go in overflow beside the search and view toggle.
     if (context.windowClass == WindowClass.compact) {
       return Row(
         children: [
@@ -201,6 +221,7 @@ class ConstellationAppBarRow extends StatelessWidget {
             viewMode: state.viewMode,
             onChanged: cubit.setViewMode,
           ),
+          if (cubit.phantomsEnabled) ?createButton,
           _ConstellationOverflowMenu(
             showMapActions: showLegend,
             legendExpanded: legendExpanded,
@@ -261,25 +282,7 @@ class ConstellationAppBarRow extends StatelessWidget {
           maintainState: true,
           child: const ConstellationSelectionToggle(),
         ),
-        if (composer != null)
-          PopupMenuButton<BeaconKind>(
-            key: const Key('constellation.app_bar.create_here'),
-            tooltip: l10n.constellationCreateHere,
-            icon: const Icon(Icons.add),
-            popUpAnimationStyle: AnimationStyle.noAnimation,
-            itemBuilder: (_) => constellationCreateMenuItems(l10n),
-            onSelected: (kind) {
-              final controller = cubit.graphController;
-              final size = controller.viewportSize;
-              if (size == null) {
-                return;
-              }
-              composer.start(
-                kind,
-                controller.viewportLocalToScene(size.center(Offset.zero)),
-              );
-            },
-          ),
+        ?createButton,
         SemanticsFreeTooltip(
           message: l10n.constellationFiltersOpen,
           child: IconButton(
@@ -529,7 +532,7 @@ class _ConstellationOverflowMenu extends StatelessWidget {
             label: l10n.constellationArrangeEntry,
             checked: selection.state.arranging,
           ),
-        if (composer != null)
+        if (composer != null && !cubit.phantomsEnabled)
           item(
             menuContext,
             action: _ConstellationOverflowAction.createHere,
@@ -567,31 +570,12 @@ class _ConstellationOverflowMenu extends StatelessWidget {
     required ConstellationComposerCubit? composer,
   }) async {
     final box = context.findRenderObject();
-    final overlay = Overlay.of(context).context.findRenderObject();
-    if (composer == null || box is! RenderBox || overlay is! RenderBox) {
-      return;
-    }
-    final anchor = box.localToGlobal(
-      box.size.bottomCenter(Offset.zero),
-      ancestor: overlay,
-    );
-    final kind = await showMenu<BeaconKind>(
-      context: context,
-      position: RelativeRect.fromRect(
-        anchor & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      items: constellationCreateMenuItems(L10n.of(context)!),
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-    );
-    final controller = cubit.graphController;
-    final size = controller.viewportSize;
-    if (kind == null || size == null) {
-      return;
-    }
-    composer.start(
-      kind,
-      controller.viewportLocalToScene(size.center(Offset.zero)),
+    if (composer == null || box is! RenderBox) return;
+    await showConstellationCreateMenu(
+      context,
+      cubit: cubit,
+      composer: composer,
+      globalPosition: box.localToGlobal(box.size.bottomCenter(Offset.zero)),
     );
   }
 }

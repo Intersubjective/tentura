@@ -14,6 +14,16 @@ const double _kPopoverWidth = 360;
 const double _kPopoverHeight = 400;
 const double _kSheetHeightFraction = 0.45;
 
+/// Lets a person choose one emoji using the same picker as the composer.
+Future<String?> showSingleEmojiPicker(BuildContext context) =>
+    showTenturaAdaptiveSheet<String>(
+      context: context,
+      builder: (pickerContext) => _ComposerEmojiPicker.single(
+        height: MediaQuery.sizeOf(pickerContext).height * _kSheetHeightFraction,
+        onSelected: (emoji) => Navigator.of(pickerContext).pop(emoji),
+      ),
+    );
+
 /// Composer emoji button. On compact windows the picker opens as a bottom
 /// sheet in place of the keyboard; elsewhere as a popover above the button.
 /// Either way it stays open for several picks; Esc, a tap outside or the
@@ -171,11 +181,17 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
 /// open is not an empty panel (#477).
 class _ComposerEmojiPicker extends StatefulWidget {
   const _ComposerEmojiPicker({
-    required this.controller,
     required this.height,
-  });
+    required TextEditingController this.controller,
+  }) : onSelected = null;
 
-  final TextEditingController controller;
+  const _ComposerEmojiPicker.single({
+    required this.height,
+    required ValueChanged<String> this.onSelected,
+  }) : controller = null;
+
+  final TextEditingController? controller;
+  final ValueChanged<String>? onSelected;
   final double height;
 
   @override
@@ -208,6 +224,7 @@ class _ComposerEmojiPickerState extends State<_ComposerEmojiPicker> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final height = widget.height;
+    final onSelected = widget.onSelected;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -217,6 +234,9 @@ class _ComposerEmojiPickerState extends State<_ComposerEmojiPicker> {
       container: true,
       child: EmojiPicker(
         textEditingController: controller,
+        onEmojiSelected: onSelected == null
+            ? null
+            : (_, emoji) => onSelected(emoji.emoji),
         controller: _pickerController,
         config: Config(
           height: height,

@@ -319,6 +319,10 @@ fi
 cd "$CLIENT_DIR"
 FAILED=()
 for target in "${TARGETS[@]}"; do
+  qa_defines=()
+  if [[ "$target" == integration_test/constellation_add_person_gestures_test.dart ]]; then
+    qa_defines+=(--dart-define=QA_PHANTOMS_ENABLED=true)
+  fi
   browser_dimension="${BROWSER_DIMENSION:-1600x1024}"
   # Phone journeys get a phone window. WidgetTester.setSurfaceSize is not a
   # valid substitute on Flutter Web: it constrains the render surface while
@@ -330,6 +334,7 @@ for target in "${TARGETS[@]}"; do
       integration_test/request_threads_navigation_test.dart)
         browser_dimension="390x844" ;;
       # Asserts a 375x667 app viewport; headless Chrome's toolbar takes 139 px.
+      integration_test/constellation_add_person_gestures_test.dart | \
       integration_test/constellation_trust_chain_edges_phone_test.dart)
         browser_dimension="375x806" ;;
       # Asserts a 375x667 app viewport for Russian fact history.
@@ -360,7 +365,8 @@ for target in "${TARGETS[@]}"; do
     --browser-dimension="$browser_dimension" \
     --dart-define-from-file="$DEFINES_FILE" \
     --dart-define=QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
-    --dart-define=QA_INTEGRATION_TEST_MODE=true; then
+    --dart-define=QA_INTEGRATION_TEST_MODE=true \
+    "${qa_defines[@]}"; then
     log "PASS: $target"
   else
     log "FAIL: $target"

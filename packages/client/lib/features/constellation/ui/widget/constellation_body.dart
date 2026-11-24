@@ -2418,6 +2418,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       unawaited(
         showConstellationCreateMenu(
           context,
+          cubit: cubit,
           composer: composer,
           globalPosition: box.localToGlobal(
             cubit.graphController.sceneToViewportLocal(scene),

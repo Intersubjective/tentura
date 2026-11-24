@@ -35,6 +35,10 @@ const kLazyFieldRefreshInterval = Duration(minutes: 5);
 /// dispatch is reported once as overdue.
 const kLazyWriteAckTimeout = Duration(seconds: 15);
 
+/// Opt in only for browser journeys that exercise the gated Field entries.
+const _qaPhantomsEnabled =
+    kQaIntegrationTestMode && bool.fromEnvironment('QA_PHANTOMS_ENABLED');
+
 /// How far the store's reads had got when a targeted read started (#672,
 /// #671). A targeted result stamped with it is applied only while no FULL that
 /// started later has landed, and is held over every FULL that started
@@ -87,7 +91,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-    @ignoreParam this._phantomsEnabled = kPhantomsEnabled,
+    @ignoreParam this.phantomsEnabled = kPhantomsEnabled || _qaPhantomsEnabled,
   }) {
     _subscriptions = [
       account.currentAccountChanges.listen(_onAccountChanged),
@@ -99,7 +103,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             RealtimeEntityKind.roomMessage,
             RealtimeEntityKind.roomSeen,
             RealtimeEntityKind.constellationField,
-            if (_phantomsEnabled) RealtimeEntityKind.phantom,
+            if (phantomsEnabled) RealtimeEntityKind.phantom,
           })
           .listen(_onFieldChange),
       _realtimeSyncCase
@@ -113,7 +117,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   final ClockPort _clock;
   final WakeUpPort _wakeUp;
   final RealtimeSyncCase _realtimeSyncCase;
-  final bool _phantomsEnabled;
+  final bool phantomsEnabled;
 
   /// Minimum spacing between urgent realtime-driven FULL refreshes.
   static const _urgentSpacing = Duration(seconds: 2);
@@ -668,7 +672,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   void _emit(ConstellationFieldStoreState state) {
     var next = state;
     final field = state.field;
-    if (!_phantomsEnabled && field != null) {
+    if (!phantomsEnabled && field != null) {
       final projection = field.anchorProjection;
       final visibleProjection = projection?.withoutPhantomAnchors();
       if (field.phantoms.isNotEmpty ||

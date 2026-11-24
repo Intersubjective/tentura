@@ -228,6 +228,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldStoreCase _case;
 
+  bool get phantomsEnabled => _case.phantomsEnabled;
+
   /// Recomposes at Post deadlines and as the last hour runs out, so a Post
   /// leaves the Field and fades with no network event.
   PostExpiryClock? _expiry;
