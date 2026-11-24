@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/use_case/task_worker_case.dart';
 
@@ -19,6 +20,11 @@ Future<void> serveTask(({SendPort sendPort, Env env}) params) async {
 
       final getIt = await configureDependencies(params.env);
       final taskWorker = await getIt.getAsync<TaskWorkerCase>();
+      final notifications = await getIt.getAsync<PgNotificationService>();
+      final mergeWakes = await notifications.watchPhantomMergeJobs();
+      final subscription = mergeWakes.listen(
+        (_) => taskWorker.nudgePhantomMerges(),
+      );
       unawaited(taskWorker.run());
       print('${Isolate.current.debugName} started at ${DateTime.timestamp()}');
 
@@ -26,6 +32,7 @@ Future<void> serveTask(({SendPort sendPort, Env env}) params) async {
       await receivePort.first;
 
       receivePort.close();
+      await subscription.cancel();
       await taskWorker.dispose();
       await getIt.reset();
       params.sendPort.send(null);

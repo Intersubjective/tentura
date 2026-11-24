@@ -22,9 +22,22 @@ typedef PhantomMergeTarget = ({
   String userId,
 });
 
+typedef PhantomMergeJobLease = ({
+  String id,
+  PhantomMergeTarget target,
+  PhantomMergeOrigin origin,
+  String leaseOwner,
+  int attempts,
+  bool exhausted,
+});
+
 abstract interface class PhantomMergeRepositoryPort {
-  /// Locks the owner's active entry and returns its current name.
-  Future<String?> lockActive(OwnerGraphScope scope, PhantomMergeTarget target);
+  /// Locks the owner's entry and distinguishes an inactive entry from one
+  /// that no longer exists.
+  Future<({String displayName, bool active})?> lockEntry(
+    OwnerGraphScope scope,
+    PhantomMergeTarget target,
+  );
 
   /// Persists the guarded merge, its undo record and owner attention event.
   Future<String> merge(
@@ -33,4 +46,28 @@ abstract interface class PhantomMergeRepositoryPort {
     required PhantomMergeOrigin origin,
     required String displayName,
   });
+
+  Future<List<PhantomMergeJobLease>> claimJobs({
+    required String leaseOwner,
+    required DateTime now,
+  });
+
+  Future<bool> lockClaim(OwnerGraphScope scope, PhantomMergeJobLease job);
+
+  /// A null reason completes the merge. A guard reason skips the job.
+  Future<bool> finishJob(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job, {
+    String? skipReason,
+  });
+
+  /// A null retry time records a terminal failure.
+  Future<bool> recordJobError(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job, {
+    required String error,
+    required DateTime? retryAt,
+  });
+
+  Future<void> recordLinkCard(OwnerGraphScope scope, PhantomMergeJobLease job);
 }

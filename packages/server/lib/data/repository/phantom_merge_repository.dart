@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/domain/entity/leased_job_retry.dart';
 
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
@@ -21,7 +23,7 @@ final class PhantomMergeRepository implements PhantomMergeRepositoryPort {
   final UserContactRepositoryPort _contacts;
 
   @override
-  Future<String?> lockActive(
+  Future<({String displayName, bool active})?> lockEntry(
     OwnerGraphScope scope,
     PhantomMergeTarget target,
   ) async {
@@ -29,8 +31,8 @@ final class PhantomMergeRepository implements PhantomMergeRepositoryPort {
     final row = await _database
         .customSelect(
           r'''
-SELECT display_name FROM public.phantom
-WHERE owner_id = $1 AND id = $2 AND merged_at IS NULL
+SELECT display_name, merged_at IS NULL AS active FROM public.phantom
+WHERE owner_id = $1 AND id = $2
 FOR UPDATE
 ''',
           variables: [
@@ -39,7 +41,150 @@ FOR UPDATE
           ],
         )
         .getSingleOrNull();
-    return row?.read<String>('display_name');
+    return row == null
+        ? null
+        : (
+            displayName: row.read<String>('display_name'),
+            active: row.read<bool>('active'),
+          );
+  }
+
+  @override
+  Future<List<PhantomMergeJobLease>> claimJobs({
+    required String leaseOwner,
+    required DateTime now,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+WITH due AS (
+  SELECT id, attempts
+  FROM public.phantom_merge_job
+  WHERE state = 'queued' AND next_attempt_at <= $2::timestamptz
+    AND (lease_until IS NULL OR lease_until <= $2::timestamptz)
+  ORDER BY next_attempt_at, created_at, id
+  FOR UPDATE SKIP LOCKED
+  LIMIT 32
+)
+UPDATE public.phantom_merge_job AS job
+SET lease_owner = $1, lease_until = $2::timestamptz + interval '2 minutes',
+    attempts = LEAST(due.attempts + 1, $3)
+FROM due
+WHERE job.id = due.id
+RETURNING job.*, due.attempts >= $3 AS exhausted
+''',
+          variables: [
+            Variable.withString(leaseOwner),
+            Variable(TypedValue(Type.timestampTz, now.toUtc())),
+            Variable.withInt(kLeasedJobMaxAttempts),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        (
+          id: row.read<String>('id'),
+          target: (
+            ownerId: row.read<String>('owner_id'),
+            phantomId: row.read<String>('phantom_id'),
+            userId: row.read<String>('user_id'),
+          ),
+          origin: PhantomMergeOrigin.fromCode(row.read<int>('origin')),
+          leaseOwner: leaseOwner,
+          attempts: row.read<int>('attempts'),
+          exhausted: row.read<bool>('exhausted'),
+        ),
+    ];
+  }
+
+  static const _claimedJob = r'''
+id = $1 AND lease_owner = $2 AND attempts = $3 AND state = 'queued'
+''';
+
+  List<Variable<Object>> _claimVariables(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job,
+  ) {
+    requireOwnerGraphScope(_database, scope, job.target.ownerId);
+    return [
+      Variable.withString(job.id),
+      Variable.withString(job.leaseOwner),
+      Variable.withInt(job.attempts),
+    ];
+  }
+
+  @override
+  Future<bool> lockClaim(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job,
+  ) async {
+    final row = await _database
+        .customSelect(
+          'SELECT 1 FROM public.phantom_merge_job WHERE $_claimedJob FOR UPDATE',
+          variables: _claimVariables(scope, job),
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  @override
+  Future<bool> finishJob(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job, {
+    String? skipReason,
+  }) async {
+    final count = await _database.customUpdate(
+      r'''
+UPDATE public.phantom_merge_job SET state = $4, reason = $5, done_at = now()
+WHERE '''
+      '$_claimedJob',
+      variables: [
+        ..._claimVariables(scope, job),
+        Variable.withString(skipReason == null ? 'done' : 'skipped'),
+        Variable<String>(skipReason),
+      ],
+      updateKind: UpdateKind.update,
+    );
+    return count == 1;
+  }
+
+  @override
+  Future<bool> recordJobError(
+    OwnerGraphScope scope,
+    PhantomMergeJobLease job, {
+    required String error,
+    required DateTime? retryAt,
+  }) async {
+    final count = await _database.customUpdate(
+      r'''
+UPDATE public.phantom_merge_job
+SET last_error = left($4, 1000),
+    next_attempt_at = coalesce($5, next_attempt_at),
+    lease_owner = NULL,
+    lease_until = NULL,
+    state = CASE WHEN $5 IS NULL THEN 'failed' ELSE 'queued' END,
+    done_at = CASE WHEN $5 IS NULL THEN now() END
+WHERE '''
+      '$_claimedJob',
+      variables: [
+        ..._claimVariables(scope, job),
+        Variable.withString(error),
+        Variable(TypedValue(Type.timestampTz, retryAt?.toUtc())),
+      ],
+      updateKind: UpdateKind.update,
+    );
+    return count == 1;
+  }
+
+  @override
+  Future<void> recordLinkCard(OwnerGraphScope scope, PhantomMergeJobLease job) {
+    requireOwnerGraphScope(_database, scope, job.target.ownerId);
+    return _recordOwnerAttention(
+      job.target,
+      eventType: 'phantomJoined',
+      eventId: job.id,
+      payload: {'userId': job.target.userId},
+    );
   }
 
   @override
@@ -96,7 +241,12 @@ WHERE owner_id = $1 AND id = $2
 ''',
       [ownerId, phantomId, userId, origin.code, mergeId],
     );
-    await _recordOwnerAttention(target, mergeId);
+    await _recordOwnerAttention(
+      target,
+      eventType: 'phantomMerged',
+      eventId: mergeId,
+      payload: {'mergeId': mergeId},
+    );
     return mergeId;
   }
 
@@ -257,15 +407,18 @@ RETURNING 1
   }
 
   Future<void> _recordOwnerAttention(
-    PhantomMergeTarget target,
-    String mergeId,
-  ) => _database.customStatement(
+    PhantomMergeTarget target, {
+    required String eventType,
+    required String eventId,
+    required Map<String, String> payload,
+  }) => _database.customStatement(
     r'''
 WITH occurrence AS (
   INSERT INTO public.attention_occurrence (
     source_event_key, event_type, actor_user_id, immutable_payload
   )
-  VALUES ($1, 'phantomMerged', $2, jsonb_build_object('targetEntityId', $3::text, 'mergeId', $4::text))
+  VALUES ($1, $4, $2, $5::jsonb)
+  ON CONFLICT (source_event_key) DO NOTHING
   RETURNING id
 )
 INSERT INTO public.attention_occurrence_recipient (
@@ -274,6 +427,12 @@ INSERT INTO public.attention_occurrence_recipient (
 SELECT id, $2, '["owner"]'::jsonb, jsonb_build_object('targetEntityId', $3::text), $1, false
 FROM occurrence
 ''',
-    ['phantomMerged:$mergeId', target.ownerId, target.phantomId, mergeId],
+    [
+      '$eventType:$eventId',
+      target.ownerId,
+      target.phantomId,
+      eventType,
+      jsonEncode({'targetEntityId': target.phantomId, ...payload}),
+    ],
   );
 }

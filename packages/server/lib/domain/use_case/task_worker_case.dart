@@ -8,12 +8,14 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/entity/leased_job_retry.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_capture_settlement_case.dart';
@@ -71,8 +73,9 @@ final class TaskWorkerCase extends UseCaseBase {
     PlanStepSweepCase planStepSweep,
     PostExpirySweepCase postExpirySweep,
     PostExpiryWarningSweepCase postExpiryWarningSweep,
-    AttentionCaptureSettlementCase attentionCaptureSettlement,
-  ) => Future.value(
+    AttentionCaptureSettlementCase attentionCaptureSettlement, {
+    PhantomMergeCase? phantomMerge,
+  }) => Future.value(
     TaskWorkerCase(
       imageRepository,
       tasksRepository,
@@ -104,6 +107,7 @@ final class TaskWorkerCase extends UseCaseBase {
       postExpirySweep: postExpirySweep,
       postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
+      phantomMerge: phantomMerge,
       env: env,
       logger: logger,
     ),
@@ -139,6 +143,7 @@ final class TaskWorkerCase extends UseCaseBase {
     this._postExpirySweep,
     this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
+    this._phantomMerge,
     this._clock = DateTime.timestamp,
   });
 
@@ -173,18 +178,33 @@ final class TaskWorkerCase extends UseCaseBase {
   final PostExpirySweepCase? _postExpirySweep;
   final PostExpiryWarningSweepCase? _postExpiryWarningSweep;
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
+  final PhantomMergeCase? _phantomMerge;
 
   /// Reads "now" for every cadence check; tests drive it by hand.
   final DateTime Function() _clock;
 
-  /// Per-process identity for `image_object_gc` lease ownership (§3.4).
-  final _gcLeaseOwner = generateId('W');
+  /// Per-worker identity for durable queue leases.
+  final _leaseOwner = generateId('W');
+  var _phantomMergeNudged = false;
+
+  void nudgePhantomMerges() => _phantomMergeNudged = true;
+
+  bool _consumePhantomMergeNudge() {
+    final nudged = _phantomMergeNudged;
+    _phantomMergeNudged = false;
+    return nudged;
+  }
 
   final _runnerCompleter = Completer<void>();
 
   /// The worker's jobs in tick order. A job whose collaborator is null keeps
   /// its slot and does nothing when due.
   late final _jobs = <_Job>[
+    _Job(
+      const Duration(seconds: 30),
+      (_) => _phantomMerge?.runDue(leaseOwner: _leaseOwner, clock: _clock),
+      nudged: _consumePhantomMergeNudge,
+    ),
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
     _Job(
       const Duration(seconds: 10),
@@ -325,7 +345,7 @@ final class TaskWorkerCase extends UseCaseBase {
 
   Future<void> _collectImageObjects(DateTime now) async {
     final leases = await _imageObjectGc!.claim(
-      leaseOwner: _gcLeaseOwner,
+      leaseOwner: _leaseOwner,
       now: now,
     );
     for (final lease in leases) {
@@ -336,13 +356,13 @@ final class TaskWorkerCase extends UseCaseBase {
         );
         await _imageObjectGc.complete(
           imageId: lease.imageId,
-          leaseOwner: _gcLeaseOwner,
+          leaseOwner: _leaseOwner,
         );
       } catch (e) {
         await _imageObjectGc.fail(
           imageId: lease.imageId,
-          leaseOwner: _gcLeaseOwner,
-          retryAt: now.add(_gcRetryBackoff(lease.attempts)),
+          leaseOwner: _leaseOwner,
+          retryAt: now.add(leasedJobRetryBackoff(lease.attempts)),
           error: e.toString(),
         );
       }
@@ -375,13 +395,6 @@ final class TaskWorkerCase extends UseCaseBase {
         if (env.isDebugModeOn) print(e);
       }
     }
-  }
-
-  /// Exponential backoff capped at 16 minutes, keyed by the post-claim
-  /// attempt count returned by [ImageObjectGcPort.claim].
-  static Duration _gcRetryBackoff(int attempts) {
-    final capped = attempts < 1 ? 1 : (attempts > 6 ? 6 : attempts);
-    return Duration(seconds: 30 * (1 << (capped - 1)));
   }
 
   static ({String hash, int height, int width}) processImage(

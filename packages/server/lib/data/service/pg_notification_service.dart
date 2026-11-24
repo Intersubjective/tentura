@@ -7,6 +7,7 @@ import 'package:meta/meta.dart';
 import 'package:tentura_server/env.dart';
 
 import 'pg_notification_connection.dart';
+import 'pg_phantom_merge_wake.dart';
 
 final class PgNotificationRecovery {
   const PgNotificationRecovery({required this.sequence});
@@ -44,16 +45,19 @@ class PgNotificationService {
   final _roomTypingController = StreamController<String>.broadcast();
   final _recoveryController =
       StreamController<PgNotificationRecovery>.broadcast();
+  final _phantomMergeController = StreamController<String>.broadcast();
 
   PgNotificationConnection? _connection;
   StreamSubscription<String>? _sub;
   StreamSubscription<String>? _presenceSub;
   StreamSubscription<String>? _roomTypingSub;
+  StreamSubscription<String>? _phantomMergeSub;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   int _recoverySequence = 0;
   bool _disposed = false;
   bool _reconnectScheduled = false;
+  bool _watchPhantomMerges = false;
 
   @factoryMethod
   static Future<PgNotificationService> create(
@@ -114,6 +118,7 @@ class PgNotificationService {
     await connection.listen(presenceChannel);
     await connection.listen(roomTypingChannel);
     _connection = connection;
+    if (_watchPhantomMerges) await _subscribeToPhantomMerges(connection);
     _presenceSub = connection
         .channel(presenceChannel)
         .listen(
@@ -156,6 +161,19 @@ class PgNotificationService {
     }
   }
 
+  Future<void> _subscribeToPhantomMerges(
+    PgNotificationConnection connection,
+  ) async {
+    const channel = PgPhantomMergeWake.channel;
+    await connection.listen(channel);
+    _phantomMergeSub = connection
+        .channel(channel)
+        .listen(
+          _phantomMergeController.add,
+          onError: (Object _) => _scheduleReconnect(),
+        );
+  }
+
   void _scheduleReconnect() {
     if (_disposed || _reconnectScheduled) return;
     _reconnectScheduled = true;
@@ -175,6 +193,7 @@ class PgNotificationService {
       await _sub?.cancel();
       await _presenceSub?.cancel();
       await _roomTypingSub?.cancel();
+      await _phantomMergeSub?.cancel();
       await _connection?.close();
       _connection = null;
       await _connect(isRecovery: true);
@@ -200,10 +219,35 @@ class PgNotificationService {
     await _sub?.cancel();
     await _presenceSub?.cancel();
     await _roomTypingSub?.cancel();
+    await _phantomMergeSub?.cancel();
     await _connection?.close();
     await _controller.close();
     await _presenceController.close();
     await _roomTypingController.close();
     await _recoveryController.close();
+    await _phantomMergeController.close();
+  }
+}
+
+extension PgPhantomMergeNotifications on PgNotificationService {
+  /// The task isolate opts into the channel on its existing LISTEN connection.
+  Future<Stream<String>> watchPhantomMergeJobs() async {
+    if (!_watchPhantomMerges) {
+      _watchPhantomMerges = true;
+      final connection = _connection;
+      if (connection != null) {
+        try {
+          await _subscribeToPhantomMerges(connection);
+        } on Exception catch (error, stackTrace) {
+          PgNotificationService._log.warning(
+            'Could not listen for phantom merge jobs',
+            error,
+            stackTrace,
+          );
+          _scheduleReconnect();
+        }
+      }
+    }
+    return _phantomMergeController.stream;
   }
 }
