@@ -21,8 +21,8 @@ abstract class InvitationEntity with _$InvitationEntity {
     String? parentForwardEdgeId,
     String? phantomId,
 
-    /// Issuer's private name for the invitee; copied to `user_contact` on
-    /// consumption. Null only on legacy rows. Never expose to the invitee.
+    /// Issuer's private name for the invitee. Ordinary accepts and phantom
+    /// merges use it for `user_contact`. Never expose it to the invitee.
     String? addresseeName,
   }) = _InvitationEntity;
 

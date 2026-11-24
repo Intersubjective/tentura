@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
@@ -87,23 +88,43 @@ class UserRepository implements UserRepositoryPort {
     ),
   );
 
-  /// Subjective profiles: on invite consumption the inviter gets the invitee
-  /// under the invite's addressee name. The invite name always wins over a
-  /// pre-existing contact entry. Skips legacy invites without a name. Must be
-  /// called inside the consuming transaction.
-  Future<void> _upsertInviteContact({
-    required String viewerId,
-    required String subjectId,
-    required String? addresseeName,
-  }) async {
-    final name = addresseeName?.trim();
-    if (name == null || name.isEmpty || viewerId == subjectId) return;
+  /// Runs after claiming the invite and before writing trust. The merge owns
+  /// the contact name for a phantom invite.
+  Future<void> _recordInviteContactOrMerge(
+    Invitation invitation,
+    String userId,
+    InviteOrigin origin,
+  ) async {
+    final ownerId = invitation.userId;
+    if (invitation.phantomId case final phantomId?) {
+      final mergeOrigin = switch (origin) {
+        InviteOrigin.newAccount => 1,
+        InviteOrigin.existingAccount => 2,
+      };
+      await _database.customStatement(
+        'INSERT INTO public.phantom_merge_job '
+        '(id, phantom_id, owner_id, user_id, invitation_id, origin) '
+        r'VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING',
+        [
+          generateId('PM'),
+          phantomId,
+          ownerId,
+          userId,
+          invitation.id,
+          mergeOrigin,
+        ],
+      );
+      return;
+    }
+
+    final name = invitation.addresseeName?.trim();
+    if (name == null || name.isEmpty || ownerId == userId) return;
     await _database
         .into(_database.userContacts)
         .insert(
           UserContactsCompanion.insert(
-            viewerId: viewerId,
-            subjectId: subjectId,
+            viewerId: ownerId,
+            subjectId: userId,
             contactName: name,
           ),
           onConflict: DoUpdate(
@@ -475,10 +496,10 @@ class UserRepository implements UserRepositoryPort {
       canForward = false;
     }
 
-    await _upsertInviteContact(
-      viewerId: invitation.userId,
-      subjectId: user.id,
-      addresseeName: invitation.addresseeName,
+    await _recordInviteContactOrMerge(
+      invitation,
+      user.id,
+      InviteOrigin.newAccount,
     );
     await _inviteSeedPrompt.insertPending(
       inviterId: invitation.userId,
@@ -1016,10 +1037,10 @@ class UserRepository implements UserRepositoryPort {
     }
     if (requestLapsed) return InviteAcceptance.requestLapsed;
 
-    await _upsertInviteContact(
-      viewerId: invitation.userId,
-      subjectId: userId,
-      addresseeName: invitation.addresseeName,
+    await _recordInviteContactOrMerge(
+      invitation,
+      userId,
+      InviteOrigin.existingAccount,
     );
 
     final forwardCreated =
