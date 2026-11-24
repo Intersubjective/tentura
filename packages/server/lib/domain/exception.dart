@@ -111,6 +111,26 @@ final class RateLimitedException extends ExceptionBase {
       );
 }
 
+final class PhantomCapReachedException extends ExceptionBase {
+  const PhantomCapReachedException()
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.phantomCapReached,
+        ),
+        description: 'Remove someone not on Tentura yet first.',
+      );
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': {
+      'code': '${code.codeNumber}',
+      'path': path,
+      'reason': 'phantom_cap_reached',
+    },
+  };
+}
+
 final class PemKeyWrongException extends ExceptionBase {
   const PemKeyWrongException({
     String key = '',

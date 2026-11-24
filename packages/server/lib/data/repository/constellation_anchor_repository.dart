@@ -20,7 +20,7 @@ import 'constellation_layout_snapshot_repository.dart'
 import 'constellation_viewer_tx.dart';
 import 'owner_graph_unit_of_work.dart';
 
-@LazySingleton(as: ConstellationAnchorRepositoryPort)
+@LazySingleton(as: ScopedConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository
     implements ScopedConstellationAnchorRepositoryPort {
   /// Attempts within the existing five-second transaction retry budget.
@@ -61,6 +61,7 @@ WITH named_targets AS (
   UPDATE public.constellation_anchor AS a
   SET person_id = CASE WHEN $3 = 'PERSON' THEN $4 END,
       beacon_id = CASE WHEN $3 = 'BEACON' THEN $4 END,
+      phantom_id = CASE WHEN $3 = 'PHANTOM' THEN $4 END,
       tombstone_at = NULL,
       x_units = $5, y_units = $6, coordinate_space_version = $7
   WHERE a.viewer_id = $1 AND a.target_kind = $3 AND a.target_id = $4
@@ -76,12 +77,13 @@ WITH named_targets AS (
   RETURNING revision
 ), placed AS (
   INSERT INTO public.constellation_anchor (
-    id, viewer_id, person_id, beacon_id,
+    id, viewer_id, person_id, beacon_id, phantom_id,
     x_units, y_units, coordinate_space_version, revision, placed_at
   )
   SELECT $2, $1,
          CASE WHEN $3 = 'PERSON' THEN $4 END,
          CASE WHEN $3 = 'BEACON' THEN $4 END,
+         CASE WHEN $3 = 'PHANTOM' THEN $4 END,
          $5, $6, $7, 0, 'epoch'::timestamptz
   WHERE NOT EXISTS (
     SELECT 1 FROM public.constellation_anchor
