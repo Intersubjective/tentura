@@ -56,6 +56,26 @@ final class MutationPhantom extends GqlNodeBase {
       ),
     ),
     GraphQLObjectField(
+      'phantomInviteEnsure',
+      graphQLString.nonNullable(),
+      arguments: [_id.field],
+      resolve: (_, args) => _case.saveInvite(
+        ownerId: getCredentials(args).sub,
+        id: _id.fromArgsNonNullable(args),
+        rotate: false,
+      ),
+    ),
+    GraphQLObjectField(
+      'phantomInviteRotate',
+      graphQLString.nonNullable(),
+      arguments: [_id.field],
+      resolve: (_, args) => _case.saveInvite(
+        ownerId: getCredentials(args).sub,
+        id: _id.fromArgsNonNullable(args),
+        rotate: true,
+      ),
+    ),
+    GraphQLObjectField(
       'phantomHintDismiss',
       graphQLBoolean.nonNullable(),
       arguments: [_phantomId.field, _userId.field],

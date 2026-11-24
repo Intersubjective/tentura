@@ -12,6 +12,7 @@ enum GeneralExceptionCode {
   payloadTooLargeException,
   rateLimitedException,
   phantomCapReached,
+  phantomJoining,
 }
 
 class GeneralExceptionCodes extends ExceptionCodes {

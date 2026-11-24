@@ -20,6 +20,23 @@ abstract interface class PhantomRepositoryPort {
     required String? emoji,
   });
 
+  /// Locks the owned person's invites and returns their name during a queued
+  /// join. The locks remain held until the owner-graph transaction ends.
+  Future<String?> lockInvitesAndFindJoiningName(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+  });
+
+  /// Ensures a live invite for an owned, active person. Rotation also requires
+  /// a live invite to remove. Returns null if the prerequisites are unmet.
+  Future<String?> saveInvite(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+    required bool rotate,
+  });
+
   Future<bool> delete(
     OwnerGraphScope scope, {
     required String ownerId,

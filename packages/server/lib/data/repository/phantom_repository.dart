@@ -90,6 +90,89 @@ SELECT id FROM owned
   }
 
   @override
+  Future<String?> lockInvitesAndFindJoiningName(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final variables = [Variable.withString(id), Variable.withString(ownerId)];
+    final invites = await _database.customSelect(
+      r'''
+SELECT i.id
+FROM public.invitation i
+JOIN public.phantom p ON p.id = i.phantom_id
+WHERE p.id = $1 AND p.owner_id = $2
+ORDER BY i.id
+FOR UPDATE OF i
+''',
+      variables: variables,
+    ).get();
+    if (invites.isEmpty) return null;
+
+    // Take a fresh snapshot after any wait on the accept transaction so we
+    // can see the job that committed with the claim.
+    final joining = await _database.customSelect(
+      r'''
+SELECT p.display_name
+FROM public.phantom p
+WHERE p.id = $1 AND p.owner_id = $2 AND EXISTS (
+  SELECT 1 FROM public.invitation i
+  JOIN public.phantom_merge_job j ON j.invitation_id = i.id
+  WHERE i.phantom_id = p.id AND i.invited_id IS NOT NULL AND j.state = 'queued'
+)
+''',
+      variables: variables,
+    ).getSingleOrNull();
+    return joining?.read<String>('display_name');
+  }
+
+  @override
+  Future<String?> saveInvite(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+    required bool rotate,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final person = await _database
+        .customSelect(
+          r'''
+SELECT p.display_name, i.id AS invitation_id
+FROM public.phantom p
+LEFT JOIN public.invitation i
+  ON i.phantom_id = p.id AND i.user_id = p.owner_id AND i.invited_id IS NULL
+WHERE p.id = $1 AND p.owner_id = $2 AND p.merged_at IS NULL
+''',
+          variables: [Variable.withString(id), Variable.withString(ownerId)],
+        )
+        .getSingleOrNull();
+    if (person == null) return null;
+
+    final invitationId = person.readNullable<String>('invitation_id');
+    if (rotate) {
+      if (invitationId == null) return null;
+      final deleted =
+          await (_database.delete(_database.invitations)..where(
+                (row) => row.id.equals(invitationId) & row.invitedId.isNull(),
+              ))
+              .go();
+      if (deleted == 0) return null;
+    } else if (invitationId != null) {
+      return invitationId;
+    }
+
+    final invitation = await _database.managers.invitations.createReturning(
+      (insert) => insert(
+        userId: ownerId,
+        phantomId: Value(id),
+        addresseeName: Value(person.read<String>('display_name')),
+      ),
+    );
+    return invitation.id;
+  }
+
+  @override
   Future<bool> delete(
     OwnerGraphScope scope, {
     required String ownerId,

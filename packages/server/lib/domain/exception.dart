@@ -131,6 +131,14 @@ final class PhantomCapReachedException extends ExceptionBase {
   };
 }
 
+final class PhantomJoiningException extends ExceptionBase {
+  const PhantomJoiningException(String name)
+    : super(
+        code: const GeneralExceptionCodes(GeneralExceptionCode.phantomJoining),
+        description: '$name is joining right now.',
+      );
+}
+
 final class PemKeyWrongException extends ExceptionBase {
   const PemKeyWrongException({
     String key = '',

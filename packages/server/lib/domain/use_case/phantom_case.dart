@@ -73,13 +73,42 @@ final class PhantomCase {
     });
   }
 
+  Future<String> saveInvite({
+    required String ownerId,
+    required String id,
+    required bool rotate,
+  }) => _withInviteLocks(ownerId, id, (scope) async {
+    final inviteId = await _repository.saveInvite(
+      scope,
+      ownerId: ownerId,
+      id: id,
+      rotate: rotate,
+    );
+    if (inviteId == null) throw IdNotFoundException(id: id);
+    return inviteId;
+  });
+
   Future<bool> delete({required String ownerId, required String id}) =>
-      _ownerGraph.run({ownerId}, ownerId, (scope) async {
+      _withInviteLocks(ownerId, id, (scope) async {
         if (!await _repository.delete(scope, ownerId: ownerId, id: id)) {
           throw IdNotFoundException(id: id);
         }
         return true;
       });
+
+  Future<T> _withInviteLocks<T>(
+    String ownerId,
+    String id,
+    Future<T> Function(OwnerGraphScope scope) action,
+  ) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
+    final name = await _repository.lockInvitesAndFindJoiningName(
+      scope,
+      ownerId: ownerId,
+      id: id,
+    );
+    if (name != null) throw PhantomJoiningException(name);
+    return action(scope);
+  });
 
   Future<bool> dismissLinkHint({
     required String ownerId,

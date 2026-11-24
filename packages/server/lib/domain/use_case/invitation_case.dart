@@ -157,7 +157,7 @@ final class InvitationCase extends UseCaseBase {
     return beacon;
   }
 
-  /// Renames the addressee of the caller's own, still unconsumed invite.
+  /// Renames the addressee of the caller's own, unconsumed ordinary invite.
   Future<InvitationEntity> update({
     required String invitationId,
     required String userId,
