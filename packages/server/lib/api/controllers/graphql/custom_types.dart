@@ -163,8 +163,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationTagMagnet,
   gqlTypePersonTag,
   gqlTypePersonTagSnapshot,
+  gqlTypePersonTagSnapshotMember,
   gqlInputPersonTag,
   gqlInputPersonTagSnapshot,
+  gqlInputPersonTagSnapshotMember,
   gqlInputPersonTagMemberOp,
   gqlTypePersonTagMembers,
   gqlTypePersonTagInherited,
@@ -2429,9 +2431,23 @@ final gqlTypePersonTag = GraphQLObjectType('PersonTag', null)
     field('countOffField', graphQLInt.nonNullable()),
   ]);
 
+final gqlTypePersonTagSnapshotMember =
+    GraphQLObjectType('PersonTagSnapshotMember', null)
+      ..fields.addAll([
+        field('kind', graphQLString.nonNullable()),
+        field('id', graphQLString.nonNullable()),
+        field('membership_id', graphQLString.nonNullable()),
+        field('source', graphQLInt.nonNullable()),
+      ]);
+
 final gqlTypePersonTagSnapshot = GraphQLObjectType('PersonTagSnapshot', null)
   ..fields.addAll([
     field('tag', gqlTypePersonTag.nonNullable()),
+    // A replay of a pre-UUID delete can only return the original arrays.
+    field(
+      'members',
+      GraphQLListType(gqlTypePersonTagSnapshotMember.nonNullable()),
+    ),
     field(
       'memberIds',
       GraphQLListType(graphQLString.nonNullable()).nonNullable(),
@@ -2453,18 +2469,26 @@ final gqlInputPersonTag = GraphQLInputObjectType(
   ],
 );
 
+final gqlInputPersonTagSnapshotMember = GraphQLInputObjectType(
+  'PersonTagSnapshotMemberInput',
+  inputFields: [
+    GraphQLInputObjectField('kind', graphQLString.nonNullable()),
+    GraphQLInputObjectField('id', graphQLString.nonNullable()),
+    GraphQLInputObjectField('membership_id', graphQLString.nonNullable()),
+    GraphQLInputObjectField('source', graphQLInt.nonNullable()),
+  ],
+);
+
 final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
   'PersonTagSnapshotInput',
   inputFields: [
     GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
     GraphQLInputObjectField(
-      'memberIds',
-      _DynamicListType(graphQLString).nonNullable(),
+      'members',
+      _DynamicListType(gqlInputPersonTagSnapshotMember),
     ),
-    GraphQLInputObjectField(
-      'sources',
-      _DynamicListType(graphQLInt).nonNullable(),
-    ),
+    GraphQLInputObjectField('memberIds', _DynamicListType(graphQLString)),
+    GraphQLInputObjectField('sources', _DynamicListType(graphQLInt)),
   ],
 );
 

@@ -108,9 +108,7 @@ final class MutationPeopleTags extends GqlNodeBase {
         arguments: [_snapshot, _clientOpId.field],
         resolve: (_, args) async => (await _case.restore(
           ownerId: getCredentials(args).sub,
-          snapshot: PersonTagSnapshot.fromJson(
-            Map<String, dynamic>.from(args[_snapshot.name]! as Map),
-          ),
+          snapshot: PersonTagSnapshot.fromJson(args[_snapshot.name]),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
         )).toGraphQL(),
       );

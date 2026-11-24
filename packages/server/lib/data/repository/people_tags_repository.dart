@@ -217,8 +217,15 @@ UPDATE public.person_tag
       final tag = _find(tags, id);
       final members = await _database
           .customSelect(
-            'SELECT person_id, source FROM public.person_tag_member '
-            r'WHERE tag_id = $1 ORDER BY person_id',
+            r'''
+SELECT false AS is_phantom, person_id AS id, membership_id::text AS membership_id,
+       source
+  FROM public.person_tag_member WHERE tag_id = $1
+UNION ALL
+SELECT true, phantom_id, membership_id::text, source
+  FROM public.phantom_tag_member WHERE tag_id = $1
+ORDER BY is_phantom, id
+''',
             variables: [Variable.withString(id)],
           )
           .get();
@@ -232,11 +239,20 @@ UPDATE public.person_tag
       ]);
       return PersonTagSnapshot(
         tag: tag,
-        memberIds: [for (final m in members) m.read<String>('person_id')],
-        sources: [for (final m in members) m.read<int>('source')],
+        members: [
+          for (final member in members)
+            PersonTagSnapshotMember(
+              kind: member.read<bool>('is_phantom')
+                  ? PersonTagSnapshotMemberKind.phantom
+                  : PersonTagSnapshotMemberKind.person,
+              id: member.read<String>('id'),
+              membershipId: member.read<String>('membership_id'),
+              source: member.read<int>('source'),
+            ),
+        ],
       );
     },
-    encode: (s) => s.toGraphQL(),
+    encode: (s) => {...s.toJson(), 'tag': s.tag.toGraphQL()},
   );
 
   @override
@@ -276,20 +292,36 @@ UPDATE public.person_tag
           ord: tags.length + 1,
         ),
       );
-      for (var i = 0; i < snapshot.memberIds.length; i++) {
+      for (final member in snapshot.members) {
         await _database.customStatement(
-          r'''
-INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
-SELECT $1, $2, u.id, $4
+          switch (member.kind) {
+            PersonTagSnapshotMemberKind.person =>
+              r'''
+INSERT INTO public.person_tag_member
+       (tag_id, owner_id, person_id, source, membership_id)
+SELECT $1, $2, u.id, $4, coalesce($5::text::uuid, gen_random_uuid())
   FROM public."user" u
  WHERE u.id = $3 AND u.id <> $2
 ON CONFLICT DO NOTHING
 ''',
+            PersonTagSnapshotMemberKind.phantom =>
+              r'''
+INSERT INTO public.phantom_tag_member
+       (tag_id, owner_id, phantom_id, source, membership_id)
+SELECT $1, $2, p.id, $4, $5::text::uuid
+  FROM public.phantom p
+ WHERE p.id = $3 AND p.owner_id = $2
+   AND (p.merged_at IS NULL OR p.merged_user_id IS NOT NULL
+        OR p.current_merge_id IS NOT NULL)
+ON CONFLICT DO NOTHING
+''',
+          },
           [
             snapshot.tag.id,
             ownerId,
-            snapshot.memberIds[i],
-            snapshot.sources[i],
+            member.id,
+            member.source,
+            member.membershipId,
           ],
         );
       }

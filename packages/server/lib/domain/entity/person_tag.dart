@@ -1,4 +1,8 @@
 import 'package:meta/meta.dart';
+import 'package:uuid/uuid.dart';
+
+import '../exception.dart';
+import '../exception_codes.dart';
 
 /// One of an owner's private tags over other people (#699).
 @immutable
@@ -62,38 +66,134 @@ final class PersonTag {
   int get hashCode => Object.hash(id, name, glyph, color, ord);
 }
 
-/// What a delete removed, enough to restore it: the tag and its members
-/// (`memberIds[i]` was added with `sources[i]`).
-final class PersonTagSnapshot {
-  const PersonTagSnapshot({
-    required this.tag,
-    required this.memberIds,
-    required this.sources,
+enum PersonTagSnapshotMemberKind { person, phantom }
+
+/// The identity and source of one membership before deletion.
+final class PersonTagSnapshotMember {
+  const PersonTagSnapshotMember({
+    required this.kind,
+    required this.id,
+    required String this.membershipId,
+    required this.source,
   });
 
-  factory PersonTagSnapshot.fromJson(Map<String, dynamic> json) =>
-      PersonTagSnapshot(
-        tag: PersonTag.fromJson(
-          Map<String, dynamic>.from(json['tag']! as Map),
-        ),
-        memberIds: List<String>.from(json['memberIds']! as List),
-        sources: List<int>.from(json['sources']! as List),
+  const PersonTagSnapshotMember._legacyPerson(this.id, this.source)
+    : kind = PersonTagSnapshotMemberKind.person,
+      membershipId = null;
+
+  factory PersonTagSnapshotMember.fromJson(Object? json) {
+    if (json
+        case {
+          'kind': final String kind,
+          'id': final String id,
+          'membership_id': final String membershipId,
+          'source': final int source,
+        }
+        when Uuid.isValidUUID(
+          fromString: membershipId,
+          validationMode: ValidationMode.nonStrict,
+        )) {
+      return PersonTagSnapshotMember(
+        kind: switch (kind) {
+          'person' => PersonTagSnapshotMemberKind.person,
+          'phantom' => PersonTagSnapshotMemberKind.phantom,
+          _ => throw _invalidSnapshot(),
+        },
+        id: id,
+        membershipId: membershipId,
+        source: source,
       );
+    }
+    throw _invalidSnapshot();
+  }
+
+  final PersonTagSnapshotMemberKind kind;
+  final String id;
+  final String? membershipId;
+  final int source;
+
+  Map<String, Object?> toJson() => {
+    'kind': kind.name,
+    'id': id,
+    'membership_id': membershipId,
+    'source': source,
+  };
+}
+
+PeopleTagsException _invalidSnapshot() => PeopleTagsException(
+  peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+);
+
+/// What a delete removed, enough to restore the tag and its memberships.
+final class PersonTagSnapshot {
+  PersonTagSnapshot({
+    required this.tag,
+    required List<PersonTagSnapshotMember> members,
+  }) : members = List.unmodifiable(members),
+       _legacy = false;
+
+  PersonTagSnapshot._legacy(this.tag, List<PersonTagSnapshotMember> members)
+    : members = List.unmodifiable(members),
+      _legacy = true;
+
+  factory PersonTagSnapshot.fromJson(Object? json) {
+    if (json case {
+      'tag': final Map<String, dynamic> tag,
+      'members': final List<Object?> members,
+    }) {
+      return PersonTagSnapshot(
+        tag: PersonTag.fromJson(tag),
+        members: members.map(PersonTagSnapshotMember.fromJson).toList(),
+      );
+    }
+    // Earlier delete results and undo clients have no membership UUIDs.
+    if (json case {
+      'tag': final Map<String, dynamic> tag,
+      'memberIds': final List<Object?> ids,
+      'sources': final List<Object?> sources,
+    } when ids.length == sources.length) {
+      return PersonTagSnapshot._legacy(PersonTag.fromJson(tag), [
+        for (var i = 0; i < ids.length; i++)
+          switch ((ids[i], sources[i])) {
+            (final String id, final int source) =>
+              PersonTagSnapshotMember._legacyPerson(id, source),
+            _ => throw _invalidSnapshot(),
+          },
+      ]);
+    }
+    throw _invalidSnapshot();
+  }
 
   final PersonTag tag;
-  final List<String> memberIds;
-  final List<int> sources;
+  final List<PersonTagSnapshotMember> members;
+  final bool _legacy;
+
+  Iterable<PersonTagSnapshotMember> get _people => members.where(
+    (member) => member.kind == PersonTagSnapshotMemberKind.person,
+  );
+
+  List<String> get memberIds => [for (final person in _people) person.id];
+  List<int> get sources => [for (final person in _people) person.source];
+
+  Map<String, Object> _legacyMembers() => {
+    'memberIds': memberIds,
+    'sources': sources,
+  };
 
   Map<String, dynamic> toJson() => {
     'tag': tag.toJson(),
-    'memberIds': memberIds,
-    'sources': sources,
+    // Keep the fingerprint of a retried legacy restore unchanged.
+    if (_legacy)
+      ..._legacyMembers()
+    else
+      'members': [for (final member in members) member.toJson()],
   };
 
   /// The delete response and replay record retain the pre-delete counts.
   Map<String, dynamic> toGraphQL() => {
     ...toJson(),
     'tag': tag.toGraphQL(),
+    if (!_legacy) ..._legacyMembers(),
   };
 }
 
