@@ -1,10 +1,12 @@
-const _redactedQaToken = '<redacted>';
+const _redactedValue = '<redacted>';
 
-final _qaTokenPattern = RegExp(r'([?&]_qa_token=)[^&\s]*');
+final _sensitiveQueryParameter = RegExp(
+  r'([?&](?:_qa_token|objectKey)=)[^&\s]*',
+);
 
 String sanitizeRequestLogMessage(String message) => message.replaceAllMapped(
-  _qaTokenPattern,
-  (match) => '${match.group(1)}$_redactedQaToken',
+  _sensitiveQueryParameter,
+  (match) => '${match.group(1)}$_redactedValue',
 );
 
 void sanitizedRequestLogger(

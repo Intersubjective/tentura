@@ -27,7 +27,7 @@ Future<void> initSentry({
         ..enableLogs = true
         ..tracesSampleRate = env.sentryTracesSampleRate
         ..debug = env.isDebugModeOn
-        ..beforeBreadcrumb = scrubPhantomBreadcrumb
+        ..beforeBreadcrumb = scrubPrivatePersonBreadcrumb
         ..ignoreErrors = [
           'SocketException',
         ];

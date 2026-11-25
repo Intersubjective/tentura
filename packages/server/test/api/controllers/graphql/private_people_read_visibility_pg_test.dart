@@ -3,17 +3,25 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show File, HttpServer, HttpStatus, InternetAddress;
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:http/http.dart' as http;
+// MultipartFile exposes the media type from http's dependency.
+// ignore: depend_on_referenced_packages
+import 'package:http_parser/http_parser.dart';
+import 'package:image/image.dart' as image;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
-import 'package:shelf_plus/shelf_plus.dart' show Handler, Request;
+import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:shelf_plus/shelf_plus.dart' show Handler, Request, Response;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -33,6 +41,10 @@ const _privateNames = ['Clover Private 731', 'Rowan Private 846'];
 const _privateTag = 'PT781a000001';
 const _privateTagName = 'Orchid Private Circle';
 const _viewerTag = 'PT781b000002';
+const _noteSearch = 'GardenLedger731';
+const _entryNote = 'Seed order for GardenLedger731';
+const _accountNote = 'Pickup schedule for GardenLedger731';
+const _ownerAvatarPrefix = 'private/$_owner/';
 
 final _phantomIdPattern = RegExp('PH[0-9a-f]{12}');
 
@@ -51,6 +63,24 @@ Future<void> main() async {
     late List<String> privateIds;
     late String inviteCode;
     late Connection writer;
+    late List<String> avatarKeys;
+    final storage = _AvatarStorage();
+    final jpeg = image.encodeJpg(image.Image(width: 8, height: 8));
+
+    void expectNoPrivateNotesOrAvatarKeys(String wire, {String? read}) {
+      expect(
+        wire,
+        isNot(
+          anyOf(
+            contains(_entryNote),
+            contains(_accountNote),
+            contains(_ownerAvatarPrefix),
+            contains(Uri.encodeComponent(_ownerAvatarPrefix)),
+          ),
+        ),
+        reason: read,
+      );
+    }
 
     void expectNoPrivateEntries(String wire) {
       // Search the entire body, including IDs embedded in URLs or text.
@@ -80,6 +110,7 @@ Future<void> main() async {
 
       final jwt = loadJwtKeysForHasuraPgTests();
       final db = target.databaseEnv;
+      getIt.registerSingleton<RemoteStoragePort>(storage);
       await configureSessionDatabaseTestGraph(
         Env(
           environment: Environment.dev,
@@ -99,13 +130,42 @@ Future<void> main() async {
           sentryDsn: '',
         ),
       );
-      api = _Api((await getIt.getAsync<RootRouter>()).routeHandler());
+      final handler = (await getIt.getAsync<RootRouter>()).routeHandler();
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      shelf_io.serveRequests(server, handler);
+      api = _Api(handler, Uri.parse('http://127.0.0.1:${server.port}'));
       await _seedSharedRequest(writer);
       privateIds = [
         for (final name in _privateNames) await api.createPerson(name),
       ];
       await _seedTags(writer, privateIds);
       inviteCode = await api.ensureInvite(privateIds.first);
+
+      final entry = {'phantomId': privateIds.first};
+      const account = {'userId': _viewer};
+      for (final (subject, body) in [
+        (entry, _entryNote),
+        (account, _accountNote),
+      ]) {
+        await api.saveNote(subject, body);
+        final note = await api.query(_owner, _readNote, subject);
+        expect(note['personNote'], [containsPair('body', body)]);
+        await api.uploadAvatar(subject, jpeg);
+      }
+      avatarKeys = storage.objects.keys.toList();
+      expect(avatarKeys, hasLength(2));
+      expect(avatarKeys, everyElement(startsWith(_ownerAvatarPrefix)));
+      final ownerField = await api.query(_owner, _field);
+      expect(
+        (ownerField['constellationField']! as Map)['phantoms'],
+        contains(
+          allOf(
+            containsPair('id', privateIds.first),
+            containsPair('hasPrivateAvatar', true),
+          ),
+        ),
+      );
 
       final forwarded = await api.query(
         _owner,
@@ -156,6 +216,7 @@ VALUES ('$_requestId', '$_viewer', 6, 0, 3)
                 containsPair('id', id),
                 containsPair('displayName', _privateNames[index]),
                 containsPair('ownTagIds', [_privateTag]),
+                containsPair('hasPrivateAvatar', index == 0),
               ),
           ]),
         );
@@ -169,6 +230,10 @@ VALUES ('$_requestId', '$_viewer', 6, 0, 3)
         );
         expect(viewerField['phantoms'], isEmpty);
         expectNoPrivateEntries(asViewer.wire);
+        expectNoPrivateNotesOrAvatarKeys(
+          asViewer.wire,
+          read: 'constellationField',
+        );
       },
     );
 
@@ -204,6 +269,10 @@ query PeopleTags($person: String!) {
       );
       expect(asViewer['personTagsOf'], containsPair('own', [_viewerTag]));
       expectNoPrivateEntries(asViewer.wire);
+      expectNoPrivateNotesOrAvatarKeys(
+        asViewer.wire,
+        read: 'people tags and memberships',
+      );
     });
 
     test(
@@ -237,6 +306,10 @@ query RequestForwardCandidates {
           ),
         );
         expectNoPrivateEntries(response.wire);
+        expectNoPrivateNotesOrAvatarKeys(
+          response.wire,
+          read: 'forwardCandidates',
+        );
       },
     );
 
@@ -277,6 +350,10 @@ query RequestForwards($request: String!) {
           ),
         ]);
         expectNoPrivateEntries(response.wire);
+        expectNoPrivateNotesOrAvatarKeys(
+          response.wire,
+          read: 'beaconForwardGraph and beaconEligibleInboundForwards',
+        );
       },
     );
 
@@ -310,6 +387,7 @@ query InvitationDetails($code: String!) {
         expect(invitation['phantom_id'], isNull);
         expect(invitation['addressee_name'], isNull);
         expectNoPrivateEntries(asViewer.wire);
+        expectNoPrivateNotesOrAvatarKeys(asViewer.wire, read: 'invitationById');
       },
     );
 
@@ -332,6 +410,12 @@ query InvitationDetails($code: String!) {
           });
           expect(preview['beacon'], isNull);
           expectNoPrivateEntries(preview.wire);
+          expectNoPrivateNotesOrAvatarKeys(
+            preview.wire,
+            read: includeRequest
+                ? 'invite preview with r'
+                : 'invite preview without r',
+          );
           expect(preview.wire, isNot(contains(_privateTag)));
           expect(preview.wire, isNot(contains(_privateTagName)));
         },
@@ -362,6 +446,7 @@ fragment Receipt on AttentionReceipt {
       final page = feed['page']! as Map;
       expect(page['items'], contains(containsPair('beaconId', _requestId)));
       expectNoPrivateEntries(response.wire);
+      expectNoPrivateNotesOrAvatarKeys(response.wire, read: 'attentionFeed');
     });
 
     for (final (centre, description) in [
@@ -392,12 +477,235 @@ fragment Receipt on AttentionReceipt {
             ),
           );
           expectNoPrivateEntries(response.wire);
+          expectNoPrivateNotesOrAvatarKeys(
+            response.wire,
+            read: 'graph around $description',
+          );
         },
         skip: hasDocker
             ? false
             : 'Docker required for the authenticated Hasura graph',
       );
     }
+
+    test('Hasura tracks no view derived from private avatar storage', () async {
+      final Object? document = jsonDecode(
+        File('../../hasura/metadata.json').readAsStringSync(),
+      );
+      final sources = switch (document) {
+        {'metadata': {'sources': final List<Object?> sources}} => sources,
+        _ => throw const FormatException('Missing Hasura metadata sources'),
+      };
+      final tracked = <(String, String)>{};
+      for (final source in sources) {
+        final entries = switch (source) {
+          {'tables': final List<Object?> tables} => tables,
+          Map<String, Object?>() when source['tables'] == null =>
+            const <Object?>[],
+          _ => throw const FormatException('Invalid Hasura table list'),
+        };
+        for (final entry in entries) {
+          tracked.add(switch (entry) {
+            {
+              'table': {
+                'schema': final String schema,
+                'name': final String name,
+              },
+            } =>
+              (
+                schema,
+                name,
+              ),
+            _ => throw const FormatException('Invalid Hasura table entry'),
+          });
+        }
+      }
+      expect(tracked, contains(('public', 'user')));
+
+      // PostgreSQL records dependencies even when views rename their output
+      // columns, and the recursion follows views built on top of other views.
+      final relations = await writer.execute('''
+WITH RECURSIVE avatar_relations(oid) AS (
+  VALUES ('public.person_private_avatar'::regclass::oid),
+         ('public.private_object_gc'::regclass::oid)
+  UNION
+  SELECT rewrite.ev_class
+  FROM avatar_relations AS source
+  JOIN pg_depend AS dependency
+    ON dependency.refclassid = 'pg_class'::regclass
+    AND dependency.refobjid = source.oid
+    AND dependency.classid = 'pg_rewrite'::regclass
+  JOIN pg_rewrite AS rewrite ON rewrite.oid = dependency.objid
+  JOIN pg_class AS view ON view.oid = rewrite.ev_class
+  WHERE view.relkind IN ('v', 'm')
+)
+SELECT ns.nspname::text, relation.relname::text
+FROM avatar_relations
+JOIN pg_class AS relation USING (oid)
+JOIN pg_namespace AS ns ON ns.oid = relation.relnamespace
+''');
+      final privateRelations = {
+        for (final row in relations)
+          switch (row) {
+            [final String schema, final String name] => (schema, name),
+            _ => throw const FormatException('Invalid PostgreSQL relation row'),
+          },
+      };
+      expect(tracked.intersection(privateRelations), isEmpty);
+    });
+
+    test('the note subject cannot read the owner’s note about them', () async {
+      final reply = await api.query(_viewer, _readNote, {'userId': _viewer});
+      expect(reply['personNote'], isEmpty);
+      expectNoPrivateNotesOrAvatarKeys(reply.wire);
+    });
+
+    test(
+      'a contact cannot read notes on the owner’s private Field entry',
+      () async {
+        final wire = await api.post(_viewer, _readNote, {
+          'phantomId': privateIds.first,
+        });
+        final reply = jsonDecode(wire) as Map<String, Object?>;
+        expectNoPrivateNotesOrAvatarKeys(wire);
+        expect(wire, isNot(contains(_privateNames.first)));
+
+        if (reply['errors'] != null) {
+          expect(
+            reply['errors'],
+            contains(
+              containsPair(
+                'extensions',
+                containsPair('code', allOf(matches(r'^\d+$'), isNot('1000'))),
+              ),
+            ),
+            reason: wire,
+          );
+          expect(
+            (reply['data'] as Map?)?['personNote'],
+            anyOf(isNull, isFalse),
+          );
+        } else {
+          expect(
+            reply['data'],
+            containsPair(
+              'personNote',
+              anyOf(isNull, isFalse, equals(const [])),
+            ),
+            reason: wire,
+          );
+        }
+      },
+    );
+
+    test(
+      'contacts cannot find the owner’s notes by changing the query case',
+      () async {
+        final asOwner = await api.query(_owner, _searchNotes, {
+          'q': _noteSearch,
+        });
+        expect(
+          asOwner['personNoteSearch'],
+          unorderedEquals([
+            {'subjectUserId': _viewer, 'subjectPhantomId': null},
+            {'subjectUserId': null, 'subjectPhantomId': privateIds.first},
+          ]),
+        );
+
+        for (final q in [_noteSearch, _noteSearch.toUpperCase()]) {
+          final asViewer = await api.query(_viewer, _searchNotes, {'q': q});
+          expect(asViewer['personNoteSearch'], isEmpty, reason: q);
+          expectNoPrivateEntries(asViewer.wire);
+          expectNoPrivateNotesOrAvatarKeys(
+            asViewer.wire,
+            read: 'personNoteSearch',
+          );
+          expect(asViewer.wire, isNot(contains(_viewer)));
+        }
+      },
+    );
+
+    test('only the uploader can download either private avatar', () async {
+      for (final key in avatarKeys) {
+        final ownerDownload = await api.downloadAvatar(_owner, key);
+        expect(ownerDownload.statusCode, HttpStatus.ok);
+        expect(
+          await ownerDownload.read().expand((chunk) => chunk).toList(),
+          jpeg,
+        );
+
+        final viewerDownload = await api.downloadAvatar(_viewer, key);
+        expect(viewerDownload.statusCode, HttpStatus.forbidden);
+        expect(
+          viewerDownload.headers['content-type'] ?? '',
+          isNot(startsWith('image/')),
+        );
+        final deniedBytes = await viewerDownload
+            .read()
+            .expand((chunk) => chunk)
+            .toList();
+        expect(deniedBytes, isNot(equals(jpeg)));
+        expect(
+          deniedBytes.take(3).toList(),
+          isNot(equals(jpeg.take(3).toList())),
+        );
+      }
+    });
+
+    test(
+      'saving, reading, searching and deleting notes keeps their text out of server logs',
+      () async {
+        const initial = 'PrivateLogNoteCreate731';
+        const edited = 'PrivateLogNoteEdit846';
+        const search = 'NoteEdit846';
+        final subject = {'phantomId': privateIds.last};
+        final records = <LogRecord>[];
+        final requestLogs = <String>[];
+        final previousLevel = Logger.root.level;
+        Logger.root.level = Level.ALL;
+        final subscription = Logger.root.onRecord.listen(records.add);
+        addTearDown(() async {
+          await subscription.cancel();
+          Logger.root.level = previousLevel;
+        });
+
+        await runZoned(
+          () async {
+            await api.saveNote(subject, initial);
+            await api.saveNote(subject, edited);
+            final read = await api.query(_owner, _readNote, subject);
+            expect(read['personNote'], [containsPair('body', edited)]);
+            final hits = await api.query(_owner, _searchNotes, {'q': search});
+            expect(hits['personNoteSearch'], [
+              containsPair('subjectPhantomId', privateIds.last),
+            ]);
+            final deleted = await api.query(_owner, r'''
+mutation personNoteDelete($phantomId: String!) {
+  personNoteDelete(subjectPhantomId: $phantomId)
+}
+''', subject);
+            expect(deleted['personNoteDelete'], isTrue);
+          },
+          zoneSpecification: ZoneSpecification(
+            print: (_, _, _, line) => requestLogs.add(line),
+          ),
+        );
+
+        expect(
+          requestLogs.where((line) => line.contains('/api/v2/graphql')),
+          hasLength(5),
+        );
+        final logText = [
+          ...requestLogs,
+          for (final record in records)
+            '${record.loggerName}: ${record.message} ${record.error} ${record.stackTrace} ${record.object}',
+        ].join('\n');
+        expect(
+          logText,
+          isNot(anyOf(contains(initial), contains(edited), contains(search))),
+        );
+      },
+    );
 
     test(
       'creating, renaming and inviting a private person keeps names out of server logs',
@@ -468,7 +776,7 @@ query RenamedInvite($id: String!) {
 const _field = '''
 query PrivatePeopleField {
   constellationField {
-    phantoms { id displayName ownTagIds }
+    phantoms { id displayName ownTagIds hasPrivateAvatar }
     linkHints { phantomId userId }
     peers { id displayName temporaryBeaconId }
     directContactIds
@@ -483,6 +791,20 @@ query PrivatePeopleField {
       supportEdges { src dst }
     }
   }
+}
+''';
+
+const _readNote = r'''
+query personNote($userId: String, $phantomId: String) {
+  personNote(subjectUserId: $userId, subjectPhantomId: $phantomId) {
+    body phantomName
+  }
+}
+''';
+
+const _searchNotes = r'''
+query personNoteSearch($q: String!) {
+  personNoteSearch(q: $q) { subjectUserId subjectPhantomId }
 }
 ''';
 
@@ -559,9 +881,10 @@ $snapshot$
 ''');
 
 final class _Api {
-  _Api(this._handler);
+  _Api(this._handler, this._uploadOrigin);
 
   final Handler _handler;
+  final Uri _uploadOrigin;
   late IsolatedHasuraSession hasura;
 
   String _authorization(String person) =>
@@ -605,11 +928,73 @@ final class _Api {
     return _JsonReply(body, jsonDecode(body) as Map<String, Object?>);
   }
 
-  Future<_JsonReply> query(
+  Future<void> saveNote(Map<String, Object?> subject, String body) async {
+    final reply = await query(
+      _owner,
+      r'''
+mutation personNoteUpsert($userId: String, $phantomId: String, $body: String!) {
+  personNoteUpsert(subjectUserId: $userId, subjectPhantomId: $phantomId, body: $body)
+}
+''',
+      {...subject, 'body': body},
+    );
+    expect(reply['personNoteUpsert'], isTrue);
+  }
+
+  Future<void> uploadAvatar(
+    Map<String, Object?> subject,
+    Uint8List jpeg,
+  ) async {
+    final multipart =
+        http.MultipartRequest(
+            'POST',
+            _uploadOrigin.resolve('/api/v2/graphql'),
+          )
+          ..headers['authorization'] = _authorization(_owner)
+          ..fields['operations'] = jsonEncode({
+            'operationName': 'UploadAvatar',
+            'query': r'''
+mutation UploadAvatar($userId: String, $phantomId: String, $file: Upload) {
+  personPrivateAvatarUpload(subjectUserId: $userId, subjectPhantomId: $phantomId, file: $file)
+}
+''',
+            'variables': {
+              ...subject,
+              'file': {'filename': 'avatar.jpg', 'type': 'image/jpeg'},
+            },
+          })
+          ..fields['map'] = jsonEncode({
+            '0': ['variables.file'],
+          })
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              '0',
+              jpeg,
+              filename: 'avatar.jpg',
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+    final response = await http.Response.fromStream(await multipart.send());
+    expect(response.statusCode, 200, reason: response.body);
+    final reply = _responseData(response.body);
+    expect(reply['personPrivateAvatarUpload'], isTrue);
+  }
+
+  Future<Response> downloadAvatar(String person, String key) async => _handler(
+    Request(
+      'GET',
+      Uri.parse(
+        '$_origin/api/v2/private-avatars',
+      ).replace(queryParameters: {'objectKey': key}),
+      headers: {'authorization': _authorization(person)},
+    ),
+  );
+
+  Future<String> post(
     String person,
-    String document, [
-    Map<String, Object?> variables = const {},
-  ]) async {
+    String document,
+    Map<String, Object?> variables,
+  ) async {
     final response = await _handler(
       Request(
         'POST',
@@ -621,8 +1006,16 @@ final class _Api {
         body: jsonEncode({'query': document, 'variables': variables}),
       ),
     );
-    return _responseData(response.statusCode, await response.readAsString());
+    final wire = await response.readAsString();
+    expect(response.statusCode, 200, reason: wire);
+    return wire;
   }
+
+  Future<_JsonReply> query(
+    String person,
+    String document, [
+    Map<String, Object?> variables = const {},
+  ]) async => _responseData(await post(person, document, variables));
 
   Future<_JsonReply> graph(String centre) async {
     final response = await http.post(
@@ -642,11 +1035,11 @@ query GraphAroundPerson($centre: String!) {
         'variables': {'centre': centre},
       }),
     );
-    return _responseData(response.statusCode, response.body);
+    expect(response.statusCode, 200, reason: response.body);
+    return _responseData(response.body);
   }
 
-  _JsonReply _responseData(int status, String body) {
-    expect(status, 200, reason: body);
+  _JsonReply _responseData(String body) {
     final payload = jsonDecode(body) as Map<String, Object?>;
     expect(payload['errors'], isNull, reason: body);
     final data = payload['data'];
@@ -662,4 +1055,29 @@ final class _JsonReply {
   final Map<String, Object?> _data;
 
   Object? operator [](String field) => _data[field];
+}
+
+// Keep the GraphQL, database and download paths real while replacing S3.
+final class _AvatarStorage implements RemoteStoragePort {
+  final objects = <String, Uint8List>{};
+
+  @override
+  Future<String> putObject(
+    String path,
+    Stream<Uint8List> bytes, {
+    Map<String, String>? metadata,
+  }) async {
+    final buffer = BytesBuilder(copy: false);
+    await bytes.forEach(buffer.add);
+    objects[path] = buffer.takeBytes();
+    return path;
+  }
+
+  @override
+  Future<Uint8List> getObject(String path) async => objects[path]!;
+
+  @override
+  Future<void> removeObject(String path) async {
+    objects.remove(path);
+  }
 }

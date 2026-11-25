@@ -7,13 +7,14 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
+  late Map<String, dynamic> metadata;
   late List<Map<String, dynamic>> tables;
 
   setUpAll(() {
     final document =
         jsonDecode(File('../../hasura/metadata.json').readAsStringSync())
             as Map<String, dynamic>;
-    final metadata = document['metadata'] as Map<String, dynamic>;
+    metadata = document['metadata'] as Map<String, dynamic>;
     tables = [
       for (final source
           in (metadata['sources'] as List).cast<Map<String, dynamic>>())
@@ -29,6 +30,20 @@ void main() {
           table['table'],
     ];
     expect(exposed, isEmpty);
+  });
+
+  test('Hasura metadata never references private avatar storage tables', () {
+    expect(
+      jsonEncode(metadata),
+      isNot(
+        matches(
+          RegExp(
+            r'\b(?:person_private_avatar|private_object_gc)\b',
+            caseSensitive: false,
+          ),
+        ),
+      ),
+    );
   });
 
   test('only the issuer can select an invitation’s linked person id', () {
