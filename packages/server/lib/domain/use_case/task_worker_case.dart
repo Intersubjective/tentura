@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
+import 'package:tentura_server/domain/port/private_object_gc_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
@@ -75,6 +76,7 @@ final class TaskWorkerCase extends UseCaseBase {
     PostExpiryWarningSweepCase postExpiryWarningSweep,
     AttentionCaptureSettlementCase attentionCaptureSettlement, {
     PhantomMergeCase? phantomMerge,
+    PrivateObjectGcPort? privateObjectGc,
   }) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -108,6 +110,7 @@ final class TaskWorkerCase extends UseCaseBase {
       postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
       phantomMerge: phantomMerge,
+      privateObjectGc: privateObjectGc,
       env: env,
       logger: logger,
     ),
@@ -121,6 +124,7 @@ final class TaskWorkerCase extends UseCaseBase {
     required super.env,
     required super.logger,
     this._imageObjectGc,
+    this._privateObjectGc,
     this._beaconCase,
     this._attentionChannelDelivery,
     this._beaconHierarchyDelivery,
@@ -156,6 +160,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final NotificationOutboxRepositoryPort _notificationOutbox;
 
   final ImageObjectGcPort? _imageObjectGc;
+  final PrivateObjectGcPort? _privateObjectGc;
   final BeaconCase? _beaconCase;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
   final BeaconHierarchyDeliveryCase? _beaconHierarchyDelivery;
@@ -291,6 +296,7 @@ final class TaskWorkerCase extends UseCaseBase {
     // deleted from the database, only after their owning transaction
     // committed.
     _Job(const Duration(seconds: 30), _collectImageObjects),
+    _Job(const Duration(seconds: 30), _collectPrivateObjects),
     // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
     _Job(
       const Duration(minutes: 5),
@@ -364,6 +370,24 @@ final class TaskWorkerCase extends UseCaseBase {
           leaseOwner: _leaseOwner,
           retryAt: now.add(leasedJobRetryBackoff(lease.attempts)),
           error: e.toString(),
+        );
+      }
+    }
+  }
+
+  Future<void> _collectPrivateObjects(DateTime now) async {
+    final gc = _privateObjectGc;
+    if (gc == null) return;
+    final leases = await gc.claim(leaseOwner: _leaseOwner, now: now);
+    for (final lease in leases) {
+      try {
+        await gc.collect(objectKey: lease.objectKey, leaseOwner: _leaseOwner);
+      } catch (error) {
+        await gc.fail(
+          objectKey: lease.objectKey,
+          leaseOwner: _leaseOwner,
+          retryAt: now.add(leasedJobRetryBackoff(lease.attempts)),
+          error: error.toString(),
         );
       }
     }
