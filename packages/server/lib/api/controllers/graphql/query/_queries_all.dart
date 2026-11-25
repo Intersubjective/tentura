@@ -68,6 +68,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryClosure().all,
   ...QueryContact().all,
   const PersonNoteFields().read,
+  const PersonNoteFields().search,
   ...QueryHelpOffererForwardPath().all,
   ...QueryCoordination().all,
   ...QueryFactCard().all,

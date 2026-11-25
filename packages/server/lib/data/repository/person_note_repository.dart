@@ -46,6 +46,39 @@ ORDER BY m.created_at NULLS FIRST, m.id
   }
 
   @override
+  Future<List<PersonNoteSubject>> search(String ownerId, String query) =>
+      _database.withTransaction(() async {
+        await _suppressNoteTextLogging();
+        final escaped = query
+            .replaceAll('!', '!!')
+            .replaceAll('%', '!%')
+            .replaceAll('_', '!_');
+        final rows = await _database
+            .customSelect(
+              r'''
+SELECT subject_user_id, subject_phantom_id
+FROM public.person_note
+WHERE owner_id = $1 AND body ILIKE $2 ESCAPE '!'
+LIMIT 50
+''',
+              variables: [
+                Variable.withString(ownerId),
+                Variable.withString('%$escaped%'),
+              ],
+            )
+            .get();
+        return [
+          for (final row in rows)
+            switch (row.readNullable<String>('subject_user_id')) {
+              final String id => PersonNoteSubject.user(id),
+              null => PersonNoteSubject.phantom(
+                row.read<String>('subject_phantom_id'),
+              ),
+            },
+        ];
+      });
+
+  @override
   Future<bool> upsert(
     OwnerGraphScope scope,
     String ownerId,
@@ -53,14 +86,7 @@ ORDER BY m.created_at NULLS FIRST, m.id
     String body,
   ) async {
     requireOwnerGraphScope(_database, scope, ownerId);
-    // Production logs slow statements and plans. Keep note bodies out of
-    // PostgreSQL logs while preserving the pool's defaults after this save.
-    await _database.customStatement('''
-SELECT set_config('log_parameter_max_length', '0', true),
-       set_config('log_parameter_max_length_on_error', '0', true),
-       set_config('log_error_verbosity', 'terse', true),
-       set_config('auto_explain.log_min_duration', '-1', true)
-''');
+    await _suppressNoteTextLogging();
     // Lock the referenced rows through the write, including when an account
     // is being erased outside the owner scope.
     final count = await _database.customUpdate(
@@ -85,6 +111,15 @@ SET body = EXCLUDED.body, revision = n.revision + 1, updated_at = now()
     );
     return count != 0;
   }
+
+  // Apply only within a transaction, so pooled connections retain their
+  // defaults after a save or a search that can contain private note text.
+  Future<void> _suppressNoteTextLogging() => _database.customStatement('''
+SELECT set_config('log_parameter_max_length', '0', true),
+       set_config('log_parameter_max_length_on_error', '0', true),
+       set_config('log_error_verbosity', 'terse', true),
+       set_config('auto_explain.log_min_duration', '-1', true)
+''');
 
   @override
   Future<bool> delete(

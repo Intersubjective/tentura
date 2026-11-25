@@ -18,6 +18,16 @@ final class PersonNoteCase {
     PersonNoteSubject subject,
   ) => _repository.read(ownerId, subject);
 
+  Future<List<PersonNoteSubject>> search(String ownerId, String query) async {
+    if (query.trim().isEmpty) return const [];
+    if (query.contains('\u0000')) {
+      throw const IdWrongException(
+        description: 'The search query contains an invalid character',
+      );
+    }
+    return _repository.search(ownerId, query);
+  }
+
   Future<bool> upsert(String ownerId, PersonNoteSubject subject, String body) {
     if (subject.kind == PersonNoteSubjectKind.user && subject.id == ownerId) {
       throw const IdWrongException(

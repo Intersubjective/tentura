@@ -7,6 +7,8 @@ abstract interface class PersonNoteRepositoryPort {
     PersonNoteSubject subject,
   );
 
+  Future<List<PersonNoteSubject>> search(String ownerId, String query);
+
   Future<bool> upsert(
     OwnerGraphScope scope,
     String ownerId,

@@ -14,6 +14,7 @@ final class PersonNoteFields extends GqlNodeBase {
   static final _userId = InputFieldString(fieldName: 'subjectUserId');
   static final _phantomId = InputFieldString(fieldName: 'subjectPhantomId');
   static final _body = InputFieldString(fieldName: 'body');
+  static final _query = InputFieldString(fieldName: 'q');
   static final _subjectArgs = [_userId.fieldNullable, _phantomId.fieldNullable];
 
   GraphQLObjectField<dynamic, dynamic> get read => GraphQLObjectField(
@@ -29,6 +30,22 @@ final class PersonNoteFields extends GqlNodeBase {
           'body': note.body,
           'subjectPhantomId': note.phantom?.id,
           'phantomName': note.phantom?.name,
+        },
+    ],
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get search => GraphQLObjectField(
+    'personNoteSearch',
+    GraphQLListType(gqlTypePersonNoteSubject.nonNullable()).nonNullable(),
+    arguments: [_query.field],
+    resolve: (_, args) async => [
+      for (final subject in await _case.search(
+        getCredentials(args).sub,
+        _query.fromArgsNonNullable(args),
+      ))
+        switch (subject.kind) {
+          PersonNoteSubjectKind.user => {'subjectUserId': subject.id},
+          PersonNoteSubjectKind.phantom => {'subjectPhantomId': subject.id},
         },
     ],
   );

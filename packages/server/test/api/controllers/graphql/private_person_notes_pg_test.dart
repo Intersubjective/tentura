@@ -352,6 +352,183 @@ Future<void> main() async {
       },
     );
 
+    group('Searching private notes', () {
+      for (final query in ['spare key', 'SPARE']) {
+        test(
+          'finds an account by the substring "$query" regardless of case',
+          () async {
+            await api.save(_personSubject, 'Bring the spare KEY');
+
+            expect(await api.search(query), [_searchHit(_personSubject)]);
+          },
+        );
+      }
+
+      test(
+        'finds a private entry by its note and returns its own ID',
+        () async {
+          await api.save(_phantomSubject, 'Plumber, knows Anna');
+
+          expect(await api.search('plumber'), [_searchHit(_phantomSubject)]);
+        },
+      );
+
+      test('keeps the stored private entry ID after linking', () async {
+        await fixtures.allowLinkToPerson(_owner);
+        await api.save(_phantomSubject, 'Plumber, knows Anna');
+        await api.link(_firstPhantom);
+
+        expect(await api.search('plumber'), [_searchHit(_phantomSubject)]);
+      });
+
+      for (final (query, expected) in [
+        ('piano', [_searchHit(_personSubject)]),
+        ('zzz', const <Map<String, Object?>>[]),
+      ]) {
+        test('returns only the matching subjects for "$query"', () async {
+          await api.save(_personSubject, 'piano teacher');
+          await api.save(_unrelatedSubject, 'dentist');
+
+          expect(await api.search(query), expected);
+        });
+      }
+
+      test(
+        'hides another author’s matches on accounts and private entries',
+        () async {
+          await api.save(_personSubject, 'secret plumber', actor: _other);
+          await api.save(_othersSubject, 'secret plumber', actor: _other);
+          await api.save(_personSubject, 'dentist');
+
+          expect(await api.search('plumber'), isEmpty);
+        },
+      );
+
+      for (final (viewer, expected) in [
+        (_owner, [_searchHit(_personSubject)]),
+        (_other, [_searchHit(_personSubject), _searchHit(_unrelatedSubject)]),
+      ]) {
+        final author = viewer == _owner ? 'first' : 'second';
+        test(
+          'returns each of the $author author’s matching subjects once',
+          () async {
+            await api.save(_personSubject, 'chess club');
+            await api.save(_personSubject, 'chess coach', actor: _other);
+            await api.save(
+              _unrelatedSubject,
+              'chess tournament',
+              actor: _other,
+            );
+
+            expect(
+              await api.search('chess', actor: viewer),
+              unorderedEquals(expected),
+            );
+          },
+        );
+      }
+
+      test('returns 50 distinct matching subjects when 60 match', () async {
+        final subjectIds = await fixtures.addSearchAccounts(60);
+        for (final id in subjectIds) {
+          await api.save((userId: id, phantomId: null), 'garden');
+        }
+        await api.save(_personSubject, 'dentist');
+        await api.save(_unrelatedSubject, 'garden', actor: _other);
+
+        final hits = await api.search('garden');
+
+        expect(hits, hasLength(50));
+        expect(
+          hits,
+          everyElement(
+            allOf(
+              containsPair('subjectUserId', isIn(subjectIds)),
+              containsPair('subjectPhantomId', isNull),
+            ),
+          ),
+        );
+        final returnedIds = hits.map((hit) => hit['subjectUserId']).toSet();
+        expect(returnedIds, hasLength(50));
+        expect(
+          returnedIds,
+          isNot(contains(_unrelatedSubject)),
+          reason: 'Only the other author has a matching note on this account.',
+        );
+      });
+
+      for (final query in ['50%', 'a_b']) {
+        test('treats "$query" as literal search text', () async {
+          final [underscoreId, lookalikeId] = await fixtures.addSearchAccounts(
+            2,
+          );
+          final underscoreSubject = (userId: underscoreId, phantomId: null);
+          await api.save(_personSubject, '50% off');
+          await api.save(_unrelatedSubject, '500 apples');
+          await api.save(underscoreSubject, 'a_b');
+          await api.save((userId: lookalikeId, phantomId: null), 'axb');
+
+          final expected = query == '50%' ? _personSubject : underscoreSubject;
+          expect(await api.search(query), [_searchHit(expected)]);
+        });
+      }
+
+      for (final (description, query) in [
+        ('empty', ''),
+        ('whitespace-only', '   '),
+      ]) {
+        test('returns no subjects when the query is $description', () async {
+          await api.save(_personSubject, 'piano   teacher');
+          await api.save(_unrelatedSubject, 'dentist');
+
+          expect(await api.search(query), isEmpty);
+        });
+      }
+
+      test(
+        'removes a subject from results when its matching note is deleted',
+        () async {
+          await api.save(_personSubject, 'violin');
+          final before = await api.searchReply('violin');
+          await api.remove(_personSubject);
+          final after = await api.searchReply('violin');
+
+          expect(_searchHits(before), [_searchHit(_personSubject)]);
+          expect(_searchHits(after), isEmpty);
+        },
+      );
+
+      test(
+        'exposes only subject IDs and keeps note text out of the response',
+        () async {
+          const body = 'Plumber, knows Anna';
+          await api.save(_phantomSubject, body);
+
+          final reply = await api.searchReply('plumber', includeType: true);
+          final hit = _searchHits(reply).single;
+          final typeName = hit['__typename']! as String;
+          expect(hit, {..._searchHit(_phantomSubject), '__typename': typeName});
+          expect(jsonEncode(reply), isNot(contains(body)));
+          expect(
+            await api.typeFields(typeName),
+            unorderedEquals(['subjectUserId', 'subjectPhantomId']),
+          );
+        },
+      );
+
+      test(
+        'rejects an unauthenticated search without returning any subjects',
+        () async {
+          await api.save(_phantomSubject, 'Plumber, knows Anna');
+
+          final reply = await api.searchReply('plumber', actor: null);
+          // A schema validation error must not count as an access denial.
+          _expectRejected(reply, 'personNoteSearch');
+          expect(_field(reply, 'personNoteSearch'), isNull);
+        },
+      );
+    });
+
     group('Notes when linking a private entry to an account', () {
       setUp(() async {
         await fixtures.allowLinkToPerson(_owner);
@@ -489,6 +666,18 @@ Matcher _sqlState(String code) => throwsA(
 Object? _field(Map<String, Object?> reply, String name) =>
     (reply['data'] as Map<String, Object?>?)?[name];
 
+Map<String, Object?> _searchHit(_Subject subject) => {
+  'subjectUserId': subject.userId,
+  'subjectPhantomId': subject.phantomId,
+};
+
+List<Map<String, Object?>> _searchHits(Map<String, Object?> reply) {
+  expect(reply['errors'], isNull, reason: jsonEncode(reply));
+  expect(_field(reply, 'personNoteSearch'), isA<List<Object?>>());
+  return (_field(reply, 'personNoteSearch')! as List<Object?>)
+      .cast<Map<String, Object?>>();
+}
+
 void _expectRejected(Map<String, Object?> reply, String operation) {
   // Domain errors have numeric codes; validation and internal errors must
   // never stand in for a rejection of an otherwise valid request.
@@ -561,6 +750,36 @@ query ReadNote($userId: String, $phantomId: String) {
           body: section['body']! as String,
           phantomName: section['phantomName'] as String?,
         ),
+    ];
+  }
+
+  Future<Map<String, Object?>> searchReply(
+    String query, {
+    String? actor = _owner,
+    bool includeType = false,
+  }) => _post(
+    r'query SearchNotes($q: String!) { personNoteSearch(q: $q) { '
+    'subjectUserId subjectPhantomId ${includeType ? '__typename' : ''} } }',
+    {'q': query},
+    actor: actor,
+  );
+
+  Future<List<Map<String, Object?>>> search(
+    String query, {
+    String actor = _owner,
+  }) async => _searchHits(await searchReply(query, actor: actor));
+
+  Future<List<Object?>> typeFields(String name) async {
+    final reply = await _post(
+      r'query NoteSearchResultFields($name: String!) { __type(name: $name) { fields { name } } }',
+      {'name': name},
+      actor: _owner,
+    );
+    expect(reply['errors'], isNull, reason: jsonEncode(reply));
+    final type = _field(reply, '__type')! as Map<String, Object?>;
+    final fields = type['fields']! as List<Object?>;
+    return [
+      for (final field in fields.cast<Map<String, Object?>>()) field['name'],
     ];
   }
 
@@ -657,16 +876,18 @@ mutation RemoveNote($userId: String, $phantomId: String) {
   Future<Map<String, Object?>> _post(
     String query,
     Map<String, Object?> variables, {
-    required String actor,
+    required String? actor,
   }) async {
-    final token = getIt<AuthCase>().issueAccessToken(actor).rawToken;
+    final token = actor == null
+        ? null
+        : getIt<AuthCase>().issueAccessToken(actor).rawToken;
     final response = await _handler(
       Request(
         'POST',
         Uri.parse('http://127.0.0.1:2080/api/v2/graphql'),
         headers: {
           'content-type': 'application/json',
-          'authorization': 'Bearer $token',
+          if (token != null) 'authorization': 'Bearer $token',
         },
         body: jsonEncode({'query': query, 'variables': variables}),
       ),
@@ -681,6 +902,27 @@ final class _Fixtures {
   const _Fixtures(this.writer);
 
   final Connection writer;
+
+  Future<List<String>> addSearchAccounts(int count) async {
+    final ids = [
+      for (var index = 0; index < count; index++)
+        'SEARCH${index.toString().padLeft(7, '0')}',
+    ];
+    await writer.execute(
+      Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+SELECT id, id, key
+FROM unnest(@ids::text[], @keys::text[]) AS accounts(id, key)
+'''),
+      parameters: {
+        'ids': ids,
+        'keys': [
+          for (final id in ids) base64Encode(utf8.encode(id.padRight(32, '0'))),
+        ],
+      },
+    );
+    return ids;
+  }
 
   Future<void> reset() async {
     await writer.execute('TRUNCATE TABLE public."user" CASCADE');

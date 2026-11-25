@@ -77,6 +77,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReachVoucher,
   gqlTypeUserContact,
   gqlTypePersonNoteSection,
+  gqlTypePersonNoteSubject,
   gqlTypeBlockIntent,
   gqlTypeBlockPreview,
   gqlTypeBeaconCancelResult,
@@ -1714,6 +1715,12 @@ final gqlTypePersonNoteSection = GraphQLObjectType('PersonNoteSection', null)
     field('body', graphQLString.nonNullable()),
     field('subjectPhantomId', graphQLString),
     field('phantomName', graphQLString),
+  ]);
+
+final gqlTypePersonNoteSubject = GraphQLObjectType('PersonNoteSubject', null)
+  ..fields.addAll([
+    field('subjectUserId', graphQLString),
+    field('subjectPhantomId', graphQLString),
   ]);
 
 final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
