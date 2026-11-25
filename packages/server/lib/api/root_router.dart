@@ -1,3 +1,4 @@
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
@@ -20,6 +21,7 @@ import 'controllers/invite_preview_controller.dart';
 import 'controllers/qa_email_sink_controller.dart';
 import 'controllers/qa_integration_controller.dart';
 import 'controllers/qa_send_fcm_controller.dart';
+import 'controllers/private_avatar_download_controller.dart';
 import 'controllers/push_action_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
@@ -124,6 +126,12 @@ class RootRouter {
       ..get(
         '$kPathRoomAttachmentDownload/<attachmentId>',
         _roomAttachmentDownloadController.handler,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..get(
+        PrivateAvatarDownloadController.path,
+        (Request request) =>
+            GetIt.I<PrivateAvatarDownloadController>().handler(request),
         use: _authMiddleware.verifyBearerJwt,
       )
       ..get(

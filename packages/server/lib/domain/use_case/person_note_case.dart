@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import '../entity/person_note.dart';
+import '../entity/person_subject.dart';
 import '../exception.dart';
 import '../port/owner_graph_transaction_port.dart';
 import '../port/person_note_repository_port.dart';
@@ -15,10 +16,10 @@ final class PersonNoteCase {
 
   Future<List<PersonNoteSection>> read(
     String ownerId,
-    PersonNoteSubject subject,
+    PersonSubject subject,
   ) => _repository.read(ownerId, subject);
 
-  Future<List<PersonNoteSubject>> search(String ownerId, String query) async {
+  Future<List<PersonSubject>> search(String ownerId, String query) async {
     if (query.trim().isEmpty) return const [];
     if (query.contains('\u0000')) {
       throw const IdWrongException(
@@ -28,8 +29,8 @@ final class PersonNoteCase {
     return _repository.search(ownerId, query);
   }
 
-  Future<bool> upsert(String ownerId, PersonNoteSubject subject, String body) {
-    if (subject.kind == PersonNoteSubjectKind.user && subject.id == ownerId) {
+  Future<bool> upsert(String ownerId, PersonSubject subject, String body) {
+    if (subject.kind == PersonSubjectKind.user && subject.id == ownerId) {
       throw const IdWrongException(
         description: 'Cannot add a note about yourself',
       );
@@ -51,10 +52,9 @@ final class PersonNoteCase {
     );
   }
 
-  Future<bool> delete(String ownerId, PersonNoteSubject subject) =>
-      _ownerGraph.run(
-        {ownerId},
-        ownerId,
-        (scope) => _repository.delete(scope, ownerId, subject),
-      );
+  Future<bool> delete(String ownerId, PersonSubject subject) => _ownerGraph.run(
+    {ownerId},
+    ownerId,
+    (scope) => _repository.delete(scope, ownerId, subject),
+  );
 }

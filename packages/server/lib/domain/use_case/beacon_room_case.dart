@@ -2299,16 +2299,11 @@ class BeaconRoomCase extends UseCaseBase {
     } else {
       // Image attachments reserve quota inside ImageRepository.put; file
       // attachments are written straight to storage, so reserve here.
-      final withinDailyCap = await _uploadQuota.tryReserveDailyBytes(
+      await _uploadQuota.reserveUploadBytes(
         userId: userId,
         bytes: bytes.length,
         dailyCapBytes: env.uploadDailyCapBytes,
       );
-      if (!withinDailyCap) {
-        throw const RateLimitedException(
-          description: 'Daily upload limit reached, try again tomorrow',
-        );
-      }
       storagePath = roomAttachmentStorageKey(bytes);
       if (uniqueFile) storagePath = '$storagePath/${generateId("A")}';
       final meta = <String, String>{

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:get_it/get_it.dart';
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
-import 'package:blurhash_dart/blurhash_dart.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -39,6 +38,7 @@ import 'package:tentura_server/domain/use_case/trust_publisher_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/utils/image_metadata.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -429,20 +429,7 @@ final class TaskWorkerCase extends UseCaseBase {
     final image =
         img.decodeImage(imageBytes) ??
         (throw const FormatException('Cant decode image'));
-    final numComp = image.height == image.width
-        ? (x: kMaxNumCompX, y: kMaxNumCompX)
-        : image.height > image.width
-        ? (x: kMinNumCompX, y: kMaxNumCompX)
-        : (x: kMaxNumCompX, y: kMinNumCompX);
-    return (
-      hash: BlurHash.encode(
-        image,
-        numCompX: numComp.x,
-        numCompY: numComp.y,
-      ).hash,
-      height: image.height,
-      width: image.width,
-    );
+    return describeImage(image, kMaxNumCompX, kMinNumCompX);
   }
 }
 

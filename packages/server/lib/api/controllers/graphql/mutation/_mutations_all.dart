@@ -36,6 +36,7 @@ import 'mutation_room_baton.dart';
 import 'mutation_saved_fact.dart';
 import 'mutation_post.dart';
 import 'mutation_post_bud.dart';
+import 'mutation_private_avatar.dart';
 import 'mutation_trust_preference.dart';
 import 'mutation_debug.dart';
 import 'mutation_user.dart';
@@ -65,6 +66,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationContact().all,
   const PersonNoteFields().upsert,
   const PersonNoteFields().delete,
+  const MutationPrivateAvatar().upload,
   ...MutationFactCard().all,
   ...MutationSavedFact().all,
   ...MutationForward().all,

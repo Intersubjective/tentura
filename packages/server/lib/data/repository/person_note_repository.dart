@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/person_note.dart';
+import 'package:tentura_server/domain/entity/person_subject.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/person_note_repository_port.dart';
 
@@ -16,7 +17,7 @@ final class PersonNoteRepository implements PersonNoteRepositoryPort {
   @override
   Future<List<PersonNoteSection>> read(
     String ownerId,
-    PersonNoteSubject subject,
+    PersonSubject subject,
   ) async {
     final rows = await _database.customSelect(
       r'''
@@ -46,7 +47,7 @@ ORDER BY m.created_at NULLS FIRST, m.id
   }
 
   @override
-  Future<List<PersonNoteSubject>> search(String ownerId, String query) =>
+  Future<List<PersonSubject>> search(String ownerId, String query) =>
       _database.withTransaction(() async {
         await _suppressNoteTextLogging();
         final escaped = query
@@ -70,8 +71,8 @@ LIMIT 50
         return [
           for (final row in rows)
             switch (row.readNullable<String>('subject_user_id')) {
-              final String id => PersonNoteSubject.user(id),
-              null => PersonNoteSubject.phantom(
+              final String id => PersonSubject.user(id),
+              null => PersonSubject.phantom(
                 row.read<String>('subject_phantom_id'),
               ),
             },
@@ -82,7 +83,7 @@ LIMIT 50
   Future<bool> upsert(
     OwnerGraphScope scope,
     String ownerId,
-    PersonNoteSubject subject,
+    PersonSubject subject,
     String body,
   ) async {
     requireOwnerGraphScope(_database, scope, ownerId);
@@ -125,7 +126,7 @@ SELECT set_config('log_parameter_max_length', '0', true),
   Future<bool> delete(
     OwnerGraphScope scope,
     String ownerId,
-    PersonNoteSubject subject,
+    PersonSubject subject,
   ) async {
     requireOwnerGraphScope(_database, scope, ownerId);
     final count = await _database.customUpdate(
@@ -146,10 +147,10 @@ WHERE n.owner_id = $1 AND (
 
   static List<Variable<String>> _subjectVariables(
     String ownerId,
-    PersonNoteSubject subject,
+    PersonSubject subject,
   ) => [
     Variable.withString(ownerId),
-    Variable(subject.kind == PersonNoteSubjectKind.user ? subject.id : null),
-    Variable(subject.kind == PersonNoteSubjectKind.phantom ? subject.id : null),
+    Variable(subject.userId),
+    Variable(subject.phantomId),
   ];
 }
