@@ -800,11 +800,23 @@ ORDER BY person_id, tag_id
   ) async {
     if (ids.isEmpty) return peers;
     final own = await _ownTagIds(viewerId, ids);
-    final autoRows = await _database
+    final rows = await _database
         .customSelect(
           r'''
-SELECT peer_id, kind::int AS kind
+SELECT peer_id, kind::int AS kind, NULL::text AS merged_phantom_id
 FROM public.person_auto_tags($1, $2::text[])
+UNION ALL
+SELECT merged_user_id, NULL::int, id
+FROM (
+  SELECT DISTINCT ON (p.merged_user_id) p.merged_user_id, p.id
+  FROM public.phantom p
+  JOIN public.phantom_merge m ON m.id = p.current_merge_id
+    AND m.phantom_id = p.id AND m.owner_id = p.owner_id
+    AND m.user_id = p.merged_user_id AND m.origin = p.merge_origin
+  WHERE p.owner_id = $1 AND p.merged_user_id = ANY($2::text[])
+    AND p.merged_at IS NOT NULL AND m.undone_at IS NULL
+  ORDER BY p.merged_user_id, p.merged_at DESC, p.id
+) current_merges
 ORDER BY peer_id, kind
 ''',
           variables: [
@@ -814,8 +826,14 @@ ORDER BY peer_id, kind
         )
         .get();
     final auto = <String, Set<int>>{};
-    for (final row in autoRows) {
-      (auto[row.read<String>('peer_id')] ??= {}).add(row.read<int>('kind'));
+    final mergedIds = <String, String>{};
+    for (final row in rows) {
+      final peerId = row.read<String>('peer_id');
+      if (row.readNullable<String>('merged_phantom_id') case final phantomId?) {
+        mergedIds[peerId] = phantomId;
+      } else {
+        (auto[peerId] ??= {}).add(row.read<int>('kind'));
+      }
     }
     // The first response already shows later arrivals as New, even though
     // their first-seen rows are written after this read-only snapshot closes.
@@ -835,6 +853,7 @@ ORDER BY peer_id, kind
             ownTagIds: own[peer.id] ?? const [],
             autoTagKinds: (auto[peer.id] ?? const <int>{}).toList(),
             firstSeenAt: seen[peer.id],
+            mergedPhantomId: mergedIds[peer.id],
           ),
     ];
   }

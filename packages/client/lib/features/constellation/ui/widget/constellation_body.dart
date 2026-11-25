@@ -59,6 +59,7 @@ import '../util/constellation_graph_scene.dart';
 import '../util/constellation_presentation_frame.dart';
 import '../util/constellation_tap_resolver.dart';
 import 'constellation_field_item_actions.dart';
+import 'constellation_link_notices.dart';
 import 'constellation_field_topo_backdrop.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_anchor_controls.dart';
@@ -1454,12 +1455,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 if (personWithoutAccount.ownTagIds.contains(tag.id)) tag,
             ],
             nowUtc: cubit.fieldNowUtc,
-            linkCandidates: () => [
-              for (final person in cubit.fieldPeople)
-                if (!person.isViewer &&
-                    cubit.fieldPersonById(person.id)?.pinState != 'tombstone')
-                  (id: person.id, name: person.name),
-            ],
+            linkCandidates: () => constellationLinkCandidates(cubit),
             onChanged: cubit.refreshAfterPhantomWrite,
             onClose: () => cubit.selectPhantom(null),
           ),
@@ -1486,6 +1482,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
       if (profile == null) {
         return const SizedBox.shrink();
       }
+      final mergedPhantomId = cubit.phantomsEnabled
+          ? state.field?.peers
+                .firstWhereOrNull((peer) => peer.id == personId)
+                ?.mergedPhantomId
+          : null;
       return _wrapAdaptiveContextOverlay(
         context,
         cubit,
@@ -1525,8 +1526,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ..selectRequest(request.id);
                 }
               : null,
-          footer: ConstellationAnchorTargetButton(
-            target: ConstellationAnchorTarget.person(personId),
+          footer: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ConstellationAnchorTargetButton(
+                target: ConstellationAnchorTarget.person(personId),
+              ),
+              if (mergedPhantomId != null)
+                TextButton(
+                  onPressed: () => unawaited(
+                    unlinkConstellationPerson(context, cubit, mergedPhantomId),
+                  ),
+                  child: Text(L10n.of(context)!.personLinkUnlink),
+                ),
+            ],
           ),
         ),
         mapStackHeight: mapStackHeight,
@@ -1724,6 +1738,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
               previous.selectedRequestId != current.selectedRequestId ||
               previous.selectedPhantomId != current.selectedPhantomId ||
               previous.selectedPhantom != current.selectedPhantom ||
+              previous.field?.linkHints != current.field?.linkHints ||
+              (current.selectedPersonId != null &&
+                  previous.field?.peers != current.field?.peers) ||
               previous.expandedPersonIds != current.expandedPersonIds ||
               previous.viewMode != current.viewMode ||
               previous.tagView != current.tagView ||
@@ -1888,6 +1905,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                 cubit,
                                 hideMapChrome: compactPanel,
                               ),
+                              if (cubit.phantomsEnabled)
+                                if (state.field
+                                    case final ConstellationField field)
+                                  ConstellationLinkNotices(
+                                    key: ValueKey(cubit.viewerId),
+                                    cubit: cubit,
+                                    field: field,
+                                    maxHeight: bodyConstraints.maxHeight / 3,
+                                  ),
                               Expanded(
                                 child: IndexedStack(
                                   index:

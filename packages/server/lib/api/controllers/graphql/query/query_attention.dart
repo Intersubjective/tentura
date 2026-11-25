@@ -351,10 +351,11 @@ final class QueryAttention extends GqlNodeBase {
     return switch (value) {
       'myWork' => AttentionSurface.myWork,
       'activity' => AttentionSurface.activity,
+      'fieldPersonLinks' => AttentionSurface.fieldPersonLinks,
       _ => throw ArgumentError.value(
         value,
         'surface',
-        "must be 'myWork' or 'activity'",
+        "must be 'myWork', 'activity' or 'fieldPersonLinks'",
       ),
     };
   }
@@ -545,9 +546,18 @@ final class QueryAttention extends GqlNodeBase {
   static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
     // Stored receipts may carry writer-specific metadata outside the public
     // presentation contract. Keep the receipt while omitting those fields.
+    final isPersonLink =
+        receipt.presentationKey == 'person_link_merged' ||
+        receipt.presentationKey == 'person_link_joined';
     final payload = <String, Object>{
       for (final entry in receipt.presentationPayload.entries)
-        if (attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
+        if ((attentionPresentationPayloadAllowedKeys.contains(entry.key) ||
+                (isPersonLink &&
+                    const {
+                      'displayName',
+                      'mergeId',
+                      'userId',
+                    }.contains(entry.key))) &&
             entry.value is String)
           entry.key: entry.value! as String
         // #189 — the «вам» zone's flag (`attentionReceiptIsPersonal`;

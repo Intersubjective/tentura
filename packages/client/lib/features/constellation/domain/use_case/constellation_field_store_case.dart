@@ -683,11 +683,24 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     if (!phantomsEnabled && field != null) {
       final projection = field.anchorProjection;
       final visibleProjection = projection?.withoutPhantomAnchors();
+      final hasMerges = field.peers.any((peer) => peer.mergedPhantomId != null);
       if (field.phantoms.isNotEmpty ||
+          field.linkHints.isNotEmpty ||
+          hasMerges ||
           !identical(visibleProjection, projection)) {
         next = ConstellationFieldStoreState(
           field: field.copyWith(
             phantoms: const [],
+            linkHints: const [],
+            peers: hasMerges
+                ? [
+                    for (final peer in field.peers)
+                      if (peer.mergedPhantomId != null)
+                        peer.copyWith(mergedPhantomId: null)
+                      else
+                        peer,
+                  ]
+                : field.peers,
             anchorProjection: visibleProjection,
           ),
           coveredRevision: state.coveredRevision,

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -307,6 +309,11 @@ final class AttentionRepository implements AttentionRepositoryPort {
       coordinationItemId: coordinationItemId,
       actorUserId: actorUserId,
       sourceEventKey: sourceEventKey,
+      personLinkNotice: _personLinkNotice(
+        sourceEventKey,
+        targetEntityId,
+        presentationPayloadJson,
+      ),
       destinationKind: destinationKind,
       targetEntityId: targetEntityId,
       presentationKey: presentationKey,
@@ -339,6 +346,37 @@ final class AttentionRepository implements AttentionRepositoryPort {
       postRootExcerpt: postRootExcerpt,
       postRootImageId: postRootImageId,
       eventsPreview: eventsPreview,
+    );
+  }
+
+  static PersonLinkNotice? _personLinkNotice(
+    String? sourceKey,
+    String? phantomId,
+    String payload,
+  ) {
+    if (phantomId == null || !phantomId.startsWith('PH')) return null;
+    final kind = switch (sourceKey?.split(':').first) {
+      'phantomMerged' => PersonLinkNoticeKind.merged,
+      'phantomJoined' => PersonLinkNoticeKind.joined,
+      _ => null,
+    };
+    if (kind == null) return null;
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, Object?> ||
+        decoded['targetEntityId'] != phantomId) {
+      return null;
+    }
+    final name = decoded['displayName'];
+    return (
+      kind: kind,
+      phantomId: phantomId,
+      displayName: name is String && name.trim().isNotEmpty ? name : null,
     );
   }
 

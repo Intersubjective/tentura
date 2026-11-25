@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/port/notification_outbox_repository_port.d
 
 import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 @Singleton(
   as: NotificationOutboxRepositoryPort,
@@ -23,6 +24,9 @@ class NotificationOutboxRepository implements NotificationOutboxRepositoryPort {
   const NotificationOutboxRepository(this._database);
 
   final TenturaDb _database;
+
+  static final _emailEligible =
+      "NOT ${AttentionDismissibleSql.fieldPersonLink('notification_outbox')}";
 
   static const _columns = '''
 id, account_id, category, kind, priority,
@@ -76,7 +80,7 @@ in_app_preference_class, suppression_class, access_policy
     final rows = await _database
         .customSelect(
           'SELECT DISTINCT account_id FROM public.notification_outbox '
-          'WHERE emailed_at IS NULL',
+          'WHERE emailed_at IS NULL AND $_emailEligible',
         )
         .get();
     return [for (final row in rows) row.read<String>('account_id')];
@@ -117,7 +121,7 @@ SELECT pending.*,
   share.note AS sender_note
 FROM (
   SELECT $_columns FROM public.notification_outbox
-  WHERE account_id = \$1 AND emailed_at IS NULL
+  WHERE account_id = \$1 AND emailed_at IS NULL AND $_emailEligible
     AND (\$2::text IS NULL OR dedup_key = \$2)
     AND NOT (
       kind = 'newRelay'

@@ -117,6 +117,7 @@ Map<String, dynamic> constellationAnchorsResetResultToGqlMap(
 
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
+  'mergedPhantomId': peer.mergedPhantomId,
   'pinState': peer.pinState,
   'visible': peer.visible,
   'contactOnly': peer.contactOnly,

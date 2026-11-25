@@ -169,9 +169,14 @@ eligible_pinned AS (
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
 
+  /// Private link notices are presented on the Field.
+  static String fieldPersonLink(String alias) =>
+      "($alias.presentation_key IN ('person_link_merged', 'person_link_joined')) IS TRUE";
+
   /// The History unread view, also used by its account-wide summary.
   static String historyAttention(String alias) =>
-      '(${activeAttention(alias)} AND ${postLifecycleExcluded(alias)})';
+      '(${activeAttention(alias)} AND ${postLifecycleExcluded(alias)} '
+      'AND NOT ${fieldPersonLink(alias)})';
 
   /// U11 / D16 — the *placement* filter: does this receipt speak on a primary
   /// surface at all?

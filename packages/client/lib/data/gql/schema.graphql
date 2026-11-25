@@ -8372,9 +8372,15 @@ type v2_ConstellationField {
   peersCapped: Boolean!
   # Older snapshot payloads may omit this additive field.
   phantoms: [v2_ConstellationPhantom!]
+  linkHints: [v2_ConstellationLinkHint!]
   posts: [v2_ConstellationPost!]!
   requests: [v2_ConstellationRequest!]!
   requestsCapped: Boolean!
+}
+
+type v2_ConstellationLinkHint {
+  phantomId: String!
+  userId: String!
 }
 
 type v2_ConstellationPhantom {
@@ -8406,6 +8412,7 @@ type v2_ConstellationBondContext {
 }
 
 type v2_ConstellationPeer {
+  mergedPhantomId: String
   bondContexts: [v2_ConstellationBondContext!]!
   contactOnly: Boolean!
   displayName: String

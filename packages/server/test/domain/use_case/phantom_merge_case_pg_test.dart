@@ -96,7 +96,10 @@ Future<void> main() async {
       );
       await configureSessionDatabaseTestGraph(target.databaseEnv);
       await expectDefaultOwnerScopeEnforcement(getIt<TenturaDb>());
-      fixture = _Fixture(session.writer);
+      final api = _UnlinkApi(
+        (await getIt.getAsync<RootRouter>()).routeHandler(),
+      );
+      fixture = _Fixture(session.writer, api);
     });
 
     setUp(() => fixture.reset());
@@ -483,20 +486,14 @@ Future<void> main() async {
     }
 
     group('Unlinking a merged phantom', () {
-      late _UnlinkApi api;
-
-      setUpAll(() async {
-        api = _UnlinkApi((await getIt.getAsync<RootRouter>()).routeHandler());
-      });
-
       Future<void> linkManually() async {
         await fixture.seedOutgoingVote();
-        await api.link(fixture.phantom);
+        await fixture.api.link(fixture.phantom);
         await fixture.expectLinkedForUndo(_Origin.manualLink);
       }
 
       Future<void> unlink() async {
-        final reply = await api.unmerge(fixture.phantom);
+        final reply = await fixture.api.unmerge(fixture.phantom);
         expect(reply, {
           'data': {'phantomUnmerge': true},
         });
@@ -733,7 +730,7 @@ Future<void> main() async {
 
       test('leaves the private entry without a live invite until a new one is '
           'requested', () async {
-        final oldCode = await api.ensureInvite(fixture.phantom);
+        final oldCode = await fixture.api.ensureInvite(fixture.phantom);
         expect((await fixture.liveInvites()).single['id'], oldCode);
         await linkManually();
         expect(await fixture.liveInvites(), isEmpty);
@@ -741,7 +738,7 @@ Future<void> main() async {
         await unlink();
 
         expect(await fixture.liveInvites(), isEmpty);
-        final newCode = await api.ensureInvite(fixture.phantom);
+        final newCode = await fixture.api.ensureInvite(fixture.phantom);
         expect(newCode, isNot(oldCode));
         expect((await fixture.liveInvites()).single['id'], newCode);
       });
@@ -752,7 +749,10 @@ Future<void> main() async {
           await fixture.prepareInviteLinkWithTagsAndPin();
           final before = await fixture.unlinkSnapshot();
 
-          final reply = await api.unmerge(fixture.phantom, actor: _otherPerson);
+          final reply = await fixture.api.unmerge(
+            fixture.phantom,
+            actor: _otherPerson,
+          );
 
           expect(
             await fixture.unlinkSnapshot(),
@@ -772,7 +772,7 @@ Future<void> main() async {
         expect(await fixture.activeEntryCount(), 200);
         final before = await fixture.unlinkSnapshot();
 
-        final reply = await api.unmerge(fixture.phantom);
+        final reply = await fixture.api.unmerge(fixture.phantom);
 
         expect(await fixture.activeEntryCount(), 200);
         expect(await fixture.unlinkSnapshot(), before);
@@ -806,7 +806,7 @@ Future<void> main() async {
             reason: 'Account erasure cascades to the merge audit record (§3).',
           );
 
-          final reply = await api.unmerge(fixture.phantom);
+          final reply = await fixture.api.unmerge(fixture.phantom);
 
           expect(await fixture.phantomRow(), orphan);
           expect(await fixture.mergeRows(), orphanMergeRows);
@@ -935,9 +935,10 @@ String _guardReason(Object? outcome) {
 }
 
 final class _Fixture {
-  _Fixture(this.writer);
+  _Fixture(this.writer, this.api);
 
   final Connection writer;
+  final _UnlinkApi api;
   late String phantom;
   int _nextOperation = 0;
 

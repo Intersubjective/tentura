@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import 'attention_dispatch_repository.dart';
 import 'field_population_sql.dart';
 import 'owner_graph_unit_of_work.dart';
 import 'phantom_tag_transfer.dart';
@@ -25,11 +26,17 @@ typedef _PinUndo = ({
 
 @LazySingleton(as: PhantomMergeRepositoryPort)
 final class PhantomMergeRepository implements PhantomMergeRepositoryPort {
-  const PhantomMergeRepository(this._database, this._anchors, this._contacts);
+  const PhantomMergeRepository(
+    this._database,
+    this._anchors,
+    this._contacts,
+    this._attention,
+  );
 
   final TenturaDb _database;
   final ScopedConstellationAnchorRepositoryPort _anchors;
   final UserContactRepositoryPort _contacts;
+  final AttentionDispatchRepository _attention;
 
   @override
   Future<({String displayName, bool active})?> lockEntry(
@@ -225,11 +232,11 @@ WHERE '''
   @override
   Future<void> recordLinkCard(OwnerGraphScope scope, PhantomMergeJobLease job) {
     requireOwnerGraphScope(_database, scope, job.target.ownerId);
-    return _recordOwnerAttention(
-      job.target,
-      eventType: 'phantomJoined',
-      eventId: job.id,
-      payload: {'userId': job.target.userId},
+    return _attention.recordPersonJoined(
+      ownerId: job.target.ownerId,
+      phantomId: job.target.phantomId,
+      jobId: job.id,
+      userId: job.target.userId,
     );
   }
 
@@ -291,11 +298,11 @@ WHERE owner_id = $1 AND id = $2
 ''',
       [ownerId, phantomId, userId, origin.code, mergeId],
     );
-    await _recordOwnerAttention(
-      target,
-      eventType: 'phantomMerged',
-      eventId: mergeId,
-      payload: {'mergeId': mergeId},
+    await _attention.recordPersonMerged(
+      ownerId: ownerId,
+      phantomId: phantomId,
+      mergeId: mergeId,
+      displayName: displayName,
     );
     return mergeId;
   }
@@ -643,34 +650,4 @@ WHERE viewer_id = $1 AND subject_id = $2 FOR UPDATE
         .getSingleOrNull();
     return row?.read<String>('contact_name');
   }
-
-  Future<void> _recordOwnerAttention(
-    PhantomMergeTarget target, {
-    required String eventType,
-    required String eventId,
-    required Map<String, String> payload,
-  }) => _database.customStatement(
-    r'''
-WITH occurrence AS (
-  INSERT INTO public.attention_occurrence (
-    source_event_key, event_type, actor_user_id, immutable_payload
-  )
-  VALUES ($1, $4, $2, $5::jsonb)
-  ON CONFLICT (source_event_key) DO NOTHING
-  RETURNING id
-)
-INSERT INTO public.attention_occurrence_recipient (
-  occurrence_id, account_id, reasons, role_facts, collapse_key, channel_eligible
-)
-SELECT id, $2, '["owner"]'::jsonb, jsonb_build_object('targetEntityId', $3::text), $1, false
-FROM occurrence
-''',
-    [
-      '$eventType:$eventId',
-      target.ownerId,
-      target.phantomId,
-      eventType,
-      jsonEncode({'targetEntityId': target.phantomId, ...payload}),
-    ],
-  );
 }

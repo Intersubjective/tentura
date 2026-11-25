@@ -170,6 +170,7 @@ class ConstellationPeerRecord {
     this.ownTagIds = const [],
     this.autoTagKinds = const [],
     this.firstSeenAt,
+    this.mergedPhantomId,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -185,9 +186,13 @@ class ConstellationPeerRecord {
       bondContexts = const [],
       ownTagIds = const [],
       autoTagKinds = const [],
-      firstSeenAt = null;
+      firstSeenAt = null,
+      mergedPhantomId = null;
 
   final String id;
+
+  /// Private to the snapshot owner.
+  final String? mergedPhantomId;
   final String? displayName;
   final String? handle;
   final ImagePublicRecord? image;
@@ -235,6 +240,7 @@ class ConstellationPeerRecord {
     required List<String> ownTagIds,
     required List<int> autoTagKinds,
     required DateTime? firstSeenAt,
+    String? mergedPhantomId,
   }) => ConstellationPeerRecord(
     id: id,
     displayName: displayName,
@@ -249,6 +255,7 @@ class ConstellationPeerRecord {
     ownTagIds: ownTagIds,
     autoTagKinds: autoTagKinds,
     firstSeenAt: firstSeenAt,
+    mergedPhantomId: mergedPhantomId,
   );
 
   /// This record with its field presence set.

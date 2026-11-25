@@ -84,6 +84,11 @@ ConstellationField mapConstellationFieldFromFieldFetch(
   directContactIds: payload.directContactIds.toList(growable: false),
   phantoms:
       payload.phantoms?.map(_mapPhantom).toList(growable: false) ?? const [],
+  linkHints:
+      payload.linkHints
+          ?.map((hint) => (phantomId: hint.phantomId, userId: hint.userId))
+          .toList(growable: false) ??
+      const [],
   anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
 );
 
@@ -161,6 +166,7 @@ ConstellationPerson _mapPersonFields({
   String? temporaryBeaconId,
   Iterable<({String beaconId, String title})> bondContexts = const [],
   bool isNew = false,
+  String? mergedPhantomId,
 }) => ConstellationPerson(
   id: id,
   pinState: pinState,
@@ -179,6 +185,7 @@ ConstellationPerson _mapPersonFields({
   handle: handle,
   image: image?.asEntity,
   isNew: isNew,
+  mergedPhantomId: mergedPhantomId,
 );
 
 ConstellationFieldMembership _membershipFromWire(String? presence) =>
@@ -193,6 +200,7 @@ ConstellationPerson _mapFieldFetchPerson(
   id: peer.id,
   pinState: peer.pinState,
   contactOnly: peer.contactOnly,
+  mergedPhantomId: peer.mergedPhantomId,
   visible: !peer.contactOnly,
   presence: peer.presence,
   temporaryBeaconId: peer.temporaryBeaconId,

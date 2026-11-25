@@ -1151,6 +1151,7 @@ final gqlTypeConstellationPeer =
       )
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
+        field('mergedPhantomId', graphQLString),
         field('displayName', graphQLString),
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),

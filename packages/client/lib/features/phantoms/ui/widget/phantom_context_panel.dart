@@ -79,44 +79,7 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
   }
 
   Future<bool> _link() async {
-    final people = widget.linkCandidates();
-    final l10n = L10n.of(context)!;
-    final userId = await showTenturaAdaptiveSheet<String>(
-      context: context,
-      builder: (context) {
-        final tt = context.tt;
-        return Padding(
-          padding: tt.cardPadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.personPanelPickExisting,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.rowGap),
-              if (people.isEmpty)
-                Text(l10n.personPanelNoPeople)
-              else
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: people.length,
-                    itemBuilder: (context, index) {
-                      final person = people[index];
-                      return ListTile(
-                        title: Text(person.name),
-                        onTap: () => Navigator.of(context).pop(person.id),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
+    final userId = await pickPersonToLink(context, widget.linkCandidates());
     if (!mounted || userId == null) return false;
     await _repository.link(phantomId: widget.person.id, userId: userId);
     return true;
@@ -216,4 +179,47 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
       ),
     );
   }
+}
+
+Future<String?> pickPersonToLink(
+  BuildContext context,
+  List<({String id, String name})> people,
+) {
+  final l10n = L10n.of(context)!;
+  return showTenturaAdaptiveSheet<String>(
+    context: context,
+    builder: (context) {
+      final tt = context.tt;
+      return Padding(
+        padding: tt.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.personPanelPickExisting,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            SizedBox(height: tt.rowGap),
+            if (people.isEmpty)
+              Text(l10n.personPanelNoPeople)
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: people.length,
+                  itemBuilder: (context, index) {
+                    final person = people[index];
+                    return ListTile(
+                      title: Text(person.name),
+                      onTap: () => Navigator.of(context).pop(person.id),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }

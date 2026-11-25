@@ -33,6 +33,14 @@ enum AttentionForwardOutcome {
   };
 }
 
+enum PersonLinkNoticeKind { merged, joined }
+
+typedef PersonLinkNotice = ({
+  PersonLinkNoticeKind kind,
+  String phantomId,
+  String? displayName,
+});
+
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {
   const factory AttentionReceipt({
@@ -51,6 +59,7 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? coordinationItemId,
     String? actorUserId,
     String? sourceEventKey,
+    PersonLinkNotice? personLinkNotice,
     String? destinationKind,
     String? targetEntityId,
     String? presentationKey,
