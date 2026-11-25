@@ -16,11 +16,13 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_request_history.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_request_history.req.gql.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
+import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -28,8 +30,10 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 import '../../support/attention_case_factory.dart';
-import '../block/support/controllable_block_case.dart';
+import '../../support/noop_attention_actor_profiles.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
+import '../block/support/controllable_block_case.dart';
 
 // Rows for a linked Request and for a Post, read the way the server sends
 // them: wire JSON → AttentionRepository → the request timeline sheet and the
@@ -94,6 +98,28 @@ Map<String, dynamic> _wire({
   'postRootImageId': null,
   'eventsPreview': <Map<String, dynamic>>[],
 };
+
+const _anna = Profile(id: 'Uanna000000001', displayName: 'Anna');
+
+Map<String, dynamic> _deadlineWire(DateTime deadline) {
+  final iso = deadline.toUtc().toIso8601String();
+  return _wire(
+    key: 'deadline_changed',
+    title: 'Deadline changed',
+    payload: {
+      'eventType': 'deadlineChanged',
+      'beaconId': _beaconId,
+      'actorUserId': _anna.id,
+      'actorName': _anna.displayName,
+      'newEndAt': iso,
+    },
+  )..addAll({
+    'category': 'coordination',
+    'kind': 'deadlineChanged',
+    'actorUserId': _anna.id,
+    'body': 'Deadline changed from none to $iso',
+  });
+}
 
 Map<String, Object?> _linkedPayload() => {
   'eventType': 'beaconHierarchyStatusChanged',
@@ -185,8 +211,12 @@ final class _Accounts implements AttentionAccountPort {
   Future<void> close() => _changes.close();
 }
 
-Widget _wrap(Locale locale, Widget child) => MediaQuery(
-  data: const MediaQueryData(size: Size(800, 800)),
+Widget _wrap(
+  Locale locale,
+  Widget child, {
+  Size size = const Size(800, 800),
+}) => MediaQuery(
+  data: MediaQueryData(size: size),
   child: TenturaResponsiveScope(
     child: MaterialApp(
       locale: locale,
@@ -208,6 +238,41 @@ void main() {
       view: AttentionView.all,
     )).page.items.single;
   }
+
+  testWidgets('helper Requests card omits midnight and keeps an evening time '
+      'in Russian at phone width', (tester) async {
+    await usePhoneSurface(tester);
+    final year = DateTime.now().year;
+
+    Future<void> pumpCard(DateTime deadline) async {
+      late AttentionReceipt receipt;
+      await tester.runAsync(() async {
+        receipt = await mapped(_deadlineWire(deadline));
+      });
+      await tester.pumpWidget(
+        _wrap(
+          const Locale('ru'),
+          AttentionMiniCard(
+            receipt: receipt,
+            actor: _anna,
+            requestTitle: 'Parent request',
+          ),
+          size: kPhoneSurface,
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
+
+    await pumpCard(DateTime(year, 11, 21, 18));
+    expect(find.text('Anna: новый срок — 21 ноября, 18:00'), findsOneWidget);
+    await pumpCard(DateTime(year, 11, 29));
+    const expected = 'Anna: новый срок — 29 ноября';
+    final line = find.textContaining(expected);
+    expect(line, findsOneWidget);
+    expect(tester.widget<Text>(line).data, expected);
+    expect(find.textContaining('00:00', findRichText: true), findsNothing);
+  });
 
   group('request timeline sheet rows', () {
     late _Accounts accounts;
@@ -247,6 +312,32 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
+
+    testWidgets(
+      'Request timeline omits the midnight deadline time in Russian',
+      (
+        tester,
+      ) async {
+        ensureNoopAttentionActorProfilesRegistered();
+        await usePhoneSurface(tester);
+        remote.items = [_deadlineWire(DateTime(DateTime.now().year, 11, 29))];
+        await tester.pumpWidget(
+          _wrap(
+            const Locale('ru'),
+            const RequestAttentionTimelineSheet(beaconId: _beaconId),
+            size: kPhoneSurface,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        const expected = 'Anna: новый срок — 29 ноября';
+        final line = find.textContaining(expected);
+        expect(line, findsOneWidget);
+        expect(tester.widget<Text>(line).data, expected);
+        expect(find.textContaining('00:00', findRichText: true), findsNothing);
+      },
+    );
 
     testWidgets('a linked-request status row names the related Request (EN)', (
       tester,

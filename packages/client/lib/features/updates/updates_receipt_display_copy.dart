@@ -147,11 +147,18 @@ DateTime? _payloadDate(String presentationPayloadJson, String key) {
 
 /// «21 Nov, 18:00» / «21 ноября, 18:00» in the device's time zone; the year
 /// only when it is not the current one (notification identity spec §4.4).
+/// Date-only deadlines are stored at midnight in the picker’s time zone.
 String _formatDate(L10n l10n, DateTime at, {bool withTime = true}) {
   final d = at.toLocal();
   String two(int n) => n.toString().padLeft(2, '0');
   final year = d.year == DateTime.now().year ? '' : ' ${d.year}';
-  final time = withTime ? ', ${two(d.hour)}:${two(d.minute)}' : '';
+  final midnight =
+      d.hour == 0 &&
+      d.minute == 0 &&
+      d.second == 0 &&
+      d.millisecond == 0 &&
+      d.microsecond == 0;
+  final time = withTime && !midnight ? ', ${two(d.hour)}:${two(d.minute)}' : '';
   return '${d.day} ${l10n.updatesDateMonth('m${d.month}')}$year$time';
 }
 
@@ -1683,6 +1690,11 @@ const _serverCannedBodies = {
 };
 
 final _serverCannedPatterns = [
+  RegExp(
+    r'^Deadline changed from (?:none|\d{4}-\d\d-\d\dT[\d:.]+Z)'
+    r' to \d{4}-\d\d-\d\dT[\d:.]+Z$',
+  ),
+  RegExp(r'^Deadline: \d{4}-\d\d-\d\dT[\d:.]+Z$'),
   RegExp(
     ' (offered help|offered to help as backup|withdrew their help|'
     r'forwarded a request to you|mentioned you|accepted your invitation)$',
