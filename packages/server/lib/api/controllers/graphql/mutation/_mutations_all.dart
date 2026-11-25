@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import '../person_note_fields.dart';
 import 'mutation_auth.dart';
 import 'mutation_author_invite.dart';
 import 'mutation_availability.dart';
@@ -62,6 +63,8 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationClosure().all,
   ...MutationComplaint().all,
   ...MutationContact().all,
+  const PersonNoteFields().upsert,
+  const PersonNoteFields().delete,
   ...MutationFactCard().all,
   ...MutationSavedFact().all,
   ...MutationForward().all,

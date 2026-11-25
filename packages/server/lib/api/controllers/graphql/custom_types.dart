@@ -76,6 +76,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReach,
   gqlTypeForwardReachVoucher,
   gqlTypeUserContact,
+  gqlTypePersonNoteSection,
   gqlTypeBlockIntent,
   gqlTypeBlockPreview,
   gqlTypeBeaconCancelResult,
@@ -1708,6 +1709,13 @@ final gqlTypeInviteGenealogyChildCount =
 
 /// Per-viewer private contact name (subjective profiles). Viewer-scoped:
 /// only ever returned for the authenticated caller as viewer.
+final gqlTypePersonNoteSection = GraphQLObjectType('PersonNoteSection', null)
+  ..fields.addAll([
+    field('body', graphQLString.nonNullable()),
+    field('subjectPhantomId', graphQLString),
+    field('phantomName', graphQLString),
+  ]);
+
 final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
   ..fields.addAll([
     field('subjectId', graphQLString.nonNullable()),
