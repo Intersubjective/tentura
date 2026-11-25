@@ -57,18 +57,24 @@ final class PhantomMergeCase {
     };
   }
 
-  Future<bool> unmerge({required String ownerId, required String phantomId}) =>
-      _ownerGraph.run({ownerId}, ownerId, (scope) async {
-        final mergeId = await _merges.lockCurrentMerge(
-          scope,
-          ownerId: ownerId,
-          phantomId: phantomId,
-        );
-        if (mergeId == null) throw IdNotFoundException(id: phantomId);
-        await _phantoms.requireActiveCapacity(scope, ownerId);
-        await _merges.unmerge(scope, ownerId: ownerId, mergeId: mergeId);
-        return true;
-      });
+  Future<bool> unmerge({
+    required String ownerId,
+    required String phantomId,
+    String? mergeId,
+  }) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
+    final currentMergeId = await _merges.lockCurrentMerge(
+      scope,
+      ownerId: ownerId,
+      phantomId: phantomId,
+    );
+    if (currentMergeId == null ||
+        (mergeId != null && mergeId != currentMergeId)) {
+      throw IdNotFoundException(id: phantomId);
+    }
+    await _phantoms.requireActiveCapacity(scope, ownerId);
+    await _merges.unmerge(scope, ownerId: ownerId, mergeId: currentMergeId);
+    return true;
+  });
 
   /// An owner selecting a person from their Field omits [origin]. An explicit
   /// origin runs the merge engine for an already authorized target.

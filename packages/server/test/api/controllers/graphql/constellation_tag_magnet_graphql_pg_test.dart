@@ -336,7 +336,7 @@ query { constellationTagMagnets(viewerId: "Utmgqlowner0001") { tagId } }
         await run(
           r'''
 mutation($id: String!, $op: String!) {
-  personTagDelete(id: $id, clientOpId: $op) { memberIds }
+  personTagDelete(id: $id, clientOpId: $op) { tag { id } }
 }
 ''',
           {'id': tagId, 'op': nextOp()},

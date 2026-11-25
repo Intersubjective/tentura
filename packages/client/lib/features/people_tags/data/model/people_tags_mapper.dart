@@ -1,3 +1,5 @@
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+
 import '../../domain/entity/people_tags_entities.dart';
 import '../gql/_g/person_auto_tag_pref_set.data.gql.dart';
 import '../gql/_g/person_auto_tags.data.gql.dart';
@@ -76,8 +78,15 @@ extension PersonTagDeleteDataMapper on GPersonTagDeleteData_personTagDelete {
       count: tag.count,
       countOffField: tag.countOffField,
     ),
-    memberIds: memberIds.toList(),
-    sources: sources.toList(),
+    members: [
+      for (final member in members)
+        PersonTagSnapshotMember(
+          kind: PersonTagSnapshotMemberKind.values.byName(member.kind),
+          id: member.id,
+          source: member.source,
+          membershipId: member.membershipId,
+        ),
+    ],
   );
 }
 
@@ -140,11 +149,29 @@ Map<String, Object> personTagToWire(PersonTag tag) => {
   'ord': tag.ord,
 };
 
-Map<String, Object> personTagSnapshotToWire(PersonTagSnapshot snapshot) => {
-  'tag': personTagToWire(snapshot.tag),
-  'memberIds': snapshot.memberIds,
-  'sources': snapshot.sources,
-};
+extension PersonTagSnapshotInputMapper on PersonTagSnapshot {
+  Gv2_PersonTagSnapshotInput toInput() => Gv2_PersonTagSnapshotInput(
+    (input) => input
+      ..tag.update(
+        (builder) => builder
+          ..id = tag.id
+          ..name = tag.name
+          ..glyph = tag.glyph
+          ..color = tag.color
+          ..ord = tag.ord,
+      )
+      ..members.replace([
+        for (final member in members)
+          Gv2_PersonTagSnapshotMemberInput(
+            (builder) => builder
+              ..kind = member.kind.name
+              ..id = member.id
+              ..source = member.source
+              ..membershipId = member.membershipId,
+          ),
+      ]),
+  );
+}
 
 Map<String, Object> personTagMemberOpToWire(PersonTagMemberOp op) => {
   'tagId': op.tagId,

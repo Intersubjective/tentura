@@ -355,12 +355,13 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String payload,
   ) {
     if (phantomId == null || !phantomId.startsWith('PH')) return null;
-    final kind = switch (sourceKey?.split(':').first) {
-      'phantomMerged' => PersonLinkNoticeKind.merged,
-      'phantomJoined' => PersonLinkNoticeKind.joined,
-      _ => null,
-    };
-    if (kind == null) return null;
+    final source = sourceKey?.split(':');
+    if (source == null ||
+        source.length != 2 ||
+        source.last.isEmpty ||
+        (source.first != 'phantomMerged' && source.first != 'phantomJoined')) {
+      return null;
+    }
 
     final Object? decoded;
     try {
@@ -372,10 +373,13 @@ final class AttentionRepository implements AttentionRepositoryPort {
         decoded['targetEntityId'] != phantomId) {
       return null;
     }
+    if (source.first == 'phantomJoined') {
+      return PersonJoinedNotice(phantomId: phantomId);
+    }
     final name = decoded['displayName'];
-    return (
-      kind: kind,
+    return PersonMergedNotice(
       phantomId: phantomId,
+      mergeId: source.last,
       displayName: name is String && name.trim().isNotEmpty ? name : null,
     );
   }

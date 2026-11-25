@@ -73,22 +73,21 @@ final class PersonTagSnapshotMember {
   const PersonTagSnapshotMember({
     required this.kind,
     required this.id,
-    required String this.membershipId,
+    required this.membershipId,
     required this.source,
   });
 
-  const PersonTagSnapshotMember._legacyPerson(this.id, this.source)
-    : kind = PersonTagSnapshotMemberKind.person,
-      membershipId = null;
-
-  factory PersonTagSnapshotMember.fromJson(Object? json) {
-    if (json
-        case {
-          'kind': final String kind,
-          'id': final String id,
-          'membership_id': final String membershipId,
-          'source': final int source,
-        }
+  factory PersonTagSnapshotMember._fromJson(Object? json, String idKey) {
+    if (json is! Map) throw _invalidSnapshot();
+    if ((json, json[idKey])
+        case (
+          {
+            'kind': final String kind,
+            'id': final String id,
+            'source': final int source,
+          },
+          final String membershipId,
+        )
         when Uuid.isValidUUID(
           fromString: membershipId,
           validationMode: ValidationMode.nonStrict,
@@ -109,13 +108,13 @@ final class PersonTagSnapshotMember {
 
   final PersonTagSnapshotMemberKind kind;
   final String id;
-  final String? membershipId;
+  final String membershipId;
   final int source;
 
-  Map<String, Object?> toJson() => {
+  Map<String, Object> _toJson(String idKey) => {
     'kind': kind.name,
     'id': id,
-    'membership_id': membershipId,
+    idKey: membershipId,
     'source': source,
   };
 }
@@ -129,71 +128,40 @@ final class PersonTagSnapshot {
   PersonTagSnapshot({
     required this.tag,
     required List<PersonTagSnapshotMember> members,
-  }) : members = List.unmodifiable(members),
-       _legacy = false;
+  }) : members = List.unmodifiable(members);
 
-  PersonTagSnapshot._legacy(this.tag, List<PersonTagSnapshotMember> members)
-    : members = List.unmodifiable(members),
-      _legacy = true;
-
-  factory PersonTagSnapshot.fromJson(Object? json) {
+  factory PersonTagSnapshot.fromJson(Object? json, {bool stored = false}) {
     if (json case {
       'tag': final Map<String, dynamic> tag,
       'members': final List<Object?> members,
     }) {
       return PersonTagSnapshot(
         tag: PersonTag.fromJson(tag),
-        members: members.map(PersonTagSnapshotMember.fromJson).toList(),
+        members: [
+          for (final member in members)
+            PersonTagSnapshotMember._fromJson(
+              member,
+              stored ? 'membership_id' : 'membershipId',
+            ),
+        ],
       );
-    }
-    // Earlier delete results and undo clients have no membership UUIDs.
-    if (json case {
-      'tag': final Map<String, dynamic> tag,
-      'memberIds': final List<Object?> ids,
-      'sources': final List<Object?> sources,
-    } when ids.length == sources.length) {
-      return PersonTagSnapshot._legacy(PersonTag.fromJson(tag), [
-        for (var i = 0; i < ids.length; i++)
-          switch ((ids[i], sources[i])) {
-            (final String id, final int source) =>
-              PersonTagSnapshotMember._legacyPerson(id, source),
-            _ => throw _invalidSnapshot(),
-          },
-      ]);
     }
     throw _invalidSnapshot();
   }
 
   final PersonTag tag;
   final List<PersonTagSnapshotMember> members;
-  final bool _legacy;
 
-  Iterable<PersonTagSnapshotMember> get _people => members.where(
-    (member) => member.kind == PersonTagSnapshotMemberKind.person,
-  );
-
-  List<String> get memberIds => [for (final person in _people) person.id];
-  List<int> get sources => [for (final person in _people) person.source];
-
-  Map<String, Object> _legacyMembers() => {
-    'memberIds': memberIds,
-    'sources': sources,
-  };
-
+  /// Keep the persisted operation results and restore fingerprints stable.
   Map<String, dynamic> toJson() => {
     'tag': tag.toJson(),
-    // Keep the fingerprint of a retried legacy restore unchanged.
-    if (_legacy)
-      ..._legacyMembers()
-    else
-      'members': [for (final member in members) member.toJson()],
+    'members': [for (final member in members) member._toJson('membership_id')],
   };
 
   /// The delete response and replay record retain the pre-delete counts.
   Map<String, dynamic> toGraphQL() => {
-    ...toJson(),
     'tag': tag.toGraphQL(),
-    if (!_legacy) ..._legacyMembers(),
+    'members': [for (final member in members) member._toJson('membershipId')],
   };
 }
 

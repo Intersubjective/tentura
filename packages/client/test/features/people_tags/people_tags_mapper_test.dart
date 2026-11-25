@@ -10,6 +10,21 @@ import 'package:tentura/features/people_tags/data/gql/_g/person_tags_of.data.gql
 import 'package:tentura/features/people_tags/data/model/people_tags_mapper.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 
+const _snapshotMembers = [
+  PersonTagSnapshotMember(
+    kind: PersonTagSnapshotMemberKind.person,
+    id: 'Ua',
+    source: 0,
+    membershipId: '0691052e-2cab-4a7f-bb1b-74e3d09e116c',
+  ),
+  PersonTagSnapshotMember(
+    kind: PersonTagSnapshotMemberKind.phantom,
+    id: 'PHb',
+    source: 1,
+    membershipId: 'dd1fd6dc-5254-4162-9513-370e2ec3cab9',
+  ),
+];
+
 void main() {
   group('people tags wire mapping', () {
     test('a tag maps to an entity with its derived counts', () {
@@ -151,28 +166,43 @@ void main() {
             ..tag.ord = 2
             ..tag.count = 0
             ..tag.countOffField = 0
-            ..memberIds = ListBuilder(['Ua', 'Ub'])
-            ..sources = ListBuilder([0, 1]),
+            ..members.replace([
+              for (final member in _snapshotMembers)
+                GPersonTagDeleteData_personTagDelete_members(
+                  (b) => b
+                    ..kind = member.kind.name
+                    ..id = member.id
+                    ..source = member.source
+                    ..membershipId = member.membershipId,
+                ),
+            ]),
         ).toEntity();
 
         expect(snapshot.tag.id, 'T1');
-        expect(snapshot.memberIds, ['Ua', 'Ub']);
-        expect(snapshot.sources, [0, 1]);
+        expect(snapshot.members, _snapshotMembers);
       },
     );
 
     test('a snapshot converts back to the restore wire input', () {
       const snapshot = PersonTagSnapshot(
         tag: PersonTag(id: 'T1', name: 'N', glyph: 'N', color: 3, ord: 2),
-        memberIds: ['Ua'],
-        sources: [0],
+        members: _snapshotMembers,
       );
 
-      final wire = personTagSnapshotToWire(snapshot);
+      final wire = snapshot.toInput().toJson();
 
-      expect(wire['memberIds'], ['Ua']);
-      expect(wire['sources'], [0]);
-      expect((wire['tag']! as Map)['id'], 'T1');
+      expect(wire, {
+        'tag': {'id': 'T1', 'name': 'N', 'glyph': 'N', 'color': 3, 'ord': 2},
+        'members': [
+          for (final member in _snapshotMembers)
+            {
+              'kind': member.kind.name,
+              'id': member.id,
+              'source': member.source,
+              'membershipId': member.membershipId,
+            },
+        ],
+      });
     });
 
     test('a membership op converts to the apply wire input', () {

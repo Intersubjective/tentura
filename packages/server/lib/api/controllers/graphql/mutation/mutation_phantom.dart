@@ -18,6 +18,7 @@ final class MutationPhantom extends GqlNodeBase {
   static final _name = InputFieldString(fieldName: 'name');
   static final _emoji = InputFieldString(fieldName: 'emoji');
   static final _phantomId = InputFieldString(fieldName: 'phantomId');
+  static final _mergeId = InputFieldString(fieldName: 'mergeId');
   static final _userId = InputFieldString(fieldName: 'userId');
   static final _position = GraphQLFieldInput(
     'position',
@@ -89,10 +90,11 @@ final class MutationPhantom extends GqlNodeBase {
     GraphQLObjectField(
       'phantomUnmerge',
       graphQLBoolean.nonNullable(),
-      arguments: [_phantomId.field],
+      arguments: [_phantomId.field, _mergeId.fieldNullable],
       resolve: (_, args) => GetIt.I<PhantomMergeCase>().unmerge(
         ownerId: getCredentials(args).sub,
         phantomId: _phantomId.fromArgsNonNullable(args),
+        mergeId: _mergeId.fromArgs(args),
       ),
     ),
     GraphQLObjectField(

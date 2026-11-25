@@ -828,7 +828,7 @@ FOR EACH ROW EXECUTE FUNCTION public.test_reject_poisoned_member()
         await run(
           r'''
 mutation Delete($id: String!, $clientOpId: String!) {
-  personTagDelete(id: $id, clientOpId: $clientOpId) { memberIds }
+  personTagDelete(id: $id, clientOpId: $clientOpId) { members { id } }
 }
 ''',
           {'id': tag, 'clientOpId': nextOp()},

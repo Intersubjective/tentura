@@ -18,6 +18,6 @@ abstract interface class PhantomRepositoryPort {
   Future<String> inviteRotate({required String id});
 
   Future<void> link({required String phantomId, required String userId});
-  Future<void> unmerge({required String phantomId});
+  Future<void> unmerge({required String phantomId, String? mergeId});
   Future<void> hintDismiss({required String phantomId, required String userId});
 }

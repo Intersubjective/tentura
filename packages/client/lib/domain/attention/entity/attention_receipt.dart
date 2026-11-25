@@ -33,13 +33,26 @@ enum AttentionForwardOutcome {
   };
 }
 
-enum PersonLinkNoticeKind { merged, joined }
+sealed class PersonLinkNotice {
+  const PersonLinkNotice({required this.phantomId});
 
-typedef PersonLinkNotice = ({
-  PersonLinkNoticeKind kind,
-  String phantomId,
-  String? displayName,
-});
+  final String phantomId;
+}
+
+final class PersonMergedNotice extends PersonLinkNotice {
+  const PersonMergedNotice({
+    required super.phantomId,
+    required this.mergeId,
+    this.displayName,
+  });
+
+  final String mergeId;
+  final String? displayName;
+}
+
+final class PersonJoinedNotice extends PersonLinkNotice {
+  const PersonJoinedNotice({required super.phantomId});
+}
 
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {

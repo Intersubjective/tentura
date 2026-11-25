@@ -57,12 +57,12 @@ void main() {
       final floor = _defaultServerFloor();
       final current = await _updateBannerCount(
         tester,
-        installedVersion: '7.69.0',
+        installedVersion: '7.69.1',
         floor: floor,
       );
       final previous = await _updateBannerCount(
         tester,
-        installedVersion: '7.68.0',
+        installedVersion: '7.69.0',
         floor: floor,
       );
       expect(

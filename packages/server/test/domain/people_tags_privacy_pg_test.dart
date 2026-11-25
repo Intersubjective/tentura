@@ -71,8 +71,7 @@ const _deleteDoc = r'''
 mutation Delete($id: String!, $clientOpId: String!) {
   personTagDelete(id: $id, clientOpId: $clientOpId) {
     tag { id name glyph color ord }
-    memberIds
-    sources
+    members { kind id source membershipId }
   }
 }
 ''';
@@ -511,8 +510,7 @@ Future<void> main() async {
             'color': 99,
             'ord': 0,
           },
-          'memberIds': <String>[],
-          'sources': <int>[],
+          'members': <Object>[],
         },
         'clientOpId': nextOp(),
       });
@@ -537,8 +535,7 @@ Future<void> main() async {
             'color': 0,
             'ord': 0,
           },
-          'memberIds': <String>[],
-          'sources': <int>[],
+          'members': <Object>[],
         },
         'clientOpId': nextOp(),
       });
@@ -551,8 +548,7 @@ Future<void> main() async {
             'color': 0,
             'ord': 0,
           },
-          'memberIds': <String>[],
-          'sources': <int>[],
+          'members': <Object>[],
         },
         'clientOpId': nextOp(),
       });
@@ -657,8 +653,7 @@ Future<void> main() async {
             'color': 0,
             'ord': 0,
           },
-          'memberIds': <String>[],
-          'sources': <int>[],
+          'members': <Object>[],
         },
         'clientOpId': nextOp(),
       });
@@ -668,20 +663,19 @@ Future<void> main() async {
         (
           'restore snapshot missing a field',
           'mutation { personTagRestore(snapshot: {tag: {id: "Ptvalid00001", '
-              'name: "$_secret", glyph: "G", color: 1}, memberIds: [], '
-              'sources: []}, clientOpId: "valid-1") { id } }',
+              'name: "$_secret", glyph: "G", color: 1}, members: []}, clientOpId: "valid-1") { id } }',
         ),
         (
           'restore snapshot with a wrongly typed field',
           'mutation { personTagRestore(snapshot: {tag: {id: "Ptvalid00002", '
               'name: "$_secret", glyph: "G", color: "red", ord: 0}, '
-              'memberIds: [], sources: []}, clientOpId: "valid-2") { id } }',
+              'members: []}, clientOpId: "valid-2") { id } }',
         ),
         (
           'restore snapshot with a wrongly typed list',
           'mutation { personTagRestore(snapshot: {tag: {id: "Ptvalid00003", '
               'name: "$_secret", glyph: "G", color: 1, ord: 0}, '
-              'memberIds: "$_secret", sources: []}, clientOpId: "valid-3") '
+              'members: "$_secret"}, clientOpId: "valid-3") '
               '{ id } }',
         ),
       ]) {

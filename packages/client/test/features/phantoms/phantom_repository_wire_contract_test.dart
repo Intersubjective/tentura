@@ -1,11 +1,7 @@
-// The repository is absent at the red baseline. The test entry point binds
-// its real constructor when available, and the calls below go to that object.
-// ignore_for_file: avoid_dynamic_calls
-
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/features/phantoms/data/repository/phantom_repository.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/remote_wire_harness.dart';
@@ -22,9 +18,7 @@ const _position = ConstellationAnchorPosition(
 const _idVariables = {'id': _phantomId};
 const _twoTargetVariables = {'phantomId': _phantomId, 'userId': _userId};
 
-typedef PhantomRepositoryFactory = Object? Function(RemoteApiService remote);
-
-void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
+void main() {
   final commands = [
     _Command(
       behavior:
@@ -41,7 +35,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
         },
       },
       result: 'PHfedcba987654',
-      call: (repo) async => await repo.create(
+      call: (repo) => repo.create(
         name: _name,
         emoji: _emoji,
         position: _position,
@@ -53,7 +47,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomUpdate',
       variables: const {'id': _phantomId, 'name': 'Anna K.', 'emoji': '🌻'},
       result: true,
-      call: (repo) async => await repo.update(
+      call: (repo) => repo.update(
         id: _phantomId,
         name: 'Anna K.',
         emoji: '🌻',
@@ -65,7 +59,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomDelete',
       variables: _idVariables,
       result: true,
-      call: (repo) async => await repo.delete(id: _phantomId),
+      call: (repo) => repo.delete(id: _phantomId),
     ),
     _Command(
       behavior:
@@ -74,7 +68,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomInviteEnsure',
       variables: _idVariables,
       result: 'I123456789abc',
-      call: (repo) async => await repo.inviteEnsure(id: _phantomId),
+      call: (repo) => repo.inviteEnsure(id: _phantomId),
     ),
     _Command(
       behavior:
@@ -83,7 +77,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomInviteRotate',
       variables: _idVariables,
       result: 'Icba987654321',
-      call: (repo) async => await repo.inviteRotate(id: _phantomId),
+      call: (repo) => repo.inviteRotate(id: _phantomId),
     ),
     _Command(
       behavior: 'link sends the selected phantom and account ids',
@@ -91,8 +85,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomLink',
       variables: _twoTargetVariables,
       result: true,
-      call: (repo) async =>
-          await repo.link(phantomId: _phantomId, userId: _userId),
+      call: (repo) => repo.link(phantomId: _phantomId, userId: _userId),
     ),
     _Command(
       behavior: 'unmerge sends the id of the merged phantom',
@@ -100,7 +93,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomUnmerge',
       variables: const {'phantomId': _phantomId},
       result: true,
-      call: (repo) async => await repo.unmerge(phantomId: _phantomId),
+      call: (repo) => repo.unmerge(phantomId: _phantomId),
     ),
     _Command(
       behavior: 'dismiss hint sends both ids of the link suggestion',
@@ -108,7 +101,7 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
       field: 'phantomHintDismiss',
       variables: _twoTargetVariables,
       result: true,
-      call: (repo) async => await repo.hintDismiss(
+      call: (repo) => repo.hintDismiss(
         phantomId: _phantomId,
         userId: _userId,
       ),
@@ -117,19 +110,18 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
 
   group('PhantomRepository V2 commands', () {
     for (final command in commands) {
-      test(command.behavior, () => _exercise(create, command));
+      test(command.behavior, () => _exercise(command));
     }
 
     test('create accepts a name alone and returns the server id', () {
       return _exercise(
-        create,
         _Command(
           behavior: 'create without an emoji or position',
           operation: 'PhantomCreate',
           field: 'phantomCreate',
           variables: const {'name': _name},
           result: 'PHab0987654321',
-          call: (repo) async => await repo.create(name: _name),
+          call: (repo) => repo.create(name: _name),
           nullableVariables: const {'emoji', 'position'},
         ),
       );
@@ -137,20 +129,19 @@ void registerPhantomRepositoryWireTests(PhantomRepositoryFactory create) {
 
     for (final command in commands) {
       test('${command.operation} fails when GraphQL rejects it', () {
-        return _exercise(create, command, graphQLError: true);
+        return _exercise(command, graphQLError: true);
       });
     }
 
     for (final command in commands.where((command) => command.result is bool)) {
       test('${command.operation} fails when the server returns false', () {
-        return _exercise(create, command, rejected: true);
+        return _exercise(command, rejected: true);
       });
     }
   });
 }
 
 Future<void> _exercise(
-  PhantomRepositoryFactory create,
   _Command command, {
   bool graphQLError = false,
   bool rejected = false,
@@ -165,12 +156,7 @@ Future<void> _exercise(
     },
     sent,
     (remote) async {
-      final repository = create(remote);
-      if (repository == null) {
-        fail(
-          'The client must provide PhantomRepository to call ${command.field}',
-        );
-      }
+      final repository = PhantomRepository(remote);
 
       final result = command
           .call(repository)
@@ -228,6 +214,6 @@ final class _Command {
   final String field;
   final Map<String, Object?> variables;
   final Object result;
-  final Future<Object?> Function(dynamic repository) call;
+  final Future<Object?> Function(PhantomRepository repository) call;
   final Set<String> nullableVariables;
 }

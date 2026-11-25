@@ -4120,7 +4120,7 @@ type mutation_root {
   phantomInviteEnsure(id: String!): String!
   phantomInviteRotate(id: String!): String!
   phantomLink(phantomId: String!, userId: String!): Boolean!
-  phantomUnmerge(phantomId: String!): Boolean!
+  phantomUnmerge(mergeId: String, phantomId: String!): Boolean!
   phantomHintDismiss(phantomId: String!, userId: String!): Boolean!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
   postClose(id: String!): Boolean!
@@ -8776,15 +8776,27 @@ type v2_PersonTagMembers {
 }
 
 type v2_PersonTagSnapshot {
-  memberIds: [String!]!
-  sources: [Int!]!
+  members: [v2_PersonTagSnapshotMember!]!
   tag: v2_PersonTag!
 }
 
 input v2_PersonTagSnapshotInput {
-  memberIds: [String!]!
-  sources: [Int!]!
+  members: [v2_PersonTagSnapshotMemberInput!]!
   tag: v2_PersonTagInput!
+}
+
+type v2_PersonTagSnapshotMember {
+  id: String!
+  kind: String!
+  membershipId: String!
+  source: Int!
+}
+
+input v2_PersonTagSnapshotMemberInput {
+  id: String!
+  kind: String!
+  membershipId: String!
+  source: Int!
 }
 
 type v2_PersonTagSuggestionState {

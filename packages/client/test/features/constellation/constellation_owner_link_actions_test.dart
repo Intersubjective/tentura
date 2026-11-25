@@ -58,6 +58,12 @@ const _pickedName = 'Nora Bell';
 const _history = AttentionFeedDestinationId.history;
 const _merge = 'phantomMerged';
 const _joined = 'phantomJoined';
+const _noticeMergeId = 'PM0123456789';
+const _newerMergeId = 'PM9876543210';
+const _undoNoticeMerge = {
+  'operationName': 'PhantomUnmerge',
+  'variables': {'phantomId': _privateId, 'mergeId': _noticeMergeId},
+};
 const _unmerge = {
   'operationName': 'PhantomUnmerge',
   'variables': {'phantomId': _privateId},
@@ -70,9 +76,49 @@ final _letters = RegExp('[A-Za-zА-Яа-яЁё]');
 
 void main() {
   group('Field actions for private people who join Tentura', () {
+    testWidgets(
+      'Undo on an older merge notice shows an error and keeps the newer link',
+      (tester) async {
+        const locale = 'ru';
+        await _withScreen(tester, locale, (field, cubit) async {
+          await field.deliver(tester, _merge);
+          final undo = _expectNamedUndo(tester, locale);
+
+          // The owner has already linked the same entry to another account.
+          field
+            ..mergedUserId = _pickedId
+            ..currentMergeId = _newerMergeId;
+          await cubit.refreshAfterPhantomWrite();
+          await _selectFieldPerson(tester, cubit, _pickedId, _pickedName);
+          final unlink = _inPanel(_unlink(locale));
+          expect(unlink, findsOneWidget);
+          expect(undo, findsOneWidget);
+
+          await tester.tap(undo);
+          await tester.pumpAndSettle();
+
+          expect(tester.takeException(), isNull);
+          expect(
+            {
+              'requests': field.writes,
+              'error shown': _text(
+                _catalog(locale)['errorGenericAction']!,
+              ).evaluate().isNotEmpty,
+              'newer link still shown': unlink.evaluate().isNotEmpty,
+            },
+            {
+              'requests': [_undoNoticeMerge],
+              'error shown': true,
+              'newer link still shown': true,
+            },
+          );
+        });
+      },
+    );
+
     for (final locale in ['en', 'ru']) {
       testWidgets(
-        'the merge snackbar names the person and Undo unlinks once ($locale)',
+        'the merge snackbar names the person and Undo sends its merge ID once ($locale)',
         (
           tester,
         ) async {
@@ -83,7 +129,7 @@ void main() {
             expect(field.writes, isEmpty);
             await tester.tap(undo);
             await tester.pumpAndSettle();
-            expect(field.writes, [_unmerge]);
+            expect(field.writes, [_undoNoticeMerge]);
             expect(tester.takeException(), isNull);
           });
         },
@@ -437,6 +483,7 @@ Future<void> _withScreen(
         ..pushNewScope(
           init: (scope) {
             scope
+              ..registerSingleton<Logger>(Logger.detached('OwnerLinkActions'))
               ..registerSingleton<AttentionCase>(attention)
               ..registerSingleton<AttentionRepositoryPort>(attentionRepository)
               ..registerSingleton<PhantomRepositoryPort>(
@@ -498,6 +545,7 @@ Future<void> _withScreen(
       }
     },
     responseFor: wire.respond,
+    errorFor: wire.errorFor,
     selectResponse: _selectMergeFact,
   );
 }
@@ -539,6 +587,7 @@ class _OwnerWire {
   late final TestRealtimeSyncPort realtime;
   final sent = <WireSent>[];
   String? mergedUserId;
+  String? currentMergeId;
   String? eventType;
 
   List<Map<String, Object?>> get writes => [
@@ -548,7 +597,10 @@ class _OwnerWire {
   ];
 
   Future<void> deliver(WidgetTester tester, String event) async {
-    if (event == _merge && eventType != event) mergedUserId = _memberId;
+    if (event == _merge && eventType != event) {
+      mergedUserId = _memberId;
+      currentMergeId = _noticeMergeId;
+    }
     eventType = event;
     final previousReads = sent
         .where((call) => call.operationName == 'AttentionFeed')
@@ -627,7 +679,10 @@ class _OwnerWire {
       case 'ConstellationAnchorsFetch':
         return _field();
       case 'PhantomUnmerge':
-        if (call.variables['phantomId'] == _privateId) mergedUserId = null;
+        if (call.variables['phantomId'] == _privateId) {
+          mergedUserId = null;
+          currentMergeId = null;
+        }
         return {'phantomUnmerge': true};
       case 'PhantomLink':
         if (call.variables['phantomId'] == _privateId) {
@@ -639,8 +694,15 @@ class _OwnerWire {
     }
   }
 
+  Map<String, dynamic>? errorFor(WireSent call) {
+    if (call.operationName != 'PhantomUnmerge') return null;
+    final requestedMerge = call.variables['mergeId'];
+    if (requestedMerge == null || requestedMerge == currentMergeId) return null;
+    return wireCodeError(1002);
+  }
+
   String _sourceKey(String event) =>
-      event == _merge ? '$_merge:PM0123456789' : '$_joined:PJ0123456789';
+      event == _merge ? '$_merge:$_noticeMergeId' : '$_joined:PJ0123456789';
 
   // Proposed in-app projection of the persisted owner occurrence. The feed
   // operation and receipt envelope already exist. The event-specific payload
@@ -662,7 +724,7 @@ class _OwnerWire {
     'presentationPayloadJson': jsonEncode({
       'eventType': event,
       'targetEntityId': _privateId,
-      if (event == _merge) 'mergeId': 'PM0123456789' else 'userId': _memberId,
+      if (event == _merge) 'mergeId': _noticeMergeId else 'userId': _memberId,
     }),
     'requiresAction': false,
     'surface': 'activity',

@@ -9,7 +9,11 @@ mutation PersonTagDelete($id: String!, $clientOpId: String!) {
       count
       countOffField
     }
-    memberIds
-    sources
+    members {
+      kind
+      id
+      source
+      membershipId
+    }
   }
 }

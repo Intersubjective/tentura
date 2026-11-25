@@ -88,8 +88,12 @@ final class PhantomRepository implements PhantomRepositoryPort {
       );
 
   @override
-  Future<void> unmerge({required String phantomId}) => _write(
-    GPhantomUnmergeReq((builder) => builder.vars.phantomId = phantomId),
+  Future<void> unmerge({required String phantomId, String? mergeId}) => _write(
+    GPhantomUnmergeReq(
+      (builder) => builder.vars
+        ..phantomId = phantomId
+        ..mergeId = mergeId,
+    ),
     (data) => data.phantomUnmerge,
   );
 

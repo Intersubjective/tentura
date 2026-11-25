@@ -39,17 +39,7 @@ const _deleteDoc = r'''
 mutation Delete($id: String!, $clientOpId: String!) {
   personTagDelete(id: $id, clientOpId: $clientOpId) {
     tag { id name glyph color ord }
-    members { kind id membership_id source }
-  }
-}
-''';
-
-const _legacyDeleteDoc = r'''
-mutation Delete($id: String!, $clientOpId: String!) {
-  personTagDelete(id: $id, clientOpId: $clientOpId) {
-    tag { id name glyph color ord }
-    memberIds
-    sources
+    members { kind id membershipId source }
   }
 }
 ''';
@@ -83,7 +73,6 @@ Future<void> main() async {
   group('Deleting and restoring a people tag', () {
     late Connection writer;
     late GraphQL schema;
-    late bool exposesSnapshotMembers;
     late Map<String, dynamic> tag;
     late String tagId;
     var opCounter = 0;
@@ -150,7 +139,7 @@ UPDATE public.phantom SET merged_at = now(), merged_user_id = @user,
     Future<Map<String, Map<String, Object?>>> storedMembers() async => {
       for (final row in await writer.execute(
         Sql.named('''
-SELECT 'person' AS kind, person_id AS id, membership_id::text AS membership_id,
+SELECT 'person' AS kind, person_id AS id, membership_id::text AS "membershipId",
        source
 FROM public.person_tag_member WHERE tag_id = @tag
 UNION ALL
@@ -172,32 +161,13 @@ FROM public.phantom_tag_member WHERE tag_id = @tag
       ]);
     }
 
-    Future<Map<String, dynamic>> deleteTag(
-      String document, {
-      String? clientOpId,
-    }) async {
-      final data = await run(document, {
+    Future<Map<String, dynamic>> deleteTag({String? clientOpId}) async {
+      final data = await run(_deleteDoc, {
         'id': tagId,
         'clientOpId': clientOpId ?? nextOp(),
       });
       return data['personTagDelete'] as Map<String, dynamic>;
     }
-
-    Future<Map<String, dynamic>> deleteWithMembers({String? clientOpId}) {
-      expect(
-        exposesSnapshotMembers,
-        isTrue,
-        reason:
-            'PersonTagSnapshot must expose members with kind, id, '
-            'membership_id and source.',
-      );
-      return deleteTag(_deleteDoc, clientOpId: clientOpId);
-    }
-
-    // Let the restore assertions reach PostgreSQL with the snapshot a client
-    // can request today. The delete contract tests require the new fields.
-    Future<Map<String, dynamic>> deleteForRestore() =>
-        deleteTag(exposesSnapshotMembers ? _deleteDoc : _legacyDeleteDoc);
 
     Future<void> restoreTag(Map<String, dynamic> snapshot) async {
       final data = await run(_restoreDoc, {
@@ -232,16 +202,6 @@ FROM public.phantom_tag_member WHERE tag_id = @tag
       addTearDown(getIt.reset);
       await getIt.allReady(ignorePendingAsyncCreation: true);
       schema = graphqlSchema;
-
-      final data = await run('''
-query { __type(name: "PersonTagSnapshot") { fields { name } } }
-''');
-      final type = data['__type'] as Map<String, dynamic>;
-      final fields = (type['fields'] as List<Object?>)
-          .cast<Map<String, dynamic>>();
-      exposesSnapshotMembers = fields.any(
-        (field) => field['name'] == 'members',
-      );
     });
 
     setUp(() async {
@@ -285,7 +245,7 @@ SET mr_epoch = EXCLUDED.mr_epoch,
       final before = await storedMembers();
       expect(before.keys, unorderedEquals([_person, _active]));
 
-      final snapshot = await deleteWithMembers();
+      final snapshot = await deleteTag();
 
       expect(await storedMembers(), isEmpty);
       expect(snapshot['members'], unorderedEquals(before.values));
@@ -300,7 +260,7 @@ SET mr_epoch = EXCLUDED.mr_epoch,
         final before = await storedMembers();
         expect(before.keys, unorderedEquals([_person, _active, _merged]));
 
-        final snapshot = await deleteWithMembers();
+        final snapshot = await deleteTag();
 
         expect(snapshot['members'], unorderedEquals(before.values));
       },
@@ -312,7 +272,7 @@ SET mr_epoch = EXCLUDED.mr_epoch,
         final before = await storedMembers();
         expect(before.keys, [_person]);
 
-        await restoreTag(await deleteForRestore());
+        await restoreTag(await deleteTag());
 
         expect(await storedMembers(), before);
       },
@@ -325,7 +285,7 @@ SET mr_epoch = EXCLUDED.mr_epoch,
       final before = await storedMembers();
       expect(before.keys, unorderedEquals([_person, _active]));
 
-      await restoreTag(await deleteForRestore());
+      await restoreTag(await deleteTag());
 
       expect(await storedMembers(), before);
       await expectVisibleMembers([_person, _active]);
@@ -342,10 +302,8 @@ SET mr_epoch = EXCLUDED.mr_epoch,
         unorderedEquals([_person, _active, _merged, _removed]),
       );
 
-      final snapshot = await deleteForRestore();
-      if (exposesSnapshotMembers) {
-        expect(snapshot['members'], unorderedEquals(before.values));
-      }
+      final snapshot = await deleteTag();
+      expect(snapshot['members'], unorderedEquals(before.values));
       expect(await storedMembers(), isEmpty);
       final removed = await scopedSql(
         'DELETE FROM public.phantom WHERE id = @id RETURNING id',
@@ -361,7 +319,7 @@ SET mr_epoch = EXCLUDED.mr_epoch,
         {
           'kind': 'phantom',
           'id': _merged,
-          'membership_id': originalMerged['membership_id'],
+          'membershipId': originalMerged['membershipId'],
           'source': originalMerged['source'],
         },
         reason:
@@ -392,10 +350,8 @@ UPDATE public.phantom SET merged_at = NULL, merged_user_id = NULL,
         final before = await storedMembers();
         expect(before.keys, unorderedEquals([_person, _active, _orphaned]));
 
-        final snapshot = await deleteForRestore();
-        if (exposesSnapshotMembers) {
-          expect(snapshot['members'], unorderedEquals(before.values));
-        }
+        final snapshot = await deleteTag();
+        expect(snapshot['members'], unorderedEquals(before.values));
         final orphan = await scopedSql(
           '''
 UPDATE public.phantom SET merged_user_id = NULL, current_merge_id = NULL
@@ -424,9 +380,9 @@ RETURNING merged_at IS NOT NULL, merged_user_id, current_merge_id
       expect(before.keys, unorderedEquals([_person, _active, _merged]));
       final opId = nextOp();
 
-      final first = await deleteWithMembers(clientOpId: opId);
+      final first = await deleteTag(clientOpId: opId);
       expect(await storedMembers(), isEmpty);
-      final replay = await deleteWithMembers(clientOpId: opId);
+      final replay = await deleteTag(clientOpId: opId);
 
       expect(first['members'], unorderedEquals(before.values));
       expect(replay, first);

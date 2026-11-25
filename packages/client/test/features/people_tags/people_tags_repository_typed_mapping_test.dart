@@ -118,8 +118,22 @@ final _responses = <String, Map<String, dynamic>>{
     'personTagDelete': {
       '__typename': 'v2_PersonTagSnapshot',
       'tag': _tag('T5', count: 2),
-      'memberIds': ['Ua', 'Ub'],
-      'sources': [0, 1],
+      'members': [
+        {
+          '__typename': 'v2_PersonTagSnapshotMember',
+          'kind': 'person',
+          'id': 'Ua',
+          'source': 0,
+          'membershipId': '0691052e-2cab-4a7f-bb1b-74e3d09e116c',
+        },
+        {
+          '__typename': 'v2_PersonTagSnapshotMember',
+          'kind': 'person',
+          'id': 'Ub',
+          'source': 1,
+          'membershipId': 'dd1fd6dc-5254-4162-9513-370e2ec3cab9',
+        },
+      ],
     },
   },
   'PersonTagRestore': {
@@ -247,8 +261,20 @@ void main() {
           snapshot,
           PersonTagSnapshot(
             tag: _entity('T5', count: 2),
-            memberIds: const ['Ua', 'Ub'],
-            sources: const [0, 1],
+            members: const [
+              PersonTagSnapshotMember(
+                kind: PersonTagSnapshotMemberKind.person,
+                id: 'Ua',
+                source: 0,
+                membershipId: '0691052e-2cab-4a7f-bb1b-74e3d09e116c',
+              ),
+              PersonTagSnapshotMember(
+                kind: PersonTagSnapshotMemberKind.person,
+                id: 'Ub',
+                source: 1,
+                membershipId: 'dd1fd6dc-5254-4162-9513-370e2ec3cab9',
+              ),
+            ],
           ),
         );
         expect(

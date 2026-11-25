@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 library;
 
 import 'dart:convert';
@@ -27,6 +27,7 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/contact_case.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
+import 'package:tentura_server/domain/use_case/people_tags_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 
@@ -485,6 +486,215 @@ Future<void> main() async {
       });
     }
 
+    group('Merge notice Undo', () {
+      late String firstMergeId;
+      late String currentMergeId;
+      late List<Map<String, Object?>> originalMemberships;
+
+      setUp(() async {
+        await fixture.seedOutgoingVote();
+        await fixture.seedOutgoingVote(user: _otherPerson);
+        await fixture.tag('Neighbours', [fixture.phantom]);
+        originalMemberships = await fixture.phantomMemberships();
+        expect(originalMemberships, hasLength(1));
+
+        await fixture.api.link(fixture.phantom);
+        firstMergeId =
+            (await fixture.phantomRow())['current_merge_id']! as String;
+        expect(await fixture.api.unmerge(fixture.phantom), {
+          'data': {'phantomUnmerge': true},
+        });
+        await fixture.api.link(fixture.phantom, user: _otherPerson);
+
+        final entry = await fixture.phantomRow();
+        currentMergeId = entry['current_merge_id']! as String;
+        expect(currentMergeId, isNot(firstMergeId));
+        expect(entry['merged_user_id'], _otherPerson);
+        expect(await fixture.personMemberships(), [
+          containsPair('person_id', _otherPerson),
+        ]);
+      });
+
+      for (final scenario in ['older', 'unknown', 'another owner’s']) {
+        test(
+          'rejects $scenario merge id and preserves the current link',
+          () async {
+            final requested = switch (scenario) {
+              'older' => firstMergeId,
+              'unknown' => 'PMffffffffffff',
+              _ => await fixture.createMergeForAnotherOwner(),
+            };
+            final before = await fixture.undoState();
+
+            final reply = await fixture.api.unmerge(
+              fixture.phantom,
+              mergeId: requested,
+            );
+
+            expect(await fixture.undoState(), before);
+            _expectUnlinkRefused(
+              reply,
+              containsPair('code', allOf(isA<String>(), isNot('1000'))),
+            );
+          },
+        );
+      }
+
+      test(
+        'undoes the current link and removes its copied membership',
+        () async {
+          final reply = await fixture.api.unmerge(
+            fixture.phantom,
+            mergeId: currentMergeId,
+          );
+
+          expect(reply, {
+            'data': {'phantomUnmerge': true},
+          });
+          expect(
+            await fixture.phantomRow(),
+            allOf(
+              containsPair('merged_user_id', isNull),
+              containsPair('merged_at', isNull),
+              containsPair('merge_origin', isNull),
+              containsPair('current_merge_id', isNull),
+            ),
+          );
+          expect(
+            await fixture.mergeRows(),
+            unorderedEquals([
+              allOf(
+                containsPair('id', firstMergeId),
+                containsPair('undone_at', isA<DateTime>()),
+              ),
+              allOf(
+                containsPair('id', currentMergeId),
+                containsPair('undone_at', isA<DateTime>()),
+              ),
+            ]),
+          );
+          expect(await fixture.personMemberships(), isEmpty);
+          expect(await fixture.phantomMemberships(), originalMemberships);
+        },
+      );
+    });
+
+    group('People tag Undo', () {
+      test(
+        'restores registered and private members with their original identities',
+        () async {
+          final activePhantom = await getIt<PhantomCase>().create(
+            ownerId: _owner,
+            name: 'Neighbour without an account',
+          );
+          final tagId = await fixture.tag(
+            'Neighbours',
+            [_otherPerson, activePhantom, fixture.phantom],
+            sources: {_otherPerson: 2},
+          );
+          await fixture.seedOutgoingVote();
+          await fixture.api.link(fixture.phantom);
+          final visibleMembers = await fixture.visibleMemberships();
+          expect(
+            visibleMembers[tagId],
+            unorderedEquals([
+              _otherPerson,
+              _person,
+              activePhantom,
+            ]),
+          );
+          final originalMembers = await fixture.tagSnapshotMembers();
+          // The hidden original membership still belongs to the merged entry.
+          expect(originalMembers, hasLength(4));
+          expect(
+            originalMembers,
+            contains(
+              allOf(
+                containsPair('id', _otherPerson),
+                containsPair('source', 2),
+              ),
+            ),
+          );
+
+          final deleted = await getIt<PeopleTagsCase>().delete(
+            ownerId: _owner,
+            id: tagId,
+            clientOpId: 'delete-tag-for-undo',
+          );
+          final snapshot = {
+            'tag': deleted.tag.toJson(),
+            'members': [
+              for (final member in deleted.members)
+                {
+                  'kind': member.kind.name,
+                  'id': member.id,
+                  'source': member.source,
+                  'membershipId': member.membershipId,
+                },
+            ],
+          };
+          expect(snapshot['members'], unorderedEquals(originalMembers));
+          expect(await fixture.visibleMemberships(), isEmpty);
+          expect(await fixture.tagSnapshotMembers(), isEmpty);
+
+          final restored = await fixture.api.restoreTag(snapshot);
+
+          expect(restored, {
+            'data': {'personTagRestore': snapshot['tag']},
+          });
+          expect(await fixture.visibleMemberships(), visibleMembers);
+          expect(await fixture.tagSnapshotMembers(), originalMembers);
+        },
+      );
+
+      test('rejects a snapshot with only member IDs and sources', () async {
+        final snapshot = {
+          'tag': _tagToRestore,
+          'memberIds': [_person],
+          'sources': [0],
+        };
+
+        final restored = await fixture.api.restoreTag(snapshot);
+
+        expect(await fixture.tagRows(), isEmpty);
+        expect(await fixture.tagSnapshotMembers(), isEmpty);
+        _expectInvalidTag(restored);
+      });
+
+      final invalidMembers = <String, Map<String, Object?>>{
+        'missing a membership ID': {..._memberToRestore}
+          ..remove('membershipId'),
+        'with a non-UUID membership ID': {
+          ..._memberToRestore,
+          'membershipId': 'invalid',
+        },
+        'with an unrecognized kind': {..._memberToRestore, 'kind': 'unknown'},
+      };
+      for (final MapEntry(key: description, value: member)
+          in invalidMembers.entries) {
+        test(
+          'rejects a member $description without restoring any rows',
+          () async {
+            final restored = await fixture.api.restoreTag({
+              'tag': _tagToRestore,
+              'members': [
+                {
+                  ..._memberToRestore,
+                  'id': _otherPerson,
+                  'membershipId': 'dd1fd6dc-5254-4162-9513-370e2ec3cab9',
+                },
+                member,
+              ],
+            });
+
+            expect(await fixture.tagRows(), isEmpty);
+            expect(await fixture.tagSnapshotMembers(), isEmpty);
+            _expectInvalidTag(restored);
+          },
+        );
+      }
+    });
+
     group('Unlinking a merged phantom', () {
       Future<void> linkManually() async {
         await fixture.seedOutgoingVote();
@@ -835,16 +1045,42 @@ void _expectUnlinkRefused(Map<String, Object?> reply, Matcher extensions) {
   expect((reply['data'] as Map<String, Object?>?)?['phantomUnmerge'], isNull);
 }
 
+const _tagToRestore = {
+  'id': 'T781c00000001',
+  'name': 'Neighbours',
+  'glyph': 'N',
+  'color': 1,
+  'ord': 1,
+};
+const _memberToRestore = {
+  'kind': 'person',
+  'id': _person,
+  'source': 2,
+  'membershipId': '0691052e-2cab-4a7f-bb1b-74e3d09e116c',
+};
+
+void _expectInvalidTag(Map<String, Object?> reply) {
+  expect(reply['errors'], [
+    containsPair('extensions', containsPair('code', '1905')),
+  ], reason: jsonEncode(reply));
+  expect((reply['data'] as Map<String, Object?>?)?['personTagRestore'], isNull);
+}
+
 final class _UnlinkApi {
   const _UnlinkApi(this._handler);
 
   final Handler _handler;
 
-  Future<void> link(String phantom) async {
+  Future<void> link(
+    String phantom, {
+    String user = _person,
+    String actor = _owner,
+  }) async {
     final reply = await _post(
       r'mutation Link($phantomId: String!, $userId: String!) { '
       r'phantomLink(phantomId: $phantomId, userId: $userId) }',
-      {'phantomId': phantom, 'userId': _person},
+      {'phantomId': phantom, 'userId': user},
+      actor: actor,
     );
     expect(reply, {
       'data': {'phantomLink': true},
@@ -864,12 +1100,27 @@ final class _UnlinkApi {
   Future<Map<String, Object?>> unmerge(
     String phantom, {
     String actor = _owner,
+    String? mergeId,
   }) => _post(
-    r'mutation Unlink($phantomId: String!) { '
-    r'phantomUnmerge(phantomId: $phantomId) }',
-    {'phantomId': phantom},
+    mergeId == null
+        ? r'mutation Unlink($phantomId: String!) { phantomUnmerge(phantomId: $phantomId) }'
+        : r'mutation UndoLink($phantomId: String!, $mergeId: String!) { '
+              r'phantomUnmerge(phantomId: $phantomId, mergeId: $mergeId) }',
+    {'phantomId': phantom, 'mergeId': ?mergeId},
     actor: actor,
   );
+
+  Future<Map<String, Object?>> restoreTag(Map<String, Object?> snapshot) =>
+      _post(
+        r'''
+mutation RestoreTag($snapshot: PersonTagSnapshotInput!, $clientOpId: String!) {
+  personTagRestore(snapshot: $snapshot, clientOpId: $clientOpId) {
+    id name glyph color ord
+  }
+}
+''',
+        {'snapshot': snapshot, 'clientOpId': 'restore-tag-for-undo'},
+      );
 
   Future<Map<String, Object?>> _post(
     String query,
@@ -1030,7 +1281,11 @@ VALUES (@id, @id, @key)
     expect(result.results.single.status, AnchorOpStatus.ok);
   }
 
-  Future<String> tag(String name, List<String> members) async {
+  Future<String> tag(
+    String name,
+    List<String> members, {
+    Map<String, int> sources = const {},
+  }) async {
     final repository = getIt<PeopleTagsRepositoryPort>();
     final created = await repository.create(
       ownerId: _owner,
@@ -1049,7 +1304,7 @@ VALUES (@id, @id, @key)
             tagId: created.id,
             personId: id,
             add: true,
-            source: 0,
+            source: sources[id] ?? 0,
           ),
       ],
     );
@@ -1209,6 +1464,34 @@ FROM public.person_tag_member WHERE owner_id = @owner ORDER BY tag_id, person_id
     {'owner': _owner},
   );
 
+  Future<List<Map<String, Object?>>> tagRows() => _rows(
+    'SELECT id FROM public.person_tag WHERE owner_id = @owner',
+    {'owner': _owner},
+  );
+
+  Future<Map<String, Object?>> undoState() async => {
+    'entries': await _rows('SELECT * FROM public.phantom ORDER BY id'),
+    'merges': await _rows('SELECT * FROM public.phantom_merge ORDER BY id'),
+    'people memberships': await _rows(
+      'SELECT * FROM public.person_tag_member ORDER BY tag_id, person_id',
+    ),
+    'private memberships': await _rows(
+      'SELECT * FROM public.phantom_tag_member ORDER BY tag_id, phantom_id',
+    ),
+  };
+
+  Future<List<Map<String, Object?>>> tagSnapshotMembers() => _rows(
+    '''
+SELECT 'person' AS kind, person_id AS id, source, membership_id::text AS "membershipId"
+FROM public.person_tag_member WHERE owner_id = @owner
+UNION ALL
+SELECT 'phantom', phantom_id, source, membership_id::text
+FROM public.phantom_tag_member WHERE owner_id = @owner
+ORDER BY kind, id
+''',
+    {'owner': _owner},
+  );
+
   Future<Map<String, List<String>>> visibleMemberships() async => {
     for (final row in await getIt<PeopleTagsRepositoryPort>().memberships(
       _owner,
@@ -1333,14 +1616,31 @@ extension on _Fixture {
     });
   }
 
-  Future<void> seedOutgoingVote() async {
+  Future<void> seedOutgoingVote({
+    String user = _person,
+    String actor = _owner,
+  }) async {
     await _sql(
       '''
 INSERT INTO public.vote_user (subject, object, amount)
 VALUES (@owner, @person, 1)
 ''',
-      {'owner': _owner, 'person': _person},
+      {'owner': actor, 'person': user},
     );
+  }
+
+  Future<String> createMergeForAnotherOwner() async {
+    final otherPhantom = await getIt<PhantomCase>().create(
+      ownerId: _otherPerson,
+      name: 'Another owner’s neighbour',
+    );
+    await seedOutgoingVote(actor: _otherPerson);
+    await api.link(otherPhantom, actor: _otherPerson);
+    return (await _rows(
+          'SELECT current_merge_id FROM public.phantom WHERE id = @id',
+          {'id': otherPhantom},
+        )).single['current_merge_id']!
+        as String;
   }
 
   Future<List<Map<String, Object?>>> pairVotes({String user = _person}) =>

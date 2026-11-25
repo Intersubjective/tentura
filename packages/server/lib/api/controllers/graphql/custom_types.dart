@@ -2,6 +2,8 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'package:tentura_server/domain/entity/fact_copy_outcome.dart';
 import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 
 import 'input/_input_types.dart';
 
@@ -2462,25 +2464,16 @@ final gqlTypePersonTagSnapshotMember =
       ..fields.addAll([
         field('kind', graphQLString.nonNullable()),
         field('id', graphQLString.nonNullable()),
-        field('membership_id', graphQLString.nonNullable()),
+        field('membershipId', graphQLString.nonNullable()),
         field('source', graphQLInt.nonNullable()),
       ]);
 
 final gqlTypePersonTagSnapshot = GraphQLObjectType('PersonTagSnapshot', null)
   ..fields.addAll([
     field('tag', gqlTypePersonTag.nonNullable()),
-    // A replay of a pre-UUID delete can only return the original arrays.
     field(
       'members',
       GraphQLListType(gqlTypePersonTagSnapshotMember.nonNullable()),
-    ),
-    field(
-      'memberIds',
-      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-    ),
-    field(
-      'sources',
-      GraphQLListType(graphQLInt.nonNullable()).nonNullable(),
     ),
   ]);
 
@@ -2500,23 +2493,38 @@ final gqlInputPersonTagSnapshotMember = GraphQLInputObjectType(
   inputFields: [
     GraphQLInputObjectField('kind', graphQLString.nonNullable()),
     GraphQLInputObjectField('id', graphQLString.nonNullable()),
-    GraphQLInputObjectField('membership_id', graphQLString.nonNullable()),
+    GraphQLInputObjectField('membershipId', graphQLString.nonNullable()),
     GraphQLInputObjectField('source', graphQLInt.nonNullable()),
   ],
 );
 
-final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
-  'PersonTagSnapshotInput',
-  inputFields: [
-    GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
-    GraphQLInputObjectField(
-      'members',
-      _DynamicListType(gqlInputPersonTagSnapshotMember),
-    ),
-    GraphQLInputObjectField('memberIds', _DynamicListType(graphQLString)),
-    GraphQLInputObjectField('sources', _DynamicListType(graphQLInt)),
-  ],
-);
+final GraphQLInputObjectType gqlInputPersonTagSnapshot =
+    _PersonTagSnapshotInput();
+
+final class _PersonTagSnapshotInput extends GraphQLInputObjectType {
+  _PersonTagSnapshotInput()
+    : super(
+        'PersonTagSnapshotInput',
+        inputFields: [
+          GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
+          GraphQLInputObjectField(
+            'members',
+            _DynamicListType(gqlInputPersonTagSnapshotMember),
+          ),
+        ],
+      );
+
+  @override
+  ValidationResult<Map<String, dynamic>> validate(String key, Object? input) {
+    if (input is Map && input['members'] is List) {
+      final validation = super.validate(key, input);
+      if (validation.successful) return validation;
+    }
+    throw PeopleTagsException(
+      peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+    );
+  }
+}
 
 /// One `add`, `remove` or `keep` in `personTagMembersApply`.
 /// `keep` converts an inherited membership to a manual one.

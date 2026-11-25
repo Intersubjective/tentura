@@ -323,8 +323,10 @@ Future<void> main() async {
         );
 
         expect(snapshot.tag, tag);
-        expect(snapshot.memberIds, [_person]);
-        expect(snapshot.sources, [2]);
+        final member = snapshot.members.single;
+        expect(member.id, _person);
+        expect(member.source, 2);
+        expect(member.membershipId, isNotEmpty);
         expect(await tags.list(ownerId: _owner), isEmpty);
         expect(await count('person_tag_member'), 0);
       });

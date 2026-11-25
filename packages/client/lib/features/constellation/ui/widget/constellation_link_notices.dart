@@ -100,12 +100,9 @@ class _ConstellationLinkNoticesState extends State<ConstellationLinkNotices> {
     // Present oldest first. The shared snackbar replaces the current bar.
     for (final receipt in _receipts.reversed) {
       final notice = receipt.personLinkNotice;
-      final source = receipt.sourceEventKey;
-      if (notice == null ||
-          notice.kind != PersonLinkNoticeKind.merged ||
+      if (notice is! PersonMergedNotice ||
           receipt.isSeen ||
-          source == null ||
-          _shownMerges.contains(source)) {
+          _shownMerges.contains(notice.mergeId)) {
         continue;
       }
       final name = notice.displayName ?? names[notice.phantomId];
@@ -117,13 +114,18 @@ class _ConstellationLinkNoticesState extends State<ConstellationLinkNotices> {
         onUndo: () {
           if (mounted) {
             unawaited(
-              unlinkConstellationPerson(context, cubit, notice.phantomId),
+              unlinkConstellationPerson(
+                context,
+                cubit,
+                notice.phantomId,
+                mergeId: notice.mergeId,
+              ),
             );
           }
         },
       );
       if (bar == null) return;
-      _shownMerges.add(source);
+      _shownMerges.add(notice.mergeId);
       _showingMerge = true;
       unawaited(_markSeen(receipt.id));
       unawaited(
@@ -179,11 +181,7 @@ class _ConstellationLinkNoticesState extends State<ConstellationLinkNotices> {
     final joined = <String>{};
     final cards = [
       for (final receipt in _receipts)
-        if (receipt.personLinkNotice case (
-          kind: PersonLinkNoticeKind.joined,
-          :final phantomId,
-          displayName: _,
-        ))
+        if (receipt.personLinkNotice case PersonJoinedNotice(:final phantomId))
           if (privateNames[phantomId] case final String name
               when joined.add(phantomId))
             _LinkCard(
@@ -295,10 +293,14 @@ List<({String id, String name})> constellationLinkCandidates(
 Future<void> unlinkConstellationPerson(
   BuildContext context,
   ConstellationCubit cubit,
-  String phantomId,
-) async {
+  String phantomId, {
+  String? mergeId,
+}) async {
   try {
-    await GetIt.I<PhantomRepositoryPort>().unmerge(phantomId: phantomId);
+    await GetIt.I<PhantomRepositoryPort>().unmerge(
+      phantomId: phantomId,
+      mergeId: mergeId,
+    );
     await cubit.refreshAfterPhantomWrite();
   } on Exception catch (error, stackTrace) {
     if (context.mounted) _showLinkError(context, error, stackTrace);

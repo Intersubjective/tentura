@@ -212,7 +212,7 @@ UPDATE public.person_tag
     ownerId,
     clientOpId,
     fingerprint,
-    decode: PersonTagSnapshot.fromJson,
+    decode: (json) => PersonTagSnapshot.fromJson(json, stored: true),
     run: (_) async {
       final tags = await _list(ownerId, withCounts: true);
       final tag = _find(tags, id);
@@ -300,7 +300,7 @@ ORDER BY is_phantom, id
               r'''
 INSERT INTO public.person_tag_member
        (tag_id, owner_id, person_id, source, membership_id)
-SELECT $1, $2, u.id, $4, coalesce($5::text::uuid, gen_random_uuid())
+SELECT $1, $2, u.id, $4, $5::text::uuid
   FROM public."user" u
  WHERE u.id = $3 AND u.id <> $2
 ON CONFLICT DO NOTHING
