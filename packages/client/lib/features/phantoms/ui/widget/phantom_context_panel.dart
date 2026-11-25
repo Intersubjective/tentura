@@ -1,17 +1,14 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/util/share_link.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../domain/entity/phantom.dart';
 import '../../domain/exception.dart';
 import '../../domain/port/phantom_repository_port.dart';
+import 'phantom_invite_presentation.dart';
 
 class PhantomContextPanel extends StatefulWidget {
   const PhantomContextPanel({
@@ -68,13 +65,7 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
   }
 
   Future<bool> _copy({required bool rotate}) async {
-    final id = widget.person.id;
-    final code = rotate
-        ? await _repository.inviteRotate(id: id)
-        : await _repository.inviteEnsure(id: id);
-    if (mounted) {
-      await copyShareLink(context, link: inviteShareUri(code).toString());
-    }
+    await copyPhantomInviteLink(context, id: widget.person.id, rotate: rotate);
     return true;
   }
 
@@ -106,11 +97,10 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
     final theme = Theme.of(context);
     final tt = context.tt;
     final person = widget.person;
-    final inviteCreatedAt = person.inviteCreatedAt;
-    final status = inviteCreatedAt == null
+    final age = phantomInviteAge(person, widget.nowUtc, l10n);
+    final status = age == null
         ? l10n.constellationPhantomStatus
-        : '${l10n.constellationPhantomStatus} · '
-              '${l10n.personPanelInviteAge(math.max(0, widget.nowUtc.difference(inviteCreatedAt).inDays))}';
+        : '${l10n.constellationPhantomStatus} · $age';
 
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,

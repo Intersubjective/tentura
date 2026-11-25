@@ -1,5 +1,5 @@
 import 'package:meta/meta.dart';
-
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'entity/constellation_field.dart';
 
@@ -27,11 +27,19 @@ class ConstellationTagFilter {
   bool matches(
     ConstellationPerson person, {
     required Set<String> ownTagIds,
-  }) {
+  }) => _matches(ownTagIds.contains, person.autoTagKinds.contains);
+
+  bool matchesPhantom(Phantom person) =>
+      _matches(person.ownTagIds.contains, (_) => false);
+
+  bool _matches(
+    bool Function(String) hasOwnTag,
+    bool Function(ConstellationAutoTagKind) hasAutoTag,
+  ) {
     if (isEmpty) return true;
     final hits = [
-      ...selectedOwn.map(ownTagIds.contains),
-      ...selectedAuto.map(person.autoTagKinds.contains),
+      ...selectedOwn.map(hasOwnTag),
+      ...selectedAuto.map(hasAutoTag),
     ];
     return mode == ConstellationTagFilterMode.and
         ? hits.every((hit) => hit)
@@ -92,4 +100,5 @@ class ConstellationTagLens {
   };
 }
 
-bool _sameSet<T>(Set<T> a, Set<T> b) => a.length == b.length && a.containsAll(b);
+bool _sameSet<T>(Set<T> a, Set<T> b) =>
+    a.length == b.length && a.containsAll(b);

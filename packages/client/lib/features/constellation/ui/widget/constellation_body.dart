@@ -12,6 +12,7 @@ import 'package:tentura/app/platform/web_semantics.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/constellation/domain/constellation_people.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -29,6 +30,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/features/phantoms/ui/widget/phantom_context_panel.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
@@ -2173,19 +2175,29 @@ class _ConstellationBodyState extends State<ConstellationBody>
       for (final kind in view.filter.selectedAuto)
         constellationAutoTagName(l10n, kind),
     ];
+    final phantomMembers = view.scope.phantomMemberIds;
     return ConstellationTagViewHeader(
       title: l10n.constellationTagViewHeader(
         names.join(', '),
-        view.scope.memberIds.length,
+        view.scope.memberIds.length + phantomMembers.length,
       ),
       colorIndex: ownTags.isEmpty ? 0 : ownTags.first.color,
       others: view.others,
       members: [
         for (final person in cubit.fieldPeople)
           if (view.scope.memberIds.contains(person.id)) person,
+        for (final person in cubit.state.field?.phantoms ?? const <Phantom>[])
+          if (phantomMembers.contains(person.id))
+            ConstellationFieldPerson(id: person.id, name: person.displayName),
       ],
       onOthers: cubit.setTagViewOthers,
-      onFound: cubit.selectPerson,
+      onFound: (id) {
+        if (phantomMembers.contains(id)) {
+          cubit.selectPhantom(id);
+        } else {
+          cubit.selectPerson(id);
+        }
+      },
       onForward: () => unawaited(
         _forwardFromTagLens(context, cubit, view.filter.selectedOwn),
       ),

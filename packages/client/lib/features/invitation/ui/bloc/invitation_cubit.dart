@@ -256,7 +256,10 @@ class InvitationCubit extends Cubit<InvitationState> {
     }
   }
 
-  Future<void> deleteInvitationById(String id) async {
+  Future<void> deleteInvitationById(
+    String id, {
+    Future<void> Function()? onDeleted,
+  }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _invitationRepository.deleteById(id);
@@ -271,7 +274,9 @@ class InvitationCubit extends Cubit<InvitationState> {
       );
     } catch (e) {
       _emitSnackError(e);
+      return;
     }
+    await onDeleted?.call();
   }
 
   @override

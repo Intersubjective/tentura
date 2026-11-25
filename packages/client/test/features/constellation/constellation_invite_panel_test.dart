@@ -413,8 +413,11 @@ class _PanelCopy {
   final en = _catalog('en');
   final ru = _catalog('ru');
 
-  String russian(String english) =>
-      _translation((value) => value == english, english);
+  String russian(String english) => _translation(
+    (value) => value == english,
+    english,
+    messageKey: english == _status ? 'constellationPhantomStatus' : null,
+  );
 
   String get russianLiveStatus {
     bool hasAge(String value) =>
@@ -436,9 +439,17 @@ class _PanelCopy {
   Iterable<String> get renderedRussianMessages =>
       ru.values.map(_renderRussian).where((value) => !value.contains('{'));
 
-  String _translation(bool Function(String) match, String description) {
+  String _translation(
+    bool Function(String) match,
+    String description, {
+    String? messageKey,
+  }) {
     final keys = en.entries
-        .where((entry) => match(entry.value))
+        .where(
+          (entry) =>
+              (messageKey == null || entry.key == messageKey) &&
+              match(entry.value),
+        )
         .map(
           (entry) => entry.key,
         );

@@ -11,6 +11,7 @@ abstract class InvitationEntity extends Identifiable with _$InvitationEntity {
     required DateTime createdAt,
     required DateTime updatedAt,
     String? invitedId,
+    String? phantomId,
     String? beaconId,
     String? beaconTitle,
 

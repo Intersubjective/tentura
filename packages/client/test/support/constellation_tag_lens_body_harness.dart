@@ -209,6 +209,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
   placementFor,
   ConstellationField? field,
   ConstellationRepositoryPort? fieldRepository,
+  ConstellationFieldStoreCase? fieldStore,
   ConstellationTagMagnetCase? tagMagnetCase,
   List<PersonTag>? tagList,
 
@@ -237,13 +238,15 @@ Future<TagLensBodyHarness> mountTagLensBody(
     await GetIt.I.reset();
     await rig.dispose();
   });
-  final fixture = ConstellationStoreFixture(
-    fieldRepository ?? _StubRepository(field ?? tagLensHarnessField()),
-    accountId: tagLensHarnessEgo.id,
-  );
+  final store =
+      fieldStore ??
+      ConstellationStoreFixture(
+        fieldRepository ?? _StubRepository(field ?? tagLensHarnessField()),
+        accountId: tagLensHarnessEgo.id,
+      ).store;
   final cubit = ConstellationCubit(
-    case_: fixture.store,
-    placementCase: placementFor?.call(fixture.store),
+    case_: store,
+    placementCase: placementFor?.call(store),
     tagMagnetCase: tagMagnetCase,
     viewer: tagLensHarnessEgo,
   );

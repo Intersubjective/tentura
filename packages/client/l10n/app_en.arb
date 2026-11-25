@@ -10907,6 +10907,12 @@
   "@constellationPhantomStatus": {
     "context": "Status of a person without an account in the Field List and search"
   },
+  "peopleWithoutAccounts": "Not on Tentura yet",
+  "@peopleWithoutAccounts": {
+    "description": "Heading on the People screen. The Russian heading uses the Latin brand as specified in the People design."
+  },
+  "personInviteNotSent": "Not invited",
+  "personCopyLink": "Copy link",
   "personPanelInviteAge": "invite sent {days, plural, =0{today} one{1 day ago} other{{days} days ago}}",
   "@personPanelInviteAge": {
     "description": "Age of a live invite shown next to the account status",

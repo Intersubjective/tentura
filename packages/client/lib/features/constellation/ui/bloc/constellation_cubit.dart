@@ -6201,6 +6201,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final scope = resolveConstellationTagViewScope(
       filter: filter,
       people: field.peers,
+      phantoms: field.phantoms,
       ownTagIdsOf: _tagViewOwnTagIdsOf,
       others: others,
     );

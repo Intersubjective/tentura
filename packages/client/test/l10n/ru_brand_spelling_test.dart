@@ -1,17 +1,14 @@
-// #1095: the Russian UI spells the brand one way, «Тентура», declined where
-// the grammar needs a case ending. This guard reads app_ru.arb directly so a
-// Latin «Tentura» in any user-visible RU value fails before it ships.
+// #1095: Russian UI copy uses the declined form of «Тентура» where needed.
+// The People section heading has its own exact spelling in the acceptance
+// criteria. Check the catalogs directly to keep that exception local.
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Latin spellings a RU value may still carry, and why each one has to stay
-/// Latin. Empty today: no RU value needs the Latin brand. A domain such as
-/// `tentura.io` is matched by [_latinRequired] instead, because a URL or a
-/// host name is typed, not read, and must stay Latin.
-const _allowedValues = <String, String>{};
+/// Exact key and value of the People section heading from the #781 plan.
+const _allowedValues = {'peopleWithoutAccounts': 'Ещё не в Tentura'};
 
 /// URLs and domain names: these are Latin by necessity (`tentura.io`,
 /// `https://…tentura…`), so they are cut out before the brand check.
@@ -38,10 +35,14 @@ Map<String, String> _ruValues() {
 }
 
 void main() {
-  test('no RU ARB value carries the Latin brand «Tentura»', () {
+  test('the Latin brand exception is limited to the exact People heading', () {
+    final values = _ruValues();
+    for (final MapEntry(:key, :value) in _allowedValues.entries) {
+      expect(values[key], value, reason: key);
+    }
     final offenders = <String>[
-      for (final MapEntry(:key, :value) in _ruValues().entries)
-        if (!_allowedValues.containsKey(key) &&
+      for (final MapEntry(:key, :value) in values.entries)
+        if (_allowedValues[key] != value &&
             value
                 .replaceAll(_latinRequired, '')
                 .toLowerCase()

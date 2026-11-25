@@ -3622,6 +3622,7 @@ type invitation {
 
   """An object relationship"""
   issuer: user
+  phantom_id: String
   updated_at: timestamptz!
   user_id: String!
 }
@@ -3660,6 +3661,7 @@ input invitation_bool_exp {
   invited: user_bool_exp
   invited_id: String_comparison_exp
   issuer: user_bool_exp
+  phantom_id: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_id: String_comparison_exp
 }
@@ -3688,6 +3690,7 @@ type invitation_max_fields {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
@@ -3701,6 +3704,7 @@ type invitation_min_fields {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
@@ -3737,6 +3741,7 @@ input invitation_order_by {
   invited: user_order_by
   invited_id: order_by
   issuer: user_order_by
+  phantom_id: order_by
   updated_at: order_by
   user_id: order_by
 }
@@ -3767,6 +3772,9 @@ enum invitation_select_column {
   invited_id
 
   """column name"""
+  phantom_id
+
+  """column name"""
   updated_at
 
   """column name"""
@@ -3793,6 +3801,7 @@ input invitation_stream_cursor_value_input {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
