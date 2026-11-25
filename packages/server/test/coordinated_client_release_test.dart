@@ -7,8 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.65.0';
-const _shippedClient = '7.66.0';
+const _release = '7.69.0';
 
 void main() {
   test('the shipped client declares one minor release version', () {
@@ -27,7 +26,7 @@ void main() {
 
     final pubspec = File('../client/pubspec.yaml').readAsLinesSync();
     expect(pubspec.where((line) => line.startsWith('version:')), [
-      'version: $_shippedClient',
+      'version: $_release',
     ]);
   });
 

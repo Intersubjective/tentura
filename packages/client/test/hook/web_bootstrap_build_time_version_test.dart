@@ -60,11 +60,21 @@ void main() {
             'build/web',
           ]),
         );
+        final bootstrapVersion = _bootstrapVersion(
+          fixture.file('build/web/index.html').readAsStringSync(),
+        );
+        expect(bootstrapVersion, packageVersion);
+        final manifest =
+            jsonDecode(
+                  fixture.file('build/web/manifest.json').readAsStringSync(),
+                )
+                as Map<String, dynamic>;
         expect(
-          _bootstrapVersion(
-            fixture.file('build/web/index.html').readAsStringSync(),
+          (
+            bootstrap: bootstrapVersion,
+            manifest: manifest['version'],
           ),
-          packageVersion,
+          (bootstrap: '7.69.0', manifest: '7.69.0'),
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),
