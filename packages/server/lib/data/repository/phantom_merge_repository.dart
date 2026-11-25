@@ -265,6 +265,7 @@ VALUES ($1, $2, $3, $4, $5, '{}'::jsonb)
       ownerId: ownerId,
       mergeId: mergeId,
     );
+    final copiedAvatarKey = await _copyAvatar(target);
     final contactUndo = await _writeContact(target, origin, displayName);
 
     await _database.customStatement(
@@ -282,6 +283,8 @@ UPDATE public.phantom_merge SET undo = undo || $2::jsonb WHERE id = $1
         mergeId,
         jsonEncode({
           'pin': ?pinUndo,
+          if (copiedAvatarKey != null)
+            'avatar': {'subjectUserId': userId, 'objectKey': copiedAvatarKey},
           'contactName': {
             'before': contactUndo.before,
             'written': contactUndo.written,
@@ -345,6 +348,8 @@ FOR UPDATE OF p, m
         .customSelect(
           r'''
 SELECT phantom_id, user_id, origin, undo->>'pin' AS pin,
+       CASE WHEN undo #>> '{avatar,subjectUserId}' = user_id
+            THEN undo #>> '{avatar,objectKey}' END AS copied_avatar_key,
        undo #>> '{contactName,before}' AS previous_name,
        undo #>> '{contactName,written}' AS written_name
 FROM public.phantom_merge WHERE owner_id = $1 AND id = $2
@@ -388,6 +393,10 @@ WHERE id = $2 AND phantom_id IN (SELECT id FROM reactivated)
       [ownerId, mergeId, target.phantomId],
     );
     await _restorePins(scope, target, pin);
+    final copiedAvatarKey = merge.readNullable<String>('copied_avatar_key');
+    if (copiedAvatarKey != null) {
+      await _removeCopiedAvatar(target, copiedAvatarKey);
+    }
     await _restoreContactName(
       target,
       previous: merge.readNullable<String>('previous_name'),
@@ -406,6 +415,58 @@ WHERE id = $2 AND phantom_id IN (SELECT id FROM reactivated)
         pair,
       );
     }
+  }
+
+  Future<String?> _copyAvatar(PhantomMergeTarget target) async {
+    final (:ownerId, :phantomId, :userId) = target;
+    final rows = await _database.customWriteReturning(
+      r'''
+INSERT INTO public.person_private_avatar
+  (owner_id, subject_user_id, object_key, blurhash, width, height)
+SELECT owner_id, $3, object_key, blurhash, width, height
+FROM public.person_private_avatar
+WHERE owner_id = $1 AND subject_phantom_id = $2
+ON CONFLICT (owner_id, subject_user_id, subject_phantom_id) DO NOTHING
+RETURNING object_key
+''',
+      variables: [
+        Variable.withString(ownerId),
+        Variable.withString(phantomId),
+        Variable.withString(userId),
+      ],
+    );
+    return rows.singleOrNull?.read<String>('object_key');
+  }
+
+  Future<void> _removeCopiedAvatar(
+    PhantomMergeTarget target,
+    String objectKey,
+  ) async {
+    final removed = await _database.customUpdate(
+      r'''
+DELETE FROM public.person_private_avatar
+WHERE owner_id = $1 AND subject_user_id = $2 AND object_key = $3
+''',
+      variables: [
+        Variable.withString(target.ownerId),
+        Variable.withString(target.userId),
+        Variable.withString(objectKey),
+      ],
+      updateKind: UpdateKind.delete,
+    );
+    if (removed == 0) return;
+
+    // The delete trigger queued this key and holds its GC lock until commit.
+    // A removal of the last reference will enqueue again under the same lock.
+    await _database.customStatement(
+      r'''
+DELETE FROM public.private_object_gc gc
+WHERE gc.object_key = $1 AND EXISTS (
+  SELECT 1 FROM public.person_private_avatar WHERE object_key = gc.object_key
+)
+''',
+      [objectKey],
+    );
   }
 
   Future<void> _restorePins(

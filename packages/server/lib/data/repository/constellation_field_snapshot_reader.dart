@@ -309,7 +309,8 @@ final class ConstellationFieldSnapshotReader {
           r'''
 SELECT vu.object AS id, false AS is_phantom, NULL::text AS display_name,
        NULL::text AS emoji, NULL::text AS created_at,
-       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at
+       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at,
+       false AS has_private_avatar
 FROM public.vote_user vu
 INNER JOIN public."user" u ON u.id = vu.object
 WHERE vu.subject = $1
@@ -331,6 +332,10 @@ SELECT p.id, true, p.display_name, p.emoji, p.created_at::text,
          SELECT i.created_at::text FROM public.invitation i
          WHERE i.phantom_id = p.id AND i.user_id = p.owner_id
            AND i.invited_id IS NULL
+       ),
+       EXISTS (
+         SELECT 1 FROM public.person_private_avatar a
+         WHERE a.owner_id = p.owner_id AND a.subject_phantom_id = p.id
        )
 FROM public.phantom p
 WHERE p.owner_id = $1 AND p.merged_at IS NULL AND p.merged_user_id IS NULL
@@ -358,6 +363,7 @@ ORDER BY id
                 ? null
                 : DateTime.parse(inviteCreatedAt).toUtc(),
             createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+            hasPrivateAvatar: row.read<bool>('has_private_avatar'),
           ),
         );
       } else {

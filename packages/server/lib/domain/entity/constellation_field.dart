@@ -60,6 +60,7 @@ class PhantomRecord {
     required this.pinState,
     required this.inviteCreatedAt,
     required this.createdAt,
+    required this.hasPrivateAvatar,
   });
 
   final String id;
@@ -69,12 +70,11 @@ class PhantomRecord {
   final PhantomPinState? pinState;
   final DateTime? inviteCreatedAt;
   final DateTime createdAt;
+  final bool hasPrivateAvatar;
 
   PhantomInviteState get inviteState => inviteCreatedAt == null
       ? PhantomInviteState.none
       : PhantomInviteState.live;
-
-  bool get hasPrivateAvatar => false;
 }
 
 @immutable
