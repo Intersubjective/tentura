@@ -19,6 +19,7 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import 'owner_graph_unit_of_work.dart';
+import 'phantom_tag_transfer.dart';
 
 const _maxTags = 50;
 const _colors = 8;
@@ -29,6 +30,23 @@ NOT EXISTS (
   SELECT 1 FROM public.user_block ub
    WHERE (ub.blocker_id = $1 AND ub.blocked_id = m.person_id)
       OR (ub.blocker_id = m.person_id AND ub.blocked_id = $1))
+''';
+
+const _activePhantomMembersSql = r'''
+SELECT m.tag_id, m.phantom_id
+  FROM public.phantom_tag_member m
+  JOIN public.phantom p ON p.id = m.phantom_id AND p.owner_id = m.owner_id
+ WHERE m.owner_id = $1 AND p.merged_at IS NULL
+''';
+
+const _listedMembersSql =
+    '''
+SELECT m.tag_id, m.person_id, m.source, false AS is_phantom
+  FROM public.person_tag_member m
+ WHERE m.owner_id = \$1 AND $_notBlockedSql
+UNION ALL
+SELECT p.tag_id, p.phantom_id, NULL::smallint, true
+  FROM ($_activePhantomMembersSql) p
 ''';
 
 const _skippedSql = r'''
@@ -95,7 +113,7 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
     clientOpId,
     fingerprint,
     decode: PersonTag.fromJson,
-    run: () async {
+    run: (_) async {
       final tags = await _list(ownerId);
       _checkRoom(tags);
       await _checkNameFree(ownerId, name);
@@ -153,7 +171,7 @@ SELECT $1::text, $2::text, p, $4::int FROM unnest($3::text[]) AS p
     clientOpId,
     fingerprint,
     decode: PersonTag.fromJson,
-    run: () async {
+    run: (_) async {
       final tags = await _list(ownerId);
       final current = _find(tags, id);
       if (name != null) await _checkNameFree(ownerId, name, exceptId: id);
@@ -194,14 +212,21 @@ UPDATE public.person_tag
     ownerId,
     clientOpId,
     fingerprint,
-    decode: PersonTagSnapshot.fromJson,
-    run: () async {
+    decode: (json) => PersonTagSnapshot.fromJson(json, stored: true),
+    run: (_) async {
       final tags = await _list(ownerId, withCounts: true);
       final tag = _find(tags, id);
       final members = await _database
           .customSelect(
-            'SELECT person_id, source FROM public.person_tag_member '
-            r'WHERE tag_id = $1 ORDER BY person_id',
+            r'''
+SELECT false AS is_phantom, person_id AS id, membership_id::text AS membership_id,
+       source
+  FROM public.person_tag_member WHERE tag_id = $1
+UNION ALL
+SELECT true, phantom_id, membership_id::text, source
+  FROM public.phantom_tag_member WHERE tag_id = $1
+ORDER BY is_phantom, id
+''',
             variables: [Variable.withString(id)],
           )
           .get();
@@ -215,11 +240,20 @@ UPDATE public.person_tag
       ]);
       return PersonTagSnapshot(
         tag: tag,
-        memberIds: [for (final m in members) m.read<String>('person_id')],
-        sources: [for (final m in members) m.read<int>('source')],
+        members: [
+          for (final member in members)
+            PersonTagSnapshotMember(
+              kind: member.read<bool>('is_phantom')
+                  ? PersonTagSnapshotMemberKind.phantom
+                  : PersonTagSnapshotMemberKind.person,
+              id: member.read<String>('id'),
+              membershipId: member.read<String>('membership_id'),
+              source: member.read<int>('source'),
+            ),
+        ],
       );
     },
-    encode: (s) => s.toGraphQL(),
+    encode: (s) => {...s.toJson(), 'tag': s.tag.toGraphQL()},
   );
 
   @override
@@ -233,7 +267,7 @@ UPDATE public.person_tag
     clientOpId,
     fingerprint,
     decode: PersonTag.fromJson,
-    run: () async {
+    run: (_) async {
       final tags = await _list(ownerId);
       _checkRoom(tags);
       await _checkNameFree(ownerId, snapshot.tag.name);
@@ -259,20 +293,36 @@ UPDATE public.person_tag
           ord: tags.length + 1,
         ),
       );
-      for (var i = 0; i < snapshot.memberIds.length; i++) {
+      for (final member in snapshot.members) {
         await _database.customStatement(
-          r'''
-INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
-SELECT $1, $2, u.id, $4
+          switch (member.kind) {
+            PersonTagSnapshotMemberKind.person =>
+              r'''
+INSERT INTO public.person_tag_member
+       (tag_id, owner_id, person_id, source, membership_id)
+SELECT $1, $2, u.id, $4, $5::text::uuid
   FROM public."user" u
  WHERE u.id = $3 AND u.id <> $2
 ON CONFLICT DO NOTHING
 ''',
+            PersonTagSnapshotMemberKind.phantom =>
+              r'''
+INSERT INTO public.phantom_tag_member
+       (tag_id, owner_id, phantom_id, source, membership_id)
+SELECT $1, $2, p.id, $4, $5::text::uuid
+  FROM public.phantom p
+ WHERE p.id = $3 AND p.owner_id = $2
+   AND (p.merged_at IS NULL OR p.merged_user_id IS NOT NULL
+        OR p.current_merge_id IS NOT NULL)
+ON CONFLICT DO NOTHING
+''',
+          },
           [
             snapshot.tag.id,
             ownerId,
-            snapshot.memberIds[i],
-            snapshot.sources[i],
+            member.id,
+            member.source,
+            member.membershipId,
           ],
         );
       }
@@ -292,99 +342,211 @@ ON CONFLICT DO NOTHING
     required String clientOpId,
     required String fingerprint,
     required List<PersonTagMemberOp> ops,
-  }) => _idempotent<bool>(
-    ownerId,
-    clientOpId,
-    fingerprint,
-    decode: (_) => true,
-    run: () async {
-      final tagIds = {for (final t in await _list(ownerId)) t.id};
-      if (ops.any((o) => !tagIds.contains(o.tagId))) {
-        throw PeopleTagsException(
-          peopleTagsCode: PeopleTagsExceptionCode.tagNotFound,
-        );
-      }
-      final added = {
-        for (final o in ops)
-          if (o.add) o.personId,
-      }.toList();
-      final known = await _database
-          .customSelect(
-            r'SELECT id FROM public."user" WHERE id = ANY($1::text[])',
-            variables: [Variable(TypedValue(Type.textArray, added))],
-          )
-          .get();
-      if (known.length != added.length) {
-        throw PeopleTagsException(
-          peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
-        );
-      }
-      for (final o in ops) {
-        if (o.add) {
-          await _database.customStatement(
-            r'''
-INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
-SELECT $1::text, $2::text, $3::text, $4::int
+  }) async {
+    final operations = [
+      for (final op in ops) (op: op, isPhantom: op.personId.startsWith('PH')),
+    ];
+    // A manual add addressed to an active entry can wait behind its merge.
+    // An edit addressed to an entry that was already merged stays invalid.
+    final eligibleAdds =
+        {
+          for (final (:op, :isPhantom) in operations)
+            if (isPhantom && op.add && op.source == kPersonTagSourceManual)
+              op.personId,
+        }..removeAll([
+          for (final (:op, :isPhantom) in operations)
+            if (isPhantom && !op.add) op.personId,
+        ]);
+    final activeAdds = eligibleAdds.isEmpty
+        ? const <String>[]
+        : (await _database
+                  .customSelect(
+                    r'''
+SELECT id FROM public.phantom
+WHERE owner_id = $1 AND id = ANY($2::text[]) AND merged_at IS NULL
+''',
+                    variables: [
+                      Variable.withString(ownerId),
+                      Variable(
+                        TypedValue(Type.textArray, eligibleAdds.toList()),
+                      ),
+                    ],
+                  )
+                  .get())
+              .map((row) => row.read<String>('id'))
+              .toList();
+
+    await _idempotent<bool>(
+      ownerId,
+      clientOpId,
+      fingerprint,
+      decode: (_) => true,
+      run: (scope) => _applyMembers(scope, ownerId, operations, activeAdds),
+      encode: (ok) => {'ok': ok},
+    );
+  }
+
+  Future<bool> _applyMembers(
+    OwnerGraphScope scope,
+    String ownerId,
+    List<({PersonTagMemberOp op, bool isPhantom})> operations,
+    List<String> activeAdds,
+  ) async {
+    final tagIds = {for (final t in await _list(ownerId)) t.id};
+    if (operations.any((entry) => !tagIds.contains(entry.op.tagId))) {
+      throw PeopleTagsException(
+        peopleTagsCode: PeopleTagsExceptionCode.tagNotFound,
+      );
+    }
+    final peopleToAdd = {
+      for (final (:op, :isPhantom) in operations)
+        if (op.add && !isPhantom) op.personId,
+    }.toList();
+    final phantomIds = {
+      for (final (:op, :isPhantom) in operations)
+        if (isPhantom) op.personId,
+    }.toList();
+    // Validate against the current rows after acquiring the owner scope.
+    final known = await _database
+        .customSelect(
+          r'''
+SELECT id, NULL::text AS merge_id FROM public."user" WHERE id = ANY($1::text[])
+UNION ALL
+SELECT p.id, m.id AS merge_id FROM public.phantom p
+LEFT JOIN public.phantom_merge m ON m.id = p.current_merge_id
+  AND m.owner_id = p.owner_id AND m.phantom_id = p.id
+  AND m.user_id = p.merged_user_id AND m.undone_at IS NULL
+WHERE p.id = ANY($2::text[]) AND p.owner_id = $3
+  AND (p.merged_at IS NULL OR (p.id = ANY($4::text[]) AND m.id IS NOT NULL))
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, peopleToAdd)),
+            Variable(TypedValue(Type.textArray, phantomIds)),
+            Variable.withString(ownerId),
+            Variable(TypedValue(Type.textArray, activeAdds)),
+          ],
+        )
+        .get();
+    if (known.length != peopleToAdd.length + phantomIds.length ||
+        operations.any(
+          (entry) =>
+              entry.isPhantom &&
+              entry.op.add &&
+              entry.op.source != kPersonTagSourceManual,
+        )) {
+      throw PeopleTagsException(
+        peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+      );
+    }
+    final mergeIds = {
+      for (final row in known)
+        if (row.readNullable<String>('merge_id') case final String mergeId)
+          row.read<String>('id'): mergeId,
+    };
+    final transfers = <({String mergeId, String tagId})>[];
+    for (final (op: o, :isPhantom) in operations) {
+      final (table, memberId) = isPhantom
+          ? ('phantom_tag_member', 'phantom_id')
+          : ('person_tag_member', 'person_id');
+      if (o.add) {
+        const unlessBlocked = r'''
  WHERE NOT EXISTS (
    SELECT 1 FROM public.user_block ub
     WHERE (ub.blocker_id = $2 AND ub.blocked_id = $3)
        OR (ub.blocker_id = $3 AND ub.blocked_id = $2))
+''';
+        final inserted = await _database.customUpdate(
+          '''
+INSERT INTO public.$table (tag_id, owner_id, $memberId, source)
+SELECT \$1::text, \$2::text, \$3::text, \$4::int
+${isPhantom ? '' : unlessBlocked}
 ON CONFLICT DO NOTHING
 ''',
-            [o.tagId, ownerId, o.personId, o.source],
-          );
-        } else if (o.keep) {
-          await _database.customStatement(
-            '''
+          variables: [
+            Variable.withString(o.tagId),
+            Variable.withString(ownerId),
+            Variable.withString(o.personId),
+            Variable.withInt(o.source),
+          ],
+        );
+        final mergeId = mergeIds[o.personId];
+        if (inserted != 0 && mergeId != null) {
+          transfers.add((mergeId: mergeId, tagId: o.tagId));
+        }
+      } else if (o.keep) {
+        if (isPhantom) continue;
+        await _database.customStatement(
+          '''
 UPDATE public.person_tag_member SET source = $kPersonTagSourceManual
  WHERE tag_id = \$1 AND owner_id = \$2 AND person_id = \$3 AND source = \$4
 ''',
-            [o.tagId, ownerId, o.personId, kPersonTagSourceInherited],
-          );
-        } else {
-          await _database.customStatement(
-            r'''
-DELETE FROM public.person_tag_member
- WHERE tag_id = $1 AND owner_id = $2 AND person_id = $3
+          [o.tagId, ownerId, o.personId, kPersonTagSourceInherited],
+        );
+      } else {
+        await _database.customStatement(
+          '''
+DELETE FROM public.$table
+ WHERE tag_id = \$1 AND owner_id = \$2 AND $memberId = \$3
 ''',
-            [o.tagId, ownerId, o.personId],
-          );
-        }
-      }
-      final over = await _database
-          .customSelect(
-            'SELECT 1 FROM public.person_tag_member '
-            r'WHERE owner_id = $1 AND tag_id = ANY($2::text[]) '
-            r'GROUP BY tag_id HAVING count(*) > $3',
-            variables: [
-              Variable.withString(ownerId),
-              Variable(
-                TypedValue(
-                  Type.textArray,
-                  {
-                    for (final o in ops) o.tagId,
-                  }.toList(),
-                ),
-              ),
-              Variable.withInt(maxMembers),
-            ],
-          )
-          .get();
-      if (over.isNotEmpty) {
-        throw PeopleTagsException(
-          peopleTagsCode: PeopleTagsExceptionCode.memberLimitReached,
+          [o.tagId, ownerId, o.personId],
         );
       }
-      return true;
-    },
-    encode: (ok) => {'ok': ok},
-  );
+    }
+    // Explicit account edits in this batch precede the transfer, so an
+    // explicitly added membership never becomes owned by the merge's Undo.
+    for (final (:mergeId, :tagId) in transfers) {
+      if (!await transferPhantomTags(
+        _database,
+        scope,
+        ownerId: ownerId,
+        mergeId: mergeId,
+        tagId: tagId,
+      )) {
+        throw PeopleTagsException(
+          peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+        );
+      }
+    }
+    final over = await _database
+        .customSelect(
+          '''
+SELECT 1
+  FROM (
+    SELECT tag_id FROM public.person_tag_member WHERE owner_id = \$1
+    UNION ALL
+    SELECT tag_id FROM ($_activePhantomMembersSql) p
+  ) members
+ WHERE tag_id = ANY(\$2::text[])
+ GROUP BY tag_id HAVING count(*) > \$3
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable(
+              TypedValue(
+                Type.textArray,
+                {
+                  for (final entry in operations) entry.op.tagId,
+                }.toList(),
+              ),
+            ),
+            Variable.withInt(maxMembers),
+          ],
+        )
+        .get();
+    if (over.isNotEmpty) {
+      throw PeopleTagsException(
+        peopleTagsCode: PeopleTagsExceptionCode.memberLimitReached,
+      );
+    }
+    return true;
+  }
 
   @override
   Future<List<PersonTagMembers>> memberships(String ownerId) async {
     final rows = await _database
         .customSelect(
           '''
+WITH members AS ($_listedMembersSql)
 SELECT t.id AS tag_id,
        coalesce(
          array_agg(m.person_id ORDER BY m.person_id)
@@ -401,8 +563,7 @@ SELECT t.id AS tag_id,
            FILTER (WHERE m.source = $kPersonTagSourceInherited),
          '{}'::text[]) AS inviter_ids
   FROM public.person_tag t
-  LEFT JOIN public.person_tag_member m
-    ON m.tag_id = t.id AND $_notBlockedSql
+  LEFT JOIN members m ON m.tag_id = t.id
   LEFT JOIN public.invite_genealogy g
     ON g.descendant_user_id = m.person_id
    AND m.source = $kPersonTagSourceInherited
@@ -586,7 +747,7 @@ SELECT NOT disabled AND (silenced_until IS NULL OR silenced_until <= now())
     clientOpId,
     fingerprint,
     decode: PersonTagSuggestionState.fromJson,
-    run: () async {
+    run: (_) async {
       await _database.customStatement(
         r'''
 INSERT INTO public.person_tag_suggestion_state (owner_id)
@@ -613,9 +774,9 @@ VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
     String clientOpId,
     String fingerprint, {
     required T Function(Map<String, dynamic>) decode,
-    required Future<T> Function() run,
+    required Future<T> Function(OwnerGraphScope scope) run,
     required Map<String, dynamic> Function(T) encode,
-  }) => _ownerGraph.run({ownerId}, ownerId, (_) async {
+  }) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
     final logged = await _database
         .customSelect(
           'SELECT fingerprint, result::text AS result '
@@ -638,7 +799,7 @@ VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
             as Map<String, dynamic>,
       );
     }
-    final result = await run();
+    final result = await run(scope);
     await _database.customStatement(
       r'''
 INSERT INTO public.person_tag_op_log
@@ -681,18 +842,15 @@ VALUES ($1, $2, $3, $4::jsonb)
   /// Members per tag, blocked people left out, and of those the ones off the
   /// owner's Field: not visible (the transaction-memoised closed form, no
   /// MeritRank call of its own), not a bond, contact or pinned person. The
-  /// visible set is only read when some member is left.
+  /// visible set is only read when a registered member is left.
   Future<Map<String, ({int count, int off})>> _counts(String ownerId) async {
     final rows = await _database
         .customSelect(
           '''
-WITH live AS MATERIALIZED (
-  SELECT m.tag_id, m.person_id FROM public.person_tag_member m
-   WHERE m.owner_id = \$1 AND $_notBlockedSql
-),
+WITH live AS MATERIALIZED ($_listedMembersSql),
 visible AS MATERIALIZED (
   SELECT public.person_visible_peer_ids_tx(\$1, '') AS ids
-   WHERE EXISTS (SELECT 1 FROM live)
+   WHERE EXISTS (SELECT 1 FROM live WHERE NOT is_phantom)
 ),
 near AS MATERIALIZED (
   SELECT vu.object AS id FROM public.vote_user vu
@@ -706,7 +864,8 @@ near AS MATERIALIZED (
 SELECT l.tag_id,
        count(*) AS member_count,
        count(*) FILTER (
-         WHERE NOT (l.person_id = ANY(
+         WHERE NOT l.is_phantom
+           AND NOT (l.person_id = ANY(
                  coalesce((SELECT v.ids FROM visible v), '{}'::text[])))
            AND NOT EXISTS (SELECT 1 FROM near n WHERE n.id = l.person_id)
        ) AS off_field_count

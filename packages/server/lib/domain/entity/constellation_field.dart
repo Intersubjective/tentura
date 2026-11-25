@@ -4,6 +4,8 @@ import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 import 'constellation_anchor_projection.dart';
 import 'gql_public/image_public_record.dart';
 
+typedef ConstellationLinkHint = ({String phantomId, String userId});
+
 @immutable
 class ConstellationFieldSnapshot {
   ConstellationFieldSnapshot({
@@ -17,6 +19,8 @@ class ConstellationFieldSnapshot {
     this.posts = const [],
     this.memberWebs = const [],
     this.directContactIds = const [],
+    this.linkHints = const [],
+    this.phantoms = const [],
     ConstellationAnchorProjection? anchorProjection,
   }) : anchorProjection =
            anchorProjection ?? ConstellationAnchorProjection.empty;
@@ -36,7 +40,41 @@ class ConstellationFieldSnapshot {
   /// [peers]; none of them counts against [peersCapped]. Empty in an
   /// ANCHORS read.
   final List<String> directContactIds;
+  final List<ConstellationLinkHint> linkHints;
+  final List<PhantomRecord> phantoms;
   final ConstellationAnchorProjection anchorProjection;
+}
+
+enum PhantomPinState { pinned }
+
+enum PhantomInviteState { none, live }
+
+/// An active, private entry on its owner's Field.
+@immutable
+class PhantomRecord {
+  const PhantomRecord({
+    required this.id,
+    required this.displayName,
+    required this.emoji,
+    required this.ownTagIds,
+    required this.pinState,
+    required this.inviteCreatedAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String displayName;
+  final String? emoji;
+  final List<String> ownTagIds;
+  final PhantomPinState? pinState;
+  final DateTime? inviteCreatedAt;
+  final DateTime createdAt;
+
+  PhantomInviteState get inviteState => inviteCreatedAt == null
+      ? PhantomInviteState.none
+      : PhantomInviteState.live;
+
+  bool get hasPrivateAvatar => false;
 }
 
 @immutable
@@ -132,6 +170,7 @@ class ConstellationPeerRecord {
     this.ownTagIds = const [],
     this.autoTagKinds = const [],
     this.firstSeenAt,
+    this.mergedPhantomId,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -147,9 +186,13 @@ class ConstellationPeerRecord {
       bondContexts = const [],
       ownTagIds = const [],
       autoTagKinds = const [],
-      firstSeenAt = null;
+      firstSeenAt = null,
+      mergedPhantomId = null;
 
   final String id;
+
+  /// Private to the snapshot owner.
+  final String? mergedPhantomId;
   final String? displayName;
   final String? handle;
   final ImagePublicRecord? image;
@@ -197,6 +240,7 @@ class ConstellationPeerRecord {
     required List<String> ownTagIds,
     required List<int> autoTagKinds,
     required DateTime? firstSeenAt,
+    String? mergedPhantomId,
   }) => ConstellationPeerRecord(
     id: id,
     displayName: displayName,
@@ -211,6 +255,7 @@ class ConstellationPeerRecord {
     ownTagIds: ownTagIds,
     autoTagKinds: autoTagKinds,
     firstSeenAt: firstSeenAt,
+    mergedPhantomId: mergedPhantomId,
   );
 
   /// This record with its field presence set.

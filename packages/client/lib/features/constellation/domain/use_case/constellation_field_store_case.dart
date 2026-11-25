@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/parallel_wait_failure.dart';
@@ -34,6 +35,10 @@ const kLazyFieldRefreshInterval = Duration(minutes: 5);
 /// dispatch is reported once as overdue.
 const kLazyWriteAckTimeout = Duration(seconds: 15);
 
+/// Opt in only for browser journeys that exercise the gated Field entries.
+const _qaPhantomsEnabled =
+    kQaIntegrationTestMode && bool.fromEnvironment('QA_PHANTOMS_ENABLED');
+
 /// How far the store's reads had got when a targeted read started (#672,
 /// #671). A targeted result stamped with it is applied only while no FULL that
 /// started later has landed, and is held over every FULL that started
@@ -56,6 +61,9 @@ final class ConstellationFieldReadMark {
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.
   load,
+
+  /// Refresh after an acknowledged mutation, using a read started after it.
+  localWrite,
   realtime,
   catchUp,
   resume,
@@ -86,17 +94,20 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-  }) {
+    @ignoreParam bool? phantomsEnabled,
+  }) : phantomsEnabled =
+           phantomsEnabled ?? (kPhantomsEnabled || _qaPhantomsEnabled) {
     _subscriptions = [
       account.currentAccountChanges.listen(_onAccountChanged),
       _realtimeSyncCase
-          .changesFor(const {
+          .changesFor({
             RealtimeEntityKind.beacon,
             RealtimeEntityKind.forward,
             RealtimeEntityKind.participant,
             RealtimeEntityKind.roomMessage,
             RealtimeEntityKind.roomSeen,
             RealtimeEntityKind.constellationField,
+            if (this.phantomsEnabled) RealtimeEntityKind.phantom,
           })
           .listen(_onFieldChange),
       _realtimeSyncCase
@@ -110,6 +121,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   final ClockPort _clock;
   final WakeUpPort _wakeUp;
   final RealtimeSyncCase _realtimeSyncCase;
+  final bool phantomsEnabled;
 
   /// Minimum spacing between urgent realtime-driven FULL refreshes.
   static const _urgentSpacing = Duration(seconds: 2);
@@ -231,6 +243,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             peers.remove(target.id);
           case ConstellationAnchorTargetKind.beacon:
             requests.remove(target.id);
+          case ConstellationAnchorTargetKind.phantom:
+            break;
         }
         continue;
       }
@@ -242,6 +256,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         case ConstellationAnchorTargetKind.beacon:
           final record = requestRecords[target.id];
           if (record != null) requests[target.id] = record;
+        case ConstellationAnchorTargetKind.phantom:
+          break;
       }
     }
     final advance =
@@ -631,6 +647,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       }
       return;
     }
+    if (reason == ConstellationRefreshReason.localWrite) {
+      await _fullInFlight?.future;
+      await _dispatch();
+      return;
+    }
     if (reason == ConstellationRefreshReason.resume ||
         reason == ConstellationRefreshReason.catchUp) {
       await _dispatch();
@@ -658,9 +679,39 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   }
 
   void _emit(ConstellationFieldStoreState state) {
-    _state = state;
+    var next = state;
+    final field = state.field;
+    if (!phantomsEnabled && field != null) {
+      final projection = field.anchorProjection;
+      final visibleProjection = projection?.withoutPhantomAnchors();
+      final hasMerges = field.peers.any((peer) => peer.mergedPhantomId != null);
+      if (field.phantoms.isNotEmpty ||
+          field.linkHints.isNotEmpty ||
+          hasMerges ||
+          !identical(visibleProjection, projection)) {
+        next = ConstellationFieldStoreState(
+          field: field.copyWith(
+            phantoms: const [],
+            linkHints: const [],
+            peers: hasMerges
+                ? [
+                    for (final peer in field.peers)
+                      if (peer.mergedPhantomId != null)
+                        peer.copyWith(mergedPhantomId: null)
+                      else
+                        peer,
+                  ]
+                : field.peers,
+            anchorProjection: visibleProjection,
+          ),
+          coveredRevision: state.coveredRevision,
+          generation: state.generation,
+        );
+      }
+    }
+    _state = next;
     if (!_changes.isClosed) {
-      _changes.add(state);
+      _changes.add(next);
     }
   }
 

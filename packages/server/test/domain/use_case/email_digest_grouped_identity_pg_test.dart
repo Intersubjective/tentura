@@ -90,20 +90,27 @@ Future<void> main() async {
   Future<void> setPreferences({
     String locale = 'en',
     bool lockScreenSafe = false,
+    int tzOffsetMinutes = 0,
   }) => writer.execute(
     Sql.named('''
 INSERT INTO public.notification_preference (
   account_id, locale, tz_offset_minutes, lock_screen_safe, email_digest,
   email_categories
 ) VALUES (
-  @a, @l, 0, @s, 'daily',
+  @a, @l, @tz, @s, 'daily',
   ARRAY['asksOfMe', 'unblocksMe', 'coordination', 'connections',
         'ambient', 'postsSharedWithMe']
 )
 ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale,
-  lock_screen_safe = EXCLUDED.lock_screen_safe
+  lock_screen_safe = EXCLUDED.lock_screen_safe,
+  tz_offset_minutes = EXCLUDED.tz_offset_minutes
 '''),
-    parameters: {'a': _reader, 'l': locale, 's': lockScreenSafe},
+    parameters: {
+      'a': _reader,
+      'l': locale,
+      's': lockScreenSafe,
+      'tz': tzOffsetMinutes,
+    },
   );
 
   /// One outbox row as its producer persists it. Stored title/body are
@@ -296,8 +303,8 @@ INSERT INTO public.notification_outbox (
 
   /// Runs the digest at the recipient's digest hour and returns what the
   /// file sink captured for the recipient.
-  Future<_Digest> deliver() async {
-    await digestCase().runDue(now: _now);
+  Future<_Digest> deliver({DateTime? now}) async {
+    await digestCase().runDue(now: now ?? _now);
     final file = File(
       '${sinkDir.path}/'
       '${FileSinkEmailSender.sanitizeEmailForFileName(_readerEmail)}.json',
@@ -346,6 +353,60 @@ INSERT INTO public.notification_outbox (
     await postShare(),
     await connection(),
   ];
+
+  group('Deadline times in recipient digest copy', () {
+    for (final (locale, dateOnly, timed) in const [
+      (
+        'en',
+        'Anna moved the deadline to 29 Nov',
+        'Anna moved the deadline to 21 Nov, 18:00',
+      ),
+      (
+        'ru',
+        'Anna: новый срок — 29 ноября',
+        'Anna: новый срок — 21 ноября, 18:00',
+      ),
+    ]) {
+      test(
+        '$locale shows a date at midnight and keeps an evening time',
+        () async {
+          const offset = 180;
+          await setPreferences(locale: locale, tzOffsetMinutes: offset);
+          for (final (id, deadline, at) in [
+            ('evening', '2026-11-21T15:00:00Z', DateTime.utc(2026, 11, 19, 10)),
+            (
+              'midnight',
+              '2026-11-28T21:00:00Z',
+              DateTime.utc(2026, 11, 19, 11),
+            ),
+          ]) {
+            await receipt(
+              id: id,
+              presentationKey: 'deadline_changed',
+              category: 'coordination',
+              kind: 'deadlineChanged',
+              beacon: _roof,
+              actor: _anna,
+              at: at,
+              title: 'Deadline changed',
+              body: 'Deadline changed from none to $deadline',
+              facts: {'newEndAt': deadline},
+            );
+          }
+
+          final digest = await deliver(
+            now: _now.subtract(const Duration(minutes: offset)),
+          );
+          expect(digest.text, contains('- $timed\n'));
+          expect(digest.html, contains('<li>$timed</li>'));
+          expect(digest.text, contains('- $dateOnly\n'));
+          expect(digest.html, contains('<li>$dateOnly</li>'));
+          expect(digest.text, isNot(contains('00:00')));
+          expect(digest.html, isNot(contains('00:00')));
+        },
+      );
+    }
+  });
 
   group('digest text matches the expected-text fixtures', () {
     for (final locale in ['en', 'ru']) {

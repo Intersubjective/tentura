@@ -20,10 +20,12 @@ class InvitePreviewResult {
     required this.callerStatus,
     this.inviter,
     this.beacon,
+    this.phantomInvite = false,
   });
 
   final InviteCodeStatus codeStatus;
   final InviteCallerStatus callerStatus;
+  final bool phantomInvite;
 
   /// The invite issuer; null only when the code is invalid.
   final UserEntity? inviter;
@@ -60,6 +62,7 @@ class InvitePreviewResult {
           },
     'codeStatus': codeStatus.name,
     'callerStatus': _callerStatusJson,
+    if (phantomInvite) 'phantomInvite': true,
     if (beacon case final preview?) 'beacon': preview.toJson(),
     'suggestedAction': suggestedAction,
   };

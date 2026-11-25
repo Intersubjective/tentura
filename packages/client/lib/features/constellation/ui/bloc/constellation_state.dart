@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
@@ -63,6 +65,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(<String>{}) Set<String> expandedPersonIds,
     String? selectedPersonId,
     String? selectedRequestId,
+    String? selectedPhantomId,
     @Default(ConstellationViewMode.map) ConstellationViewMode viewMode,
     @Default(0) int graphRevision,
     Object? loadError,
@@ -96,6 +99,17 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
   }) = _ConstellationState;
 
   const ConstellationState._();
+
+  bool get hasContextPanel =>
+      selectedPersonId != null ||
+      selectedRequestId != null ||
+      selectedPhantomId != null;
+
+  Phantom? get selectedPhantom {
+    final id = selectedPhantomId;
+    if (id == null) return null;
+    return field?.phantoms.firstWhereOrNull((person) => person.id == id);
+  }
 
   ConstellationFilters get filters => (
     capabilitySlugs: filterCapabilitySlugs,

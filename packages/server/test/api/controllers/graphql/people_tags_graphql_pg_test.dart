@@ -37,8 +37,7 @@ const _deleteDoc = r'''
 mutation Delete($id: String!, $clientOpId: String!) {
   personTagDelete(id: $id, clientOpId: $clientOpId) {
     tag { id name glyph color ord }
-    memberIds
-    sources
+    members { kind id source membershipId }
   }
 }
 ''';
@@ -279,8 +278,14 @@ Future<void> main() async {
         }, 'personTagDelete');
 
         expect(deleted['tag'], tag);
-        expect(deleted['memberIds'], [_other]);
-        expect(deleted['sources'], [2]);
+        expect(deleted['members'], [
+          {
+            'kind': 'person',
+            'id': _other,
+            'source': 2,
+            'membershipId': isA<String>(),
+          },
+        ]);
         expect(await listed(), isEmpty);
 
         final restored = await field(_restoreDoc, {
@@ -336,8 +341,7 @@ query { personTags { id name glyph color ord count countOffField } }
 mutation Delete($id: String!, $clientOpId: String!) {
   personTagDelete(id: $id, clientOpId: $clientOpId) {
     tag { id name glyph color ord count countOffField }
-    memberIds
-    sources
+    members { kind id source membershipId }
   }
 }
 ''',
@@ -345,8 +349,14 @@ mutation Delete($id: String!, $clientOpId: String!) {
           'personTagDelete',
         );
         expect(snapshot['tag'], before);
-        expect(snapshot['memberIds'], [_other]);
-        expect(snapshot['sources'], [2]);
+        expect(snapshot['members'], [
+          {
+            'kind': 'person',
+            'id': _other,
+            'source': 2,
+            'membershipId': isA<String>(),
+          },
+        ]);
         expect(await listed(), isEmpty);
         expect(
           (await run(
@@ -357,7 +367,7 @@ mutation Delete($id: String!, $clientOpId: String!) {
         );
 
         // Like the client undo flow, send the writable tag fields and the
-        // returned membership arrays; counts are output-only fields.
+        // returned membership records; counts are output-only fields.
         // populated_tag_delete_screen_pg_test also exercises the production
         // client's mapping of the complete response when Undo is tapped.
         final snapshotTag = snapshot['tag']! as Map<String, dynamic>;
@@ -367,8 +377,7 @@ mutation Delete($id: String!, $clientOpId: String!) {
               for (final key in ['id', 'name', 'glyph', 'color', 'ord'])
                 key: snapshotTag[key],
             },
-            'memberIds': snapshot['memberIds'],
-            'sources': snapshot['sources'],
+            'members': snapshot['members'],
           },
           'clientOpId': 'restore-populated',
         }, 'personTagRestore');
@@ -503,8 +512,7 @@ mutation Delete($id: String!, $clientOpId: String!) {
         }, 'personTagDelete');
         final liveSnapshot = {
           'tag': live,
-          'memberIds': <String>[],
-          'sources': <int>[],
+          'members': <Object>[],
         };
 
         // Restoring over a tag that still exists must fail and change nothing.

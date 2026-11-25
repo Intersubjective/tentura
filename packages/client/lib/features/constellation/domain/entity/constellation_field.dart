@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'constellation_anchor_projection.dart';
 
@@ -48,6 +49,8 @@ class ConstellationBondContext {
   int get hashCode => Object.hash(beaconId, title);
 }
 
+typedef ConstellationLinkHint = ({String phantomId, String userId});
+
 @freezed
 abstract class ConstellationField with _$ConstellationField {
   const factory ConstellationField({
@@ -58,6 +61,8 @@ abstract class ConstellationField with _$ConstellationField {
     @Default([]) List<ConstellationRequest> requests,
     @Default([]) List<ConstellationPost> posts,
     @Default([]) List<ConstellationMemberWeb> memberWebs,
+    @Default([]) List<Phantom> phantoms,
+    @Default([]) List<ConstellationLinkHint> linkHints,
     @Default(false) bool peersCapped,
     @Default(false) bool requestsCapped,
 
@@ -82,6 +87,7 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     String? handle,
     ImageEntity? image,
     String? pinState,
+    String? mergedPhantomId,
 
     /// False for a pinned person outside the viewer's visible set.
     @Default(true) bool visible,

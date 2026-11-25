@@ -4,6 +4,9 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:tentura_server/domain/entity/forward_helped_content.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_policy.dart';
@@ -11,9 +14,10 @@ import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 
 import '../database/tentura_db.dart';
 
-@Singleton(as: AttentionDispatchPort)
+@singleton
 class AttentionDispatchRepository implements AttentionDispatchPort {
-  AttentionDispatchRepository(this._database, this._logger);
+  AttentionDispatchRepository(this._database, [@ignoreParam Logger? logger])
+    : _logger = logger ?? Logger.root;
 
   final TenturaDb _database;
   final Logger _logger;
@@ -36,7 +40,128 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
 
   @override
   Future<void> record(AttentionDispatchIntent intent) async {
-    final immutablePayload = jsonEncode(_occurrencePayload(intent));
+    final occurrenceRow = await _recordOccurrence(
+      sourceEventKey: intent.sourceEventKey,
+      eventType: intent.eventType.name,
+      actorUserId: intent.actorUserId,
+      payload: _occurrencePayload(intent),
+    );
+    if (occurrenceRow == null) return;
+    // `occurred_at` is a Postgres `timestamptz`; Drift's `read<DateTime>` would
+    // decode it as epoch millis and throw. Parse the string, as the other
+    // repositories do — see drift_postgres_timestamptz_bind_inventory_test.
+    final occurrenceAt = DateTime.parse(
+      occurrenceRow.read<String>('occurred_at'),
+    ).toUtc();
+    if (intent.recipients.isNotEmpty) {
+      final occurrenceId = occurrenceRow.read<String>('id');
+      await _recordRecipients(occurrenceId, [
+        for (final recipient in intent.recipients)
+          {
+            'account_id': recipient.recipientId,
+            'reasons': recipient.reasons.map((reason) => reason.name).toList(),
+            'role_facts': _rolePayload(_effectiveRole(intent, recipient)),
+            'collapse_key': recipient.collapseKey ?? intent.collapseKey,
+            'channel_eligible': recipient.channelEligible,
+          },
+      ]);
+      await _writeReceipts(intent, occurrenceId);
+    }
+    logReceiptCreatedTelemetry(
+      logger: _logger,
+      eventType: intent.eventType,
+      recipientCount: intent.recipients.length,
+      occurrenceAt: occurrenceAt,
+    );
+  }
+
+  /// Carries a private link notice in the merge transaction, with no
+  /// channel delivery or Updates card.
+  Future<void> recordPersonMerged({
+    required String ownerId,
+    required String phantomId,
+    required String mergeId,
+    required String displayName,
+  }) => _recordPersonLink(
+    ownerId: ownerId,
+    phantomId: phantomId,
+    eventType: 'phantomMerged',
+    eventId: mergeId,
+    presentationKey: 'person_link_merged',
+    facts: {'mergeId': mergeId, 'displayName': displayName},
+  );
+
+  Future<void> recordPersonJoined({
+    required String ownerId,
+    required String phantomId,
+    required String jobId,
+    required String userId,
+  }) => _recordPersonLink(
+    ownerId: ownerId,
+    phantomId: phantomId,
+    eventType: 'phantomJoined',
+    eventId: jobId,
+    presentationKey: 'person_link_joined',
+    facts: {'userId': userId},
+  );
+
+  Future<void> _recordPersonLink({
+    required String ownerId,
+    required String phantomId,
+    required String eventType,
+    required String eventId,
+    required String presentationKey,
+    required Map<String, String> facts,
+  }) async {
+    final sourceEventKey = '$eventType:$eventId';
+    final payload = {'targetEntityId': phantomId, ...facts};
+    final occurrence = await _recordOccurrence(
+      sourceEventKey: sourceEventKey,
+      eventType: eventType,
+      actorUserId: ownerId,
+      payload: payload,
+    );
+    if (occurrence == null) return;
+    final occurrenceId = occurrence.read<String>('id');
+    await _recordRecipients(occurrenceId, [
+      {
+        'account_id': ownerId,
+        'reasons': ['owner'],
+        'role_facts': {'targetEntityId': phantomId},
+        'collapse_key': sourceEventKey,
+        'channel_eligible': false,
+      },
+    ]);
+    await _insertReceipts(
+      occurrenceId: occurrenceId,
+      sourceEventKey: sourceEventKey,
+      actorUserId: ownerId,
+      kind: NotificationKind.coordinationChanged,
+      placement: AttentionPlacement.timelineOnly,
+      rows: [
+        {
+          'account_id': ownerId,
+          'category': NotificationCategory.connections.name,
+          'dedup_key': sourceEventKey,
+          'destination_kind': AttentionDestinationKind.safeTerminal.wireName,
+          'target_entity_id': phantomId,
+          'presentation_key': presentationKey,
+          'presentation_payload': payload,
+          'suppression_class': AttentionSuppressionClass.standard.name,
+          'access_policy': AttentionAccessPolicy.recipientSafe.wireName,
+          'requires_action': false,
+        },
+      ],
+    );
+  }
+
+  Future<QueryRow?> _recordOccurrence({
+    required String sourceEventKey,
+    required String eventType,
+    required String? actorUserId,
+    required Map<String, Object?> payload,
+  }) async {
+    final immutablePayload = jsonEncode(payload);
     final occurrence = await _database
         .customSelect(
           r'''INSERT INTO public.attention_occurrence (
@@ -45,9 +170,9 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
 ON CONFLICT (source_event_key) DO NOTHING
 RETURNING id, occurred_at''',
           variables: [
-            Variable<String>(intent.sourceEventKey),
-            Variable<String>(intent.eventType.name),
-            Variable<String>(intent.actorUserId),
+            Variable<String>(sourceEventKey),
+            Variable<String>(eventType),
+            Variable<String>(actorUserId),
             Variable<String>(immutablePayload),
           ],
         )
@@ -64,34 +189,30 @@ RETURNING id, occurred_at''',
 WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
   AND event_type = $3 AND actor_user_id IS NOT DISTINCT FROM $4''',
             variables: [
-              Variable<String>(intent.sourceEventKey),
+              Variable<String>(sourceEventKey),
               Variable<String>(immutablePayload),
-              Variable<String>(intent.eventType.name),
-              Variable<String>(intent.actorUserId),
+              Variable<String>(eventType),
+              Variable<String>(actorUserId),
             ],
           )
           .get();
       if (matching.isEmpty) {
         throw StateError(
           'Attention source_event_key was reused with different immutable facts: '
-          '${intent.sourceEventKey}',
+          '$sourceEventKey',
         );
       }
-      return;
+      return null;
     }
-    final occurrenceRow = occurrence.single;
-    final occurrenceId = occurrenceRow.read<String>('id');
-    // `occurred_at` is a Postgres `timestamptz`; Drift's `read<DateTime>` would
-    // decode it as epoch millis and throw. Parse the string, as the other
-    // repositories do — see drift_postgres_timestamptz_bind_inventory_test.
-    final occurrenceAt = DateTime.parse(
-      occurrenceRow.read<String>('occurred_at'),
-    ).toUtc();
-    // One statement for the whole recipient snapshot set: the cost of a
-    // forward may not grow with the number of people it reaches.
-    if (intent.recipients.isNotEmpty) {
-      await _database.customStatement(
-        r'''
+    return occurrence.single;
+  }
+
+  // One statement for the whole recipient snapshot set.
+  Future<void> _recordRecipients(
+    String occurrenceId,
+    List<Map<String, Object?>> recipients,
+  ) => _database.customStatement(
+    r'''
 INSERT INTO public.attention_occurrence_recipient (
   occurrence_id, account_id, reasons, role_facts, collapse_key, channel_eligible
 )
@@ -101,33 +222,8 @@ FROM jsonb_to_recordset($2::jsonb) AS r(
   account_id text, reasons jsonb, role_facts jsonb, collapse_key text,
   channel_eligible boolean
 )''',
-        [
-          occurrenceId,
-          jsonEncode([
-            for (final recipient in intent.recipients)
-              {
-                'account_id': recipient.recipientId,
-                'reasons': recipient.reasons
-                    .map((reason) => reason.name)
-                    .toList(),
-                'role_facts': _rolePayload(_effectiveRole(intent, recipient)),
-                'collapse_key': recipient.collapseKey ?? intent.collapseKey,
-                'channel_eligible': recipient.channelEligible,
-              },
-          ]),
-        ],
-      );
-    }
-    if (intent.recipients.isNotEmpty) {
-      await _writeReceipts(intent, occurrenceId);
-    }
-    logReceiptCreatedTelemetry(
-      logger: _logger,
-      eventType: intent.eventType,
-      recipientCount: intent.recipients.length,
-      occurrenceAt: occurrenceAt,
-    );
-  }
+    [occurrenceId, jsonEncode(recipients)],
+  );
 
   /// Writes every recipient's receipt and channel delivery job in a fixed
   /// number of statements.
@@ -202,128 +298,47 @@ RETURNING o.account_id, o.logical_task_key, o.lifecycle_generation
         previousGenerations[key] = generation > known ? generation : known;
       }
     }
-    // Most receipts retain their occurrence identity. Forward gratitude is
-    // explicitly one evolving item per (Request, forwarder); the immutable
-    // occurrences and recipient snapshots still retain every accepted helper.
-    final isForwardHelped =
-        intent.eventType == AttentionEventType.forwardHelped;
-    final peopleCount = isForwardHelped
-        ? r'''
-(
-      SELECT count(DISTINCT o.immutable_payload->>'targetEntityId')::int
-      FROM public.attention_occurrence_recipient recipient
-      JOIN public.attention_occurrence o ON o.id = recipient.occurrence_id
-      WHERE recipient.account_id = r.account_id
-        AND o.event_type = 'forwardHelped'
-        AND o.immutable_payload->>'beaconId' = $6
-    )'''
-        : '1';
-    final receiptTitle = isForwardHelped
-        ? r'''
-CASE WHEN r.people_count > 1
-      THEN 'Your forward helped ' || r.people_count::text || ' people'
-      ELSE $3 END'''
-        : r'$3';
-    final merge = isForwardHelped
-        ? '''
-ON CONFLICT (beacon_id, account_id) WHERE presentation_key = 'forward_helped'
-DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body,
-  presentation_payload = EXCLUDED.presentation_payload,
-  collapsed_count = EXCLUDED.collapsed_count,
-  seen_at = NULL, cleared_at = NULL, clear_reason = NULL,
-  cleared_by_operation_id = NULL, emailed_at = NULL
-'''
-        : '';
-    final inserted = await _database
-        .customSelect(
-          '''
-WITH incoming AS (
-  SELECT r.*, $peopleCount AS people_count
-  FROM jsonb_to_recordset(\$12::jsonb) AS r(
-    account_id text, category text, dedup_key text, destination_kind text,
-    target_entity_id text, presentation_key text, presentation_payload jsonb,
-    in_app_preference_class text, suppression_class text, access_policy text,
-    requires_action boolean, attention_thread_key text, logical_task_key text,
-    lifecycle_generation integer
-  )
-)
-INSERT INTO public.notification_outbox (
-  id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key,
-  beacon_id, coordination_item_id, actor_user_id,
-  source_event_key, occurrence_id, destination_kind, target_entity_id,
-  presentation_key, presentation_payload,
-  in_app_preference_class, suppression_class, access_policy,
-  requires_action, attention_thread_key,
-  logical_task_key, lifecycle_generation,
-  placement, collapsed_count
-)
-SELECT
-  gen_random_uuid()::text, r.account_id, r.category, \$1, \$2,
-  $receiptTitle, \$4, \$5, r.dedup_key,
-  \$6, \$7, \$8,
-  \$9, \$10, r.destination_kind, r.target_entity_id,
-  r.presentation_key, r.presentation_payload,
-  r.in_app_preference_class, r.suppression_class, r.access_policy,
-  r.requires_action, r.attention_thread_key,
-  r.logical_task_key, r.lifecycle_generation,
-  \$11, r.people_count
-FROM incoming r
-$merge
-RETURNING id, account_id
-''',
-          variables: [
-            Variable<String>(intent.kind.name),
-            Variable<String>(intent.priority.name),
-            Variable<String>(intent.title),
-            Variable<String>(intent.body),
-            Variable<String>(intent.actionUrl),
-            Variable<String>(intent.beaconId),
-            Variable<String>(intent.coordinationItemId),
-            Variable<String>(intent.actorUserId),
-            Variable<String>(intent.sourceEventKey),
-            Variable<String>(occurrenceId),
-            // U11/D16: producer-time placement. `timeline_only` keeps the
-            // receipt in the destination Request's log while excluding it
-            // from that Request's dot, count and position.
-            Variable<String>(_policy.placement(intent.eventType).wireName),
-            Variable<String>(
-              jsonEncode([
-                for (final receipt in receipts)
-                  {
-                    'account_id': receipt.recipientId,
-                    'category': receipt.projection.category.name,
-                    'dedup_key': receipt.dedupKey,
-                    'destination_kind':
-                        receipt.projection.destination.kind.wireName,
-                    'target_entity_id':
-                        receipt.projection.destination.targetEntityId,
-                    'presentation_key': receipt.projection.presentationKey,
-                    'presentation_payload':
-                        receipt.projection.presentationPayload,
-                    'in_app_preference_class':
-                        receipt.projection.inAppPreferenceClass?.wireName,
-                    'suppression_class':
-                        receipt.projection.suppressionClass.name,
-                    'access_policy': receipt.projection.accessPolicy.wireName,
-                    'requires_action': receipt.projection.requiresAction,
-                    'attention_thread_key':
-                        receipt.projection.attentionThreadKey,
-                    'logical_task_key': receipt.logicalTaskKey,
-                    'lifecycle_generation': receipt.logicalTaskKey == null
-                        ? null
-                        : (previousGenerations[(
-                                    receipt.recipientId,
-                                    receipt.logicalTaskKey!,
-                                  )] ??
-                                  0) +
-                              1,
-                  },
-              ]),
-            ),
-          ],
-        )
-        .get();
+    final inserted = await _insertReceipts(
+      occurrenceId: occurrenceId,
+      sourceEventKey: intent.sourceEventKey,
+      actorUserId: intent.actorUserId,
+      kind: intent.kind,
+      priority: intent.priority,
+      title: intent.title,
+      body: intent.body,
+      actionUrl: intent.actionUrl,
+      beaconId: intent.beaconId,
+      coordinationItemId: intent.coordinationItemId,
+      placement: _policy.placement(intent.eventType),
+      isForwardHelped: intent.eventType == AttentionEventType.forwardHelped,
+      rows: [
+        for (final receipt in receipts)
+          {
+            'account_id': receipt.recipientId,
+            'category': receipt.projection.category.name,
+            'dedup_key': receipt.dedupKey,
+            'destination_kind': receipt.projection.destination.kind.wireName,
+            'target_entity_id': receipt.projection.destination.targetEntityId,
+            'presentation_key': receipt.projection.presentationKey,
+            'presentation_payload': receipt.projection.presentationPayload,
+            'in_app_preference_class':
+                receipt.projection.inAppPreferenceClass?.wireName,
+            'suppression_class': receipt.projection.suppressionClass.name,
+            'access_policy': receipt.projection.accessPolicy.wireName,
+            'requires_action': receipt.projection.requiresAction,
+            'attention_thread_key': receipt.projection.attentionThreadKey,
+            'logical_task_key': receipt.logicalTaskKey,
+            'lifecycle_generation': receipt.logicalTaskKey == null
+                ? null
+                : (previousGenerations[(
+                            receipt.recipientId,
+                            receipt.logicalTaskKey!,
+                          )] ??
+                          0) +
+                      1,
+          },
+      ],
+    );
     final receiptIds = {
       for (final row in inserted)
         row.read<String>('account_id'): row.read<String>('id'),
@@ -430,6 +445,107 @@ WHERE target.job_id IS NULL''',
         [occurrenceId, jsonEncode(deliveries)],
       );
     }
+  }
+
+  Future<List<QueryRow>> _insertReceipts({
+    required String occurrenceId,
+    required String sourceEventKey,
+    required String? actorUserId,
+    required NotificationKind kind,
+    required AttentionPlacement placement,
+    required List<Map<String, Object?>> rows,
+    NotificationPriority priority = NotificationPriority.normal,
+    String title = '',
+    String body = '',
+    String actionUrl = '',
+    String? beaconId,
+    String? coordinationItemId,
+    bool isForwardHelped = false,
+  }) {
+    // Most receipts retain their occurrence identity. Forward gratitude is
+    // explicitly one evolving item per (Request, forwarder); the immutable
+    // occurrences and recipient snapshots still retain every accepted helper.
+    final peopleCount = isForwardHelped
+        ? r'''
+(
+      SELECT count(DISTINCT o.immutable_payload->>'targetEntityId')::int
+      FROM public.attention_occurrence_recipient recipient
+      JOIN public.attention_occurrence o ON o.id = recipient.occurrence_id
+      WHERE recipient.account_id = r.account_id
+        AND o.event_type = 'forwardHelped'
+        AND o.immutable_payload->>'beaconId' = $6
+    )'''
+        : '1';
+    final receiptTitle = isForwardHelped
+        ? r'''
+CASE WHEN r.people_count > 1
+      THEN 'Your forward helped ' || r.people_count::text || ' people'
+      ELSE $3 END'''
+        : r'$3';
+    final merge = isForwardHelped
+        ? '''
+ON CONFLICT (beacon_id, account_id) WHERE presentation_key = 'forward_helped'
+DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body,
+  presentation_payload = EXCLUDED.presentation_payload,
+  collapsed_count = EXCLUDED.collapsed_count,
+  seen_at = NULL, cleared_at = NULL, clear_reason = NULL,
+  cleared_by_operation_id = NULL, emailed_at = NULL
+'''
+        : '';
+    return _database
+        .customSelect(
+          '''
+WITH incoming AS (
+  SELECT r.*, $peopleCount AS people_count
+  FROM jsonb_to_recordset(\$12::jsonb) AS r(
+    account_id text, category text, dedup_key text, destination_kind text,
+    target_entity_id text, presentation_key text, presentation_payload jsonb,
+    in_app_preference_class text, suppression_class text, access_policy text,
+    requires_action boolean, attention_thread_key text, logical_task_key text,
+    lifecycle_generation integer
+  )
+)
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key,
+  beacon_id, coordination_item_id, actor_user_id,
+  source_event_key, occurrence_id, destination_kind, target_entity_id,
+  presentation_key, presentation_payload,
+  in_app_preference_class, suppression_class, access_policy,
+  requires_action, attention_thread_key,
+  logical_task_key, lifecycle_generation,
+  placement, collapsed_count
+)
+SELECT
+  gen_random_uuid()::text, r.account_id, r.category, \$1, \$2,
+  $receiptTitle, \$4, \$5, r.dedup_key,
+  \$6, \$7, \$8,
+  \$9, \$10, r.destination_kind, r.target_entity_id,
+  r.presentation_key, r.presentation_payload,
+  r.in_app_preference_class, r.suppression_class, r.access_policy,
+  r.requires_action, r.attention_thread_key,
+  r.logical_task_key, r.lifecycle_generation,
+  \$11, r.people_count
+FROM incoming r
+$merge
+RETURNING id, account_id
+''',
+          variables: [
+            Variable<String>(kind.name),
+            Variable<String>(priority.name),
+            Variable<String>(title),
+            Variable<String>(body),
+            Variable<String>(actionUrl),
+            Variable<String>(beaconId),
+            Variable<String>(coordinationItemId),
+            Variable<String>(actorUserId),
+            Variable<String>(sourceEventKey),
+            Variable<String>(occurrenceId),
+            Variable<String>(placement.wireName),
+            Variable<String>(jsonEncode(rows)),
+          ],
+        )
+        .get();
   }
 
   /// What one recipient's receipt is made of: the projection, the dedup key
@@ -547,4 +663,11 @@ WHERE target.job_id IS NULL''',
     'presentationKey': decision.presentationKey,
     'presentationPayload': decision.presentationPayload,
   };
+}
+
+@module
+abstract class AttentionDispatchBindings {
+  @singleton
+  AttentionDispatchPort dispatchPort(AttentionDispatchRepository repository) =>
+      repository;
 }

@@ -88,6 +88,18 @@ final class InviteAcceptedMessage extends LocalizableMessage {
   String get toRu => 'Приглашение принято.';
 }
 
+final class InviteMapConfirmationMessage extends LocalizableMessage {
+  const InviteMapConfirmationMessage(this.inviterName);
+
+  final String inviterName;
+
+  @override
+  String get toEn => "You're on $inviterName's map.";
+
+  @override
+  String get toRu => 'Вы на карте пользователя $inviterName.';
+}
+
 LocalizableMessage? inviteCodeFormatMessage(String rawCode) {
   return switch (diagnoseInviteCodeFormat(rawCode)) {
     InviteCodeFormatIssue.trailingDash => const InviteTrailingDashHintMessage(),

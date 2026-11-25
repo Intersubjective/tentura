@@ -122,6 +122,8 @@ ConstellationPlacedLayoutInput syntheticLayoutInput(int nodeCount) {
           anchors[target.id] = anchor.position;
           pinnedRequests.add(target.id);
         }
+      case ConstellationAnchorTargetKind.phantom:
+        throw StateError('The fixture contains only people and Requests');
     }
   }
   // Add one Request when an even node count cannot be split into equal halves.

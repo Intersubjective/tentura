@@ -37,76 +37,109 @@ Future<void> main() async {
   test(
     'an authenticated websocket announces the coordinated client floor',
     () async {
-      final env = target.databaseEnv;
-      final logger = Logger('WebsocketClientVersionFloorTest');
-      final notifications = await PgNotificationService.create(
-        env,
-        const PostgresNotificationConnector(),
-      );
-      addTearDown(notifications.dispose);
-      final auth = AuthCase(
-        MockUserRepositoryPort(),
-        MockInvitationRepositoryPort(),
-        env: env,
-        logger: logger,
-      );
-      final controller = WebSocketController(
-        env,
-        logger,
-        auth,
-        UserPresenceCase(
-          MockUserPresenceRepositoryPort(),
-          env: env,
-          logger: logger,
-        ),
-        MockVoteUserFriendshipLookupPort(),
-        MockBeaconRoomCoParticipantLookupPort(),
-        MockRoomMessageSnapshotLookupPort(),
-        QaRealtimeSocketGate(),
-        notifications,
-      );
-      addTearDown(controller.dispose);
-      final app = Router().plus
-        ..get(kPathWebSocketEndpoint, controller.handler);
-      final server = await shelf_io.serve(
-        app.call,
-        InternetAddress.loopbackIPv4,
-        0,
-      );
-      addTearDown(() => server.close(force: true));
-
-      const frameTimeout = Duration(seconds: 5);
-      final socket = await WebSocket.connect(
-        'ws://127.0.0.1:${server.port}$kPathWebSocketEndpoint',
-      ).timeout(frameTimeout);
-      addTearDown(socket.close);
-      final frames = StreamIterator(
-        socket.map((frame) => jsonDecode(frame as String)),
-      );
-      addTearDown(frames.cancel);
-      socket.add(
-        jsonEncode({
-          'type': 'auth',
-          'intent': AuthRequestIntent.cnameSignIn,
-          'token': auth.issueAccessToken('Uaaaaaaaaaaaa').rawToken,
-        }),
-      );
-      expect(await frames.moveNext().timeout(frameTimeout), isTrue);
+      final pong = await _receiveVersionPong(target.databaseEnv);
       expect(
-        frames.current,
-        allOf(containsPair('type', 'auth'), containsPair('result', 'success')),
-      );
-
-      socket.add(jsonEncode({'type': 'ping'}));
-      expect(await frames.moveNext().timeout(frameTimeout), isTrue);
-      expect(
-        frames.current,
+        pong,
         allOf(
           containsPair('type', 'pong'),
-          containsPair('min_client_version', '7.65.0'),
+          containsPair('min_client_version', '7.69.1'),
         ),
       );
     },
     skip: skip,
   );
+
+  test(
+    'the default websocket floor excludes the previous release and admits '
+    'the current release',
+    () async {
+      expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
+      final pong = await _receiveVersionPong(target.databaseEnv);
+      expect(pong, containsPair('type', 'pong'));
+      final floor = pong['min_client_version'] as String;
+      expect(
+        {
+          for (final version in ['7.69.0', '7.69.1'])
+            version: _meetsFloor(version, floor),
+        },
+        {'7.69.0': false, '7.69.1': true},
+        reason: 'The authenticated server announced min_client_version $floor.',
+      );
+    },
+    skip: skip,
+  );
+}
+
+Future<Map<String, dynamic>> _receiveVersionPong(Env env) async {
+  final logger = Logger('WebsocketClientVersionFloorTest');
+  final notifications = await PgNotificationService.create(
+    env,
+    const PostgresNotificationConnector(),
+  );
+  addTearDown(notifications.dispose);
+  final auth = AuthCase(
+    MockUserRepositoryPort(),
+    MockInvitationRepositoryPort(),
+    env: env,
+    logger: logger,
+  );
+  final controller = WebSocketController(
+    env,
+    logger,
+    auth,
+    UserPresenceCase(
+      MockUserPresenceRepositoryPort(),
+      env: env,
+      logger: logger,
+    ),
+    MockVoteUserFriendshipLookupPort(),
+    MockBeaconRoomCoParticipantLookupPort(),
+    MockRoomMessageSnapshotLookupPort(),
+    QaRealtimeSocketGate(),
+    notifications,
+  );
+  addTearDown(controller.dispose);
+  final app = Router().plus..get(kPathWebSocketEndpoint, controller.handler);
+  final server = await shelf_io.serve(
+    app.call,
+    InternetAddress.loopbackIPv4,
+    0,
+  );
+  addTearDown(() => server.close(force: true));
+
+  const frameTimeout = Duration(seconds: 5);
+  final socket = await WebSocket.connect(
+    'ws://127.0.0.1:${server.port}$kPathWebSocketEndpoint',
+  ).timeout(frameTimeout);
+  addTearDown(socket.close);
+  final frames = StreamIterator(
+    socket.map((frame) => jsonDecode(frame as String)),
+  );
+  addTearDown(frames.cancel);
+  socket.add(
+    jsonEncode({
+      'type': 'auth',
+      'intent': AuthRequestIntent.cnameSignIn,
+      'token': auth.issueAccessToken('Uaaaaaaaaaaaa').rawToken,
+    }),
+  );
+  expect(await frames.moveNext().timeout(frameTimeout), isTrue);
+  expect(
+    frames.current,
+    allOf(containsPair('type', 'auth'), containsPair('result', 'success')),
+  );
+
+  socket.add(jsonEncode({'type': 'ping'}));
+  expect(await frames.moveNext().timeout(frameTimeout), isTrue);
+  return frames.current as Map<String, dynamic>;
+}
+
+bool _meetsFloor(String version, String floor) {
+  final clientParts = version.split('.').map(int.parse).toList();
+  final floorParts = floor.split('.').map(int.parse).toList();
+  for (var index = 0; index < clientParts.length; index++) {
+    final comparison = clientParts[index].compareTo(floorParts[index]);
+    if (comparison != 0) return comparison > 0;
+  }
+  return true;
 }

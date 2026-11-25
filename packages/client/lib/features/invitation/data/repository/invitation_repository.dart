@@ -128,6 +128,7 @@ class InvitationRepository implements InvitationAcceptPort {
     id: e.id,
     beaconId: e.beacon_id,
     invitedId: e.invited_id,
+    phantomId: e.phantom_id,
     addresseeName: e.addressee_name,
     inviteOrigin: e.invite_origin,
     acceptedAt: e.accepted_at,

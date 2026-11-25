@@ -361,6 +361,9 @@ Offset _at(ConstellationCubit cubit, ConstellationAnchorTarget target) {
   final graphId = switch (target.kind) {
     ConstellationAnchorTargetKind.person => 'fp:${target.id}',
     ConstellationAnchorTargetKind.beacon => 'fr:${target.id}',
+    ConstellationAnchorTargetKind.phantom => throw StateError(
+      'The fixture contains only people and Requests',
+    ),
   };
   final point = cubit.graphController.renderSnapshot.resolvePosition(graphId);
   expect(point, isNotNull, reason: '$graphId must be laid out');

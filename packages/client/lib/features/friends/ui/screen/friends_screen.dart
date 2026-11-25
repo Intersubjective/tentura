@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
@@ -12,6 +13,12 @@ import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
+import 'package:tentura/features/phantoms/ui/widget/phantom_context_panel.dart';
+import 'package:tentura/features/phantoms/ui/widget/phantom_field_builder.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
@@ -29,6 +36,7 @@ import '../widget/accepted_invite_list_tile.dart';
 import '../widget/friends_app_bar_actions.dart';
 import '../widget/pending_invites_empty_state.dart';
 import '../widget/people_ordered_list.dart';
+import '../widget/people_without_accounts.dart';
 
 /// Semantic hook for blocked-people navigation from People.
 void navigateToBlockedPeopleFromFriends(BuildContext context) {
@@ -74,6 +82,10 @@ class _FriendsScreenState extends State<FriendsScreen>
       serverChanges: GetIt.I<FriendsCase>().invitationServerChanges,
     );
     _invitesScrollController = ScrollController();
+    if (GetIt.I.maybeGet<ConstellationFieldStoreCase>()?.phantomsEnabled ??
+        false) {
+      unawaited(_loadPeopleTags());
+    }
     _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
       if (id.isEmpty) {
         return;
@@ -89,6 +101,21 @@ class _FriendsScreenState extends State<FriendsScreen>
     _invitesScrollController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
+  }
+
+  Future<void> _loadPeopleTags() async {
+    try {
+      await GetIt.I<PeopleTagsCase>().ensureLoaded();
+    } on Exception catch (error, stackTrace) {
+      if (!mounted) return;
+      showSnackBar(
+        context,
+        text: L10n.of(context)!.errorGenericAction,
+        isError: true,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   void _onOpenGraph(BuildContext context) {
@@ -243,25 +270,40 @@ class _FriendsScreenState extends State<FriendsScreen>
             horizontal: context.tt.screenHPadding,
           ),
           child: TenturaContentColumn(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                FriendsListBody(
-                  friendsCubit: friendsCubit,
-                  onCreateInvitation: () =>
-                      unawaited(_onCreateInvitation(context)),
-                ),
-                _InvitesTabBody(
-                  invitationCubit: _invitationCubit,
-                  scrollController: _invitesScrollController,
-                  emphasizedInvitationId: _emphasizedInvitationId,
-                  l10n: l10n,
-                  segment: _invitesSegment,
-                  onSegmentChanged: (i) => setState(() => _invitesSegment = i),
-                  onCreateInvitation: () =>
-                      unawaited(_onCreateInvitation(context)),
-                ),
-              ],
+            child: PhantomFieldBuilder(
+              builder: (context, field) {
+                final people = field?.phantoms ?? const <Phantom>[];
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    FriendsListBody(
+                      friendsCubit: friendsCubit,
+                      onCreateInvitation: () =>
+                          unawaited(_onCreateInvitation(context)),
+                      additionalPeople: people.isEmpty
+                          ? null
+                          : PeopleWithoutAccounts(
+                              people: people,
+                              onInviteChanged: _refreshPeopleWithoutAccounts,
+                            ),
+                    ),
+                    _InvitesTabBody(
+                      invitationCubit: _invitationCubit,
+                      scrollController: _invitesScrollController,
+                      emphasizedInvitationId: _emphasizedInvitationId,
+                      l10n: l10n,
+                      segment: _invitesSegment,
+                      onSegmentChanged: (i) =>
+                          setState(() => _invitesSegment = i),
+                      onCreateInvitation: () =>
+                          unawaited(_onCreateInvitation(context)),
+                      peopleWithoutAccounts: {
+                        for (final person in people) person.id: person,
+                      },
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -277,6 +319,7 @@ class FriendsListBody extends StatelessWidget {
   const FriendsListBody({
     required this.friendsCubit,
     this.onCreateInvitation,
+    this.additionalPeople,
     super.key,
   });
 
@@ -286,6 +329,7 @@ class FriendsListBody extends StatelessWidget {
 
   final FriendsCubit friendsCubit;
   final VoidCallback? onCreateInvitation;
+  final Widget? additionalPeople;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +348,7 @@ class FriendsListBody extends StatelessWidget {
           onRetry: () => unawaited(friendsCubit.fetch()),
           child: RefreshIndicator.adaptive(
             onRefresh: friendsCubit.fetch,
-            child: state.friends.isEmpty
+            child: state.friends.isEmpty && additionalPeople == null
                 ? LayoutBuilder(
                     builder: (context, constraints) => SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -325,12 +369,14 @@ class FriendsListBody extends StatelessWidget {
                 : ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      PeopleOrderedList(
-                        friends: state.friends,
-                        friendContexts: state.friendContexts,
-                        listMeta: state.listMeta,
-                        optimisticListMeta: state.optimisticListMeta,
-                      ),
+                      if (state.friends.isNotEmpty)
+                        PeopleOrderedList(
+                          friends: state.friends,
+                          friendContexts: state.friendContexts,
+                          listMeta: state.listMeta,
+                          optimisticListMeta: state.optimisticListMeta,
+                        ),
+                      ?additionalPeople,
                       if (showInviteFooter)
                         Padding(
                           padding: EdgeInsets.symmetric(
@@ -354,6 +400,59 @@ class FriendsListBody extends StatelessWidget {
   }
 }
 
+Future<void> _refreshPeopleWithoutAccounts() =>
+    GetIt.I<ConstellationFieldStoreCase>().requestRefresh(
+      ConstellationRefreshReason.localWrite,
+    );
+
+Future<void> _showPersonWithoutAccount(BuildContext context, Phantom person) {
+  final fieldStore = GetIt.I<ConstellationFieldStoreCase>();
+  final tags = GetIt.I<PeopleTagsCase>();
+  return showTenturaAdaptiveSheet<void>(
+    context: context,
+    builder: (sheetContext) => StreamBuilder<ConstellationFieldStoreState>(
+      stream: fieldStore.changes,
+      builder: (context, _) {
+        final field = fieldStore.current.field;
+        final current = field?.phantoms.firstWhereOrNull(
+          (p) => p.id == person.id,
+        );
+        if (current == null) return const SizedBox.shrink();
+        return StreamBuilder<void>(
+          stream: tags.changes,
+          builder: (context, _) => PhantomContextPanel(
+            person: current,
+            tags: [
+              for (final tag in tags.tags)
+                if (current.ownTagIds.contains(tag.id)) tag,
+            ],
+            nowUtc: fieldStore.nowUtc(),
+            linkCandidates: () => [
+              for (final peer
+                  in fieldStore.current.field?.peers ??
+                      const <ConstellationPerson>[])
+                if (peer.pinState != 'tombstone')
+                  if (peer.displayName case final name? when name.isNotEmpty)
+                    (id: peer.id, name: name),
+            ],
+            onChanged: () async {
+              await _refreshPeopleWithoutAccounts();
+              if (sheetContext.mounted &&
+                  fieldStore.current.field?.phantoms.any(
+                        (p) => p.id == person.id,
+                      ) ==
+                      false) {
+                Navigator.of(sheetContext).pop();
+              }
+            },
+            onClose: () => Navigator.of(sheetContext).pop(),
+          ),
+        );
+      },
+    ),
+  );
+}
+
 class _InvitesTabBody extends StatelessWidget {
   const _InvitesTabBody({
     required this.invitationCubit,
@@ -363,6 +462,7 @@ class _InvitesTabBody extends StatelessWidget {
     required this.segment,
     required this.onSegmentChanged,
     required this.onCreateInvitation,
+    required this.peopleWithoutAccounts,
   });
 
   final InvitationCubit invitationCubit;
@@ -374,6 +474,7 @@ class _InvitesTabBody extends StatelessWidget {
   final int segment;
   final ValueChanged<int> onSegmentChanged;
   final VoidCallback onCreateInvitation;
+  final Map<String, Phantom> peopleWithoutAccounts;
 
   @override
   Widget build(BuildContext context) {
@@ -382,17 +483,22 @@ class _InvitesTabBody extends StatelessWidget {
 
     return Column(
       children: [
-        TenturaUnderlineTabs(
-          tabs: [
-            l10n.friendsInvitesSegmentPending,
-            l10n.friendsInvitesSegmentAccepted,
-          ],
-          selectedIndex: segment,
-          onChanged: onSegmentChanged,
-          tabIds: const [
-            'invites-segment-pending',
-            'invites-segment-accepted',
-          ],
+        BlocSelector<InvitationCubit, InvitationState, int>(
+          bloc: invitationCubit,
+          selector: (state) => state.pendingCount,
+          builder: (context, pendingCount) => TenturaUnderlineTabs(
+            tabs: [
+              l10n.friendsInvitesSegmentPending,
+              l10n.friendsInvitesSegmentAccepted,
+            ],
+            badges: [pendingCount, null],
+            selectedIndex: segment,
+            onChanged: onSegmentChanged,
+            tabIds: const [
+              'invites-segment-pending',
+              'invites-segment-accepted',
+            ],
+          ),
         ),
         SizedBox(height: tt.tightGap),
         Align(
@@ -423,6 +529,7 @@ class _InvitesTabBody extends StatelessWidget {
                     ? state.acceptedInvitations
                     : state.pendingInvitations,
                 onCreateInvitation: onCreateInvitation,
+                peopleWithoutAccounts: peopleWithoutAccounts,
                 onSwitchToPending: () => onSegmentChanged(0),
               ),
             ),
@@ -442,6 +549,7 @@ class _InvitesSegmentList extends StatelessWidget {
     required this.isAccepted,
     required this.segmentInvites,
     required this.onCreateInvitation,
+    required this.peopleWithoutAccounts,
     required this.onSwitchToPending,
   });
 
@@ -452,6 +560,7 @@ class _InvitesSegmentList extends StatelessWidget {
   final bool isAccepted;
   final List<InvitationEntity> segmentInvites;
   final VoidCallback onCreateInvitation;
+  final Map<String, Phantom> peopleWithoutAccounts;
   final VoidCallback onSwitchToPending;
 
   @override
@@ -621,51 +730,65 @@ class _InvitesSegmentList extends StatelessWidget {
     final emphasize =
         invitation.id == emphasizedInvitationId && !disableAnimations;
     final addressee = invitation.addresseeName;
-    final name = pendingPeopleInviteTitle(l10n, invitation);
+    final isPersonal = invitation.phantomId != null;
+    final person = peopleWithoutAccounts[invitation.phantomId];
+    final name =
+        person?.displayName ?? pendingPeopleInviteTitle(l10n, invitation);
     // "Waiting · Just now" keeps counting while the list is open (U092).
     return RelativeTimestampTicker(
       key: ValueKey(invitation),
       builder: (_) => _InviteListTile(
         emphasize: emphasize,
         title: name,
-        subtitle: invitePendingSubtitle(
-          l10n: l10n,
-          when: invitation.createdAt,
-          now: RelativeTimestampTicker.now(),
-        ),
-        onEdit: () async {
-          final newName = await InvitationAddresseeDialog.show(
-            context,
-            initialName: addressee?.trim() ?? '',
-            isEdit: true,
-          );
-          if (newName == null) return;
-          await invitationCubit.updateInvitation(
-            id: invitation.id,
-            addresseeName: newName,
-          );
-        },
+        subtitle: isPersonal
+            ? null
+            : invitePendingSubtitle(
+                l10n: l10n,
+                when: invitation.createdAt,
+                now: RelativeTimestampTicker.now(),
+              ),
+        onEdit: isPersonal
+            ? null
+            : () async {
+                final newName = await InvitationAddresseeDialog.show(
+                  context,
+                  initialName: addressee?.trim() ?? '',
+                  isEdit: true,
+                );
+                if (newName == null) return;
+                await invitationCubit.updateInvitation(
+                  id: invitation.id,
+                  addresseeName: newName,
+                );
+              },
         onDelete: () async {
           if (await InvitationRemoveDialog.show(context) ?? false) {
-            await invitationCubit.deleteInvitationById(invitation.id);
+            await invitationCubit.deleteInvitationById(
+              invitation.id,
+              onDeleted: isPersonal ? _refreshPeopleWithoutAccounts : null,
+            );
           }
         },
-        onTap: () {
-          final forBeacon =
-              invitation.beaconId != null && invitation.beaconId!.isNotEmpty;
-          // A request invite re-opened here is not a bare "Invitation code"
-          // (#605, #452): it says it brings someone into a request.
-          unawaited(
-            ShareCodeDialog.show(
-              context,
-              header: forBeacon
-                  ? l10n.friendsRequestInviteDialogTitle
-                  : l10n.labelInvitationCode,
-              link: inviteShareUri(invitation.id),
-              caption: forBeacon ? null : l10n.invitationDualPurposeBody,
-            ),
-          );
-        },
+        onTap: isPersonal
+            ? (person == null
+                  ? null
+                  : () => unawaited(_showPersonWithoutAccount(context, person)))
+            : () => _shareInvite(context, invitation),
+      ),
+    );
+  }
+
+  void _shareInvite(BuildContext context, InvitationEntity invitation) {
+    final forBeacon = invitation.beaconId?.isNotEmpty ?? false;
+    // A Request invite re-opened here says it brings someone into a Request.
+    unawaited(
+      ShareCodeDialog.show(
+        context,
+        header: forBeacon
+            ? l10n.friendsRequestInviteDialogTitle
+            : l10n.labelInvitationCode,
+        link: inviteShareUri(invitation.id),
+        caption: forBeacon ? null : l10n.invitationDualPurposeBody,
       ),
     );
   }
@@ -732,10 +855,10 @@ class _InviteListTile extends StatelessWidget {
 
   final bool emphasize;
   final String title;
-  final String subtitle;
-  final Future<void> Function() onEdit;
+  final String? subtitle;
+  final Future<void> Function()? onEdit;
   final Future<void> Function() onDelete;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -750,17 +873,21 @@ class _InviteListTile extends StatelessWidget {
         vertical: tt.sectionGap,
       ),
       title: Text(title),
-      subtitle: Text(subtitle),
+      subtitle: switch (subtitle) {
+        final text? => Text(text),
+        null => null,
+      },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: touchTarget,
-            tooltip: l10n.invitationAddresseeEditTitle,
-            onPressed: () => unawaited(onEdit()),
-            icon: const Icon(Icons.edit_outlined),
-          ),
+          if (onEdit case final edit?)
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: touchTarget,
+              tooltip: l10n.invitationAddresseeEditTitle,
+              onPressed: () => unawaited(edit()),
+              icon: const Icon(Icons.edit_outlined),
+            ),
           IconButton(
             padding: EdgeInsets.zero,
             constraints: touchTarget,

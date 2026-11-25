@@ -1,0 +1,3 @@
+mutation PhantomHintDismiss($phantomId: String!, $userId: String!) {
+  phantomHintDismiss(phantomId: $phantomId, userId: $userId)
+}

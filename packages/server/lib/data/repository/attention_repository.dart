@@ -729,6 +729,7 @@ page_stream AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IS NULL
+    AND NOT ${AttentionDismissibleSql.fieldPersonLink('v')}
 
   UNION ALL
 
@@ -949,7 +950,11 @@ page AS (
     ) @@ websearch_to_tsquery('simple', \$3)
     OR $actorNameMatch
   )
-  AND (\$4::text IS NULL OR history.surface = \$4)
+  AND CASE WHEN \$4::text = 'fieldPersonLinks'
+    THEN ${AttentionDismissibleSql.fieldPersonLink('history')}
+    ELSE NOT ${AttentionDismissibleSql.fieldPersonLink('history')}
+      AND (\$4::text IS NULL OR history.surface = \$4)
+  END
     $cursorClause
   ORDER BY history.created_at DESC, history.id DESC
   LIMIT $limitParameter

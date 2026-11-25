@@ -10850,6 +10850,110 @@
   "@constellationShowPostsHint": {
     "context": "Field: tooltip of the Posts show/hide switch (#645)"
   },
+  "constellationShowPhantoms": "Not here yet",
+  "@constellationShowPhantoms": {
+    "context": "Field filter chip for people who do not have an account yet"
+  },
+  "constellationShowPhantomsHint": "Show or hide people who are not on Tentura yet",
+  "@constellationShowPhantomsHint": {
+    "context": "Tooltip for the same show or hide filter"
+  },
+  "personCreateCanvasAction": "Add someone not on Tentura yet",
+  "@personCreateCanvasAction": {
+    "description": "Field action and sheet title for adding a person who is not on Tentura."
+  },
+  "personCreateAction": "+ Person",
+  "@personCreateAction": {
+    "description": "Short add-person action in the Field app bar and empty banner."
+  },
+  "personCreateName": "Name",
+  "@personCreateName": {
+    "description": "Name field for a person who is not on Tentura."
+  },
+  "personCreateInviteLabel": "Invite text",
+  "@personCreateInviteLabel": {
+    "description": "Label of the editable personal invitation text."
+  },
+  "personCreateCopyInvite": "Copy invite link",
+  "@personCreateCopyInvite": {
+    "description": "Copies the personal text and invitation link."
+  },
+  "personCreateShare": "Share…",
+  "@personCreateShare": {
+    "description": "Opens the system share sheet for the personal invitation."
+  },
+  "personCreateSave": "Save without inviting",
+  "@personCreateSave": {
+    "description": "Saves the person to the Field without creating an invitation."
+  },
+  "personCreateInviteText": "Hi {name}, I put you on my map in Tentura — join so we can ask each other for a hand.",
+  "@personCreateInviteText": {
+    "description": "Initial personal invitation text. The person can edit it before copying or sharing.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "personCreateOutsideField": "Choose a point closer to the centre of the Field.",
+  "@personCreateOutsideField": {
+    "description": "Shown when the point is outside the area where a pin can be saved."
+  },
+  "personCreateCheckField": "Couldn’t confirm the save. Check your Field before adding this person again.",
+  "@personCreateCheckField": {
+    "description": "Shown if the result of creating a person is unknown."
+  },
+  "constellationPhantomStatus": "Not on Tentura yet",
+  "@constellationPhantomStatus": {
+    "context": "Status of a person without an account in the Field List and search"
+  },
+  "peopleWithoutAccounts": "Not on Tentura yet",
+  "@peopleWithoutAccounts": {
+    "description": "Heading on the People screen. The Russian heading uses the Latin brand as specified in the People design."
+  },
+  "personInviteNotSent": "Not invited",
+  "personCopyLink": "Copy link",
+  "personPanelInviteAge": "invite sent {days, plural, =0{today} one{1 day ago} other{{days} days ago}}",
+  "@personPanelInviteAge": {
+    "description": "Age of a live invite shown next to the account status",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "personPanelNewLink": "New link",
+  "personPanelLinkExisting": "This is someone already on Tentura…",
+  "personLinkMerged": "{name} was linked to a Tentura account",
+  "@personLinkMerged": {"placeholders": {"name": {"type": "String"}}},
+  "personLinkUnlink": "Unlink",
+  "personLinkHint": "Is {privateName} the same person as {accountName}?",
+  "@personLinkHint": {"placeholders": {"privateName": {"type": "String"}, "accountName": {"type": "String"}}},
+  "personLinkConfirm": "Link them",
+  "personLinkDismiss": "Not her",
+  "personLinkJoined": "“{name}” joined Tentura — link?",
+  "@personLinkJoined": {"placeholders": {"name": {"type": "String"}}},
+  "personLinkChoose": "Link",
+  "personPanelPickExisting": "Choose someone on your Field",
+  "personPanelNoPeople": "There’s no one on your Field to link to yet.",
+  "personPanelRemove": "Remove from my map",
+  "personPanelRemoveTitle": "Remove this person from your map?",
+  "personPanelRemoveBody": "You can add {name} again later.",
+  "@personPanelRemoveBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "personPanelJoining": "{name} is joining right now",
+  "@personPanelJoining": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationShowDegreeFirst": "1st degree",
   "@constellationShowDegreeFirst": {
     "context": "Field: switch for people the viewer trusts directly (#645)"

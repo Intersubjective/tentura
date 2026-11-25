@@ -141,6 +141,8 @@ abstract class UserRepositoryPort {
     String? handle,
   });
 
+  /// Deletes the account and its remaining link-owned pins in the caller's
+  /// erasure transaction.
   Future<void> deleteById({required String id});
 
   /// Consumes a Request invite and grants admission only while it can forward.

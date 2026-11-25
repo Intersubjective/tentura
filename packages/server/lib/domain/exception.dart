@@ -111,6 +111,34 @@ final class RateLimitedException extends ExceptionBase {
       );
 }
 
+final class PhantomCapReachedException extends ExceptionBase {
+  const PhantomCapReachedException()
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.phantomCapReached,
+        ),
+        description: 'Remove someone not on Tentura yet first.',
+      );
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': {
+      'code': '${code.codeNumber}',
+      'path': path,
+      'reason': 'phantom_cap_reached',
+    },
+  };
+}
+
+final class PhantomJoiningException extends ExceptionBase {
+  const PhantomJoiningException(String name)
+    : super(
+        code: const GeneralExceptionCodes(GeneralExceptionCode.phantomJoining),
+        description: '$name is joining right now.',
+      );
+}
+
 final class PemKeyWrongException extends ExceptionBase {
   const PemKeyWrongException({
     String key = '',
@@ -160,6 +188,18 @@ final class InvitationWrongException extends ExceptionBase {
          ),
          description: description ?? 'Wrong invitation code',
        );
+
+  const InvitationWrongException.expired()
+    : this(
+        description: 'Invitation expired!',
+        reason: InvitationWrongReason.expired,
+      );
+
+  const InvitationWrongException.used()
+    : this(
+        description: 'Invitation already used!',
+        reason: InvitationWrongReason.used,
+      );
 
   final InvitationWrongReason reason;
 }

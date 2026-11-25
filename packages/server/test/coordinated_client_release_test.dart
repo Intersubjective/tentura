@@ -7,10 +7,10 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.65.0';
+const _release = '7.69.1';
 
 void main() {
-  test('the shipped client declares one minor release version', () {
+  test('the shipped client declares one release version', () {
     final internalTerm = RegExp('phantom|фантом', caseSensitive: false);
     for (final locale in ['en', 'ru']) {
       final arb = File('../client/l10n/app_$locale.arb').readAsStringSync();

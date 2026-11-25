@@ -110,8 +110,14 @@ final class _FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
     ];
     return PersonTagSnapshot(
       tag: tag,
-      memberIds: const ['Uann'],
-      sources: const [0],
+      members: const [
+        PersonTagSnapshotMember(
+          kind: PersonTagSnapshotMemberKind.person,
+          id: 'Uann',
+          source: 0,
+          membershipId: '0691052e-2cab-4a7f-bb1b-74e3d09e116c',
+        ),
+      ],
     );
   }
 

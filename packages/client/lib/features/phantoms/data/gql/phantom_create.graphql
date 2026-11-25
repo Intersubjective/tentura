@@ -1,0 +1,3 @@
+mutation PhantomCreate($name: String!, $emoji: String, $position: v2_ConstellationAnchorPositionInput) {
+  phantomCreate(name: $name, emoji: $emoji, position: $position)
+}

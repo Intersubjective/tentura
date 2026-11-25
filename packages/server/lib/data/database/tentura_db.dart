@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import 'db_pipeline_trace.dart';
 import 'main_db_pool.dart';
@@ -72,6 +73,11 @@ import 'table/pollings.dart';
 import 'table/polling_acts.dart';
 import 'table/polling_variants.dart';
 import 'table/person_capability_events.dart';
+import 'table/person_field_first_seen_inits.dart';
+import 'table/phantom_link_hint_dismissals.dart';
+import 'table/phantom_merge_jobs.dart';
+import 'table/phantom_merges.dart';
+import 'table/phantoms.dart';
 import 'table/user_block_intents.dart';
 import 'table/user_blocks.dart';
 import 'table/user_contacts.dart';
@@ -142,6 +148,11 @@ part 'tentura_db.g.dart';
     Invitations,
     MrPublishEpochs,
     PersonCapabilityEvents,
+    PersonFieldFirstSeenInits,
+    PhantomLinkHintDismissals,
+    PhantomMergeJobs,
+    PhantomMerges,
+    Phantoms,
     Pollings,
     PollingActs,
     PollingVariants,

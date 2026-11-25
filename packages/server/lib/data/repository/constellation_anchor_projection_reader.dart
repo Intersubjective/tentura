@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import '../mapper/constellation_anchor_mapper.dart';
 import 'constellation_field_repository.dart';
 
 /// Snapshot inputs shared by authorization and post-write hydration.
@@ -17,17 +18,22 @@ final class PreparedConstellationAnchors {
     required this.beacons,
     required this.edges,
     required this.profiles,
+    required this.activeOwnedPhantomIds,
   });
 
   final List<String> visiblePeerIds;
   final List<ConstellationRequestRecord> beacons;
   final List<ConstellationEdgeRecord> edges;
   final List<ConstellationPeerRecord> profiles;
+  final Set<String> activeOwnedPhantomIds;
 
   bool authorizes(ConstellationAnchorTarget target) => switch (target.kind) {
     ConstellationAnchorTargetKind.person => visiblePeerIds.contains(target.id),
     ConstellationAnchorTargetKind.beacon => beacons.any(
       (b) => b.id == target.id && isKnownConstellationBeaconStatus(b.status),
+    ),
+    ConstellationAnchorTargetKind.phantom => activeOwnedPhantomIds.contains(
+      target.id,
     ),
   };
 }
@@ -107,6 +113,7 @@ final class ConstellationAnchorProjectionReader {
       beacons: beacons,
       edges: edges,
       profiles: profiles,
+      activeOwnedPhantomIds: await _activeOwnedPhantomIds(viewerId, targets),
     );
   }
 
@@ -204,85 +211,54 @@ WHERE viewer_id = $1
     };
   }
 
-  Future<List<ConstellationAnchor>> _loadAnchors(String viewerId) async {
+  Future<List<ConstellationAnchor>> _loadAnchors(
+    String viewerId, {
+    bool tombstones = false,
+  }) async {
     final rows = await _database
         .customSelect(
           r'''
-SELECT
-  ca.person_id,
-  ca.beacon_id,
-  ca.x_units,
-  ca.y_units,
-  ca.coordinate_space_version,
-  ca.revision::text AS revision,
-  ca.placed_at
+SELECT target_kind, target_id, x_units, y_units, coordinate_space_version,
+       revision::text AS revision, placed_at::text AS placed_at
 FROM public.constellation_anchor ca
-WHERE ca.viewer_id = $1 AND ca.tombstone_at IS NULL
-ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
+WHERE viewer_id = $1 AND (tombstone_at IS NOT NULL) = $2
+ORDER BY ca.placed_at, target_id
 ''',
-          variables: [Variable.withString(viewerId)],
+          variables: [
+            Variable.withString(viewerId),
+            Variable.withBool(tombstones),
+          ],
         )
         .get();
 
-    return [
-      for (final row in rows)
-        ConstellationAnchor(
-          target: row.readNullable<String>('person_id') != null
-              ? ConstellationAnchorTarget.person(
-                  row.read<String>('person_id'),
-                )
-              : ConstellationAnchorTarget.beacon(row.read<String>('beacon_id')),
-          position: ConstellationAnchorPosition(
-            xUnits: row.read<double>('x_units'),
-            yUnits: row.read<double>('y_units'),
-            coordinateSpaceVersion: row.read<int>('coordinate_space_version'),
-          ),
-          revision: switch (ConstellationAnchorRevision.parseDecimalString(
-            row.read<String>('revision'),
-          )) {
-            ConstellationAnchorRevisionParsed(:final revision) => revision,
-            ConstellationAnchorRevisionMalformed() =>
-              ConstellationAnchorRevision.zero,
-          },
-          placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
-        ),
-    ];
+    return rows.map(readConstellationAnchor).toList();
   }
 
-  /// Pins whose target was deleted: identity and placement only.
-  Future<List<ConstellationAnchor>> _loadTombstones(String viewerId) async {
+  Future<Set<String>> _activeOwnedPhantomIds(
+    String viewerId,
+    Iterable<ConstellationAnchorTarget> targets,
+  ) async {
+    final ids = [
+      for (final target
+          in targets.whereType<ConstellationAnchorPhantomTarget>())
+        target.id,
+    ];
+    if (ids.isEmpty) return const {};
+
     final rows = await _database
         .customSelect(
           r'''
-SELECT target_id, target_kind, x_units, y_units, coordinate_space_version,
-       revision::text AS revision, placed_at
-FROM public.constellation_anchor
-WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
+SELECT id
+FROM public.phantom
+WHERE owner_id = $1 AND merged_at IS NULL AND id = ANY($2::text[])
 ''',
-          variables: [Variable.withString(viewerId)],
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, ids)),
+          ],
         )
         .get();
-    return [
-      for (final row in rows)
-        ConstellationAnchor(
-          target: row.read<String>('target_kind') == 'PERSON'
-              ? ConstellationAnchorTarget.person(row.read<String>('target_id'))
-              : ConstellationAnchorTarget.beacon(row.read<String>('target_id')),
-          position: ConstellationAnchorPosition(
-            xUnits: row.read<double>('x_units'),
-            yUnits: row.read<double>('y_units'),
-            coordinateSpaceVersion: row.read<int>('coordinate_space_version'),
-          ),
-          revision: switch (ConstellationAnchorRevision.parseDecimalString(
-            row.read<String>('revision'),
-          )) {
-            ConstellationAnchorRevisionParsed(:final revision) => revision,
-            ConstellationAnchorRevisionMalformed() =>
-              ConstellationAnchorRevision.zero,
-          },
-          placedAt: DateTime.parse(row.read<String>('placed_at')).toUtc(),
-        ),
-    ];
+    return {for (final row in rows) row.read<String>('id')};
   }
 
   /// Only incoming blocks hide pins. Outgoing blocks mark them instead.
@@ -322,7 +298,7 @@ WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
     peerProfiles,
     List<ConstellationRequestRecord>? preparedBeacons,
   }) async {
-    final tombstoned = await _loadTombstones(viewerId);
+    final tombstoned = await _loadAnchors(viewerId, tombstones: true);
     if (anchorRows.isEmpty) {
       return ConstellationAnchorProjection(
         revision: watermark,
@@ -364,12 +340,22 @@ WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
     final byBeaconId = {
       for (final record in pinnedBeaconRecords) record.id: record,
     };
+    final activeOwnedPhantomIds = await _activeOwnedPhantomIds(
+      viewerId,
+      anchorRows.map((anchor) => anchor.target),
+    );
 
     final shownAnchors = [
       for (final anchor in anchorRows)
-        if (anchor.target is ConstellationAnchorPersonTarget
-            ? !blocks.blockingViewer.contains(anchor.target.id)
-            : byBeaconId.containsKey(anchor.target.id))
+        if (switch (anchor.target) {
+          ConstellationAnchorPersonTarget(:final id) =>
+            !blocks.blockingViewer.contains(id),
+          ConstellationAnchorBeaconTarget(:final id) => byBeaconId.containsKey(
+            id,
+          ),
+          ConstellationAnchorPhantomTarget(:final id) =>
+            activeOwnedPhantomIds.contains(id),
+        })
           anchor,
     ];
     final anchors = [...shownAnchors, ...tombstoned]

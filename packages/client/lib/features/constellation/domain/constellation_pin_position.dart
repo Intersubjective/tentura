@@ -148,6 +148,7 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
         rearrangeTagMagnetsByTagId: layoutInput.rearrangeTagMagnetsByTagId,
       );
     }(),
+    ConstellationAnchorPhantomTarget() => null,
   };
 }
 

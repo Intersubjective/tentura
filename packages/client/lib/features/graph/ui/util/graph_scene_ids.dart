@@ -17,7 +17,13 @@ abstract final class TenturaGraphNodeKind {
 GraphNodeId tenturaGraphNodeId(NodeDetails node) => node.graphNodeId;
 
 /// Domain layout id used by radial/DAG/constellation pure layout helpers.
+///
+/// Private markers share the layout with people and items. Keep their
+/// namespace so their raw ids cannot collide with another kind.
 String tenturaLayoutDomainId(GraphNodeId graphNodeId) {
+  if (graphNodeId.startsWith(FieldPhantomNode.graphPrefix)) {
+    return graphNodeId;
+  }
   final separator = graphNodeId.indexOf(':');
   if (separator <= 0 || separator >= graphNodeId.length - 1) {
     throw ArgumentError.value(

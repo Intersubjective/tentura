@@ -9,6 +9,7 @@ import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_create_entry.dart';
 
 /// True when the loaded field holds nobody but the viewer (#252).
 ///
@@ -17,7 +18,7 @@ import '../bloc/constellation_cubit.dart';
 bool constellationFieldHasNoContacts(
   ConstellationField field,
   String viewerId,
-) => field.peers.every((p) => p.id == viewerId);
+) => field.phantoms.isEmpty && field.peers.every((p) => p.id == viewerId);
 
 /// People › Invitations, where a new invite link is made.
 void _openInvitations() => unawaited(GetIt.I<AppNavigator>().openInvitations());
@@ -72,11 +73,23 @@ class ConstellationNoContactsBanner extends StatelessWidget {
                   style: TenturaText.bodySmall(scheme.onSurfaceVariant),
                 ),
                 SizedBox(height: tt.tightGap),
-                TextButton.icon(
-                  key: inviteKey,
-                  onPressed: onInvite ?? _openInvitations,
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
-                  label: Text(l10n.emptyInviteSomeoneAction),
+                Wrap(
+                  spacing: tt.rowGap,
+                  children: [
+                    TextButton.icon(
+                      key: inviteKey,
+                      onPressed: onInvite ?? _openInvitations,
+                      icon: const Icon(Icons.person_add_alt_1_outlined),
+                      label: Text(l10n.emptyInviteSomeoneAction),
+                    ),
+                    if (cubit.phantomsEnabled)
+                      TextButton(
+                        onPressed: () => unawaited(
+                          showConstellationAddPerson(context, cubit: cubit),
+                        ),
+                        child: Text(l10n.personCreateAction),
+                      ),
+                  ],
                 ),
               ],
             ),

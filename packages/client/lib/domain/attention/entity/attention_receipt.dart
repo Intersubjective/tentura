@@ -33,6 +33,27 @@ enum AttentionForwardOutcome {
   };
 }
 
+sealed class PersonLinkNotice {
+  const PersonLinkNotice({required this.phantomId});
+
+  final String phantomId;
+}
+
+final class PersonMergedNotice extends PersonLinkNotice {
+  const PersonMergedNotice({
+    required super.phantomId,
+    required this.mergeId,
+    this.displayName,
+  });
+
+  final String mergeId;
+  final String? displayName;
+}
+
+final class PersonJoinedNotice extends PersonLinkNotice {
+  const PersonJoinedNotice({required super.phantomId});
+}
+
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {
   const factory AttentionReceipt({
@@ -51,6 +72,7 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? coordinationItemId,
     String? actorUserId,
     String? sourceEventKey,
+    PersonLinkNotice? personLinkNotice,
     String? destinationKind,
     String? targetEntityId,
     String? presentationKey,

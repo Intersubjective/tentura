@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../domain/placement_overlay.dart';
 import '../bloc/constellation_cubit.dart';
+import '../util/constellation_graph_scene.dart';
 import 'constellation_placement_marker.dart';
 
 /// Places a [ConstellationPlacementMarker] above each node whose placement
@@ -65,7 +66,7 @@ class _ConstellationPlacementMarkerLayerState
         final scale = controller.cameraScale;
         final markers = <Widget>[];
         for (final MapEntry(key: target, value: cue) in _cues.entries) {
-          final graphId = _sceneNodeId(target);
+          final graphId = constellationGraphNodeIdForTarget(target);
           final node = snapshot.topology.nodesById[graphId];
           final point = snapshot.resolvePosition(graphId);
           if (node == null || point == null) continue;
@@ -101,12 +102,6 @@ class _ConstellationPlacementMarkerLayerState
     );
   }
 }
-
-/// The scene node a placement target is drawn as.
-String _sceneNodeId(ConstellationAnchorTarget target) => switch (target.kind) {
-  ConstellationAnchorTargetKind.person => 'fp:${target.id}',
-  ConstellationAnchorTargetKind.beacon => 'fr:${target.id}',
-};
 
 /// Sits the marker's bottom centre on [anchor], then pulls it back into the
 /// viewport so a node scrolled out of sight still has a reachable marker.

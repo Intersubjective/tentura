@@ -1,0 +1,3 @@
+mutation PhantomUnmerge($phantomId: String!, $mergeId: String) {
+  phantomUnmerge(phantomId: $phantomId, mergeId: $mergeId)
+}

@@ -73,6 +73,8 @@ String constellationNodeSemanticLabel({
       }
       return labelled;
     }(),
+    FieldPhantomNode(:final label) =>
+      '$label, ${l10n.constellationPhantomStatus}',
     FieldBeaconNode(request: final request?) => () {
       if (request.isPlaceholder) {
         return '${constellationPinStateLabel(l10n, request.pinState)}, '

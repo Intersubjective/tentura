@@ -1877,26 +1877,23 @@ Future<void> unpinConstellationTarget(
   ConstellationAnchorTarget target,
 ) async {
   await dismissConstellationRequestPreviewSheetIfPresent(tester);
-  if (target.kind == ConstellationAnchorTargetKind.person) {
-    await setConstellationViewMode(tester, ConstellationViewMode.map);
-    await selectConstellationPersonNode(tester, target.id);
-  } else {
-    await ensureConstellationTextRequestVisible(tester, target.id);
-    await tapConstellationControl(
-      tester,
-      find.byKey(Key('constellation.text.request.${target.id}')),
-    );
+  final Finder controls;
+  switch (target.kind) {
+    case ConstellationAnchorTargetKind.person:
+      await setConstellationViewMode(tester, ConstellationViewMode.map);
+      await selectConstellationPersonNode(tester, target.id);
+      controls = find.byKey(TestIds.key(TestIds.graphPersonContextPanel));
+    case ConstellationAnchorTargetKind.beacon:
+      await ensureConstellationTextRequestVisible(tester, target.id);
+      controls = find.byKey(Key('constellation.text.request.${target.id}'));
+      await tapConstellationControl(tester, controls);
+    case ConstellationAnchorTargetKind.phantom:
+      throw StateError('The helper unpins people and Requests');
   }
-  final unpin = switch (target.kind) {
-    ConstellationAnchorTargetKind.person => find.descendant(
-      of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
-      matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
-    ),
-    ConstellationAnchorTargetKind.beacon => find.descendant(
-      of: find.byKey(Key('constellation.text.request.${target.id}')),
-      matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
-    ),
-  };
+  final unpin = find.descendant(
+    of: controls,
+    matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
+  );
   await pumpUntilVisible(tester, unpin, label: 'constellation unpin target');
   await pumpUntil(
     tester,
@@ -2057,6 +2054,18 @@ Future<List<Map<String, dynamic>>> fetchConstellationAnchors({
   bool showClosed = false,
   bool participatedOnly = false,
 }) async {
+  final projection = await fetchConstellationAnchorProjection(
+    showClosed: showClosed,
+    participatedOnly: participatedOnly,
+  );
+  return (projection['anchors'] as List?)?.cast<Map<String, dynamic>>() ??
+      const [];
+}
+
+Future<Map<String, dynamic>> fetchConstellationAnchorProjection({
+  bool showClosed = false,
+  bool participatedOnly = false,
+}) async {
   final response = await _postGraphQlRequest(
     GConstellationAnchorsFetchReq(
       (b) => b.vars
@@ -2070,9 +2079,7 @@ Future<List<Map<String, dynamic>>> fetchConstellationAnchors({
   }
   final data = response['data'] as Map<String, dynamic>?;
   final field = data?['constellationField'] as Map<String, dynamic>?;
-  final projection = field?['anchorProjection'] as Map<String, dynamic>?;
-  return (projection?['anchors'] as List?)?.cast<Map<String, dynamic>>() ??
-      const [];
+  return field?['anchorProjection'] as Map<String, dynamic>? ?? const {};
 }
 
 Map<String, dynamic>? constellationAnchorByTarget(
@@ -2202,6 +2209,15 @@ Future<Map<String, dynamic>> _applyConstellationAnchorOp(
 Future<String> createPublishedBeacon({
   required String title,
   String? description,
+}) => _createBeacon(title: title, description: description, draft: false);
+
+Future<String> createDraftRequest({required String title}) =>
+    _createBeacon(title: title, draft: true);
+
+Future<String> _createBeacon({
+  required String title,
+  required bool draft,
+  String? description,
 }) async {
   final body = description ?? title;
   final response = await _postGraphQlRequest(
@@ -2209,7 +2225,7 @@ Future<String> createPublishedBeacon({
       (b) => b.vars
         ..title = title
         ..description = body
-        ..draft = false,
+        ..draft = draft,
     ),
   );
   final errors = response['errors'];

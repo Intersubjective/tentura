@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/user_handle_consts.dart';
@@ -26,6 +27,7 @@ final class AuthCase extends UseCaseBase {
     this._invitationRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
@@ -35,6 +37,7 @@ final class AuthCase extends UseCaseBase {
   final InvitationRepositoryPort _invitationRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final PhantomMergeWakePort _phantomMergeWake;
 
   late final _roles = {UserRoles.user};
 
@@ -219,6 +222,9 @@ final class AuthCase extends UseCaseBase {
       },
     );
     final (user, requestLapsed) = await attention.retryOnConflict(acceptInvite);
+    if (invitation?.phantomId != null) {
+      await _phantomMergeWake.wake(invitationId);
+    }
     if (requestLapsed) onRequestLapsed?.call();
     return user;
   }

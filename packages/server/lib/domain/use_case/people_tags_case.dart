@@ -111,11 +111,10 @@ final class PeopleTagsCase extends UseCaseBase {
     _validGlyph(tag.glyph);
     _validColor(tag.color);
     if (tag.id.isEmpty ||
-        snapshot.memberIds.length != snapshot.sources.length ||
-        snapshot.sources.any((s) => s < 0 || s > 4)) {
-      throw PeopleTagsException(
-        peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
-      );
+        snapshot.members.any(
+          (member) => member.source < 0 || member.source > kPersonTagMaxSource,
+        )) {
+      throw _invalidTag();
     }
     return _tags.restore(
       ownerId: ownerId,

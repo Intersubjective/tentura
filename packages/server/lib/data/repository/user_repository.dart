@@ -12,14 +12,17 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invite_acceptance.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite/invite_origin.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
+import 'package:tentura_server/domain/port/phantom_merge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
@@ -86,23 +89,43 @@ class UserRepository implements UserRepositoryPort {
     ),
   );
 
-  /// Subjective profiles: on invite consumption the inviter gets the invitee
-  /// under the invite's addressee name. The invite name always wins over a
-  /// pre-existing contact entry. Skips legacy invites without a name. Must be
-  /// called inside the consuming transaction.
-  Future<void> _upsertInviteContact({
-    required String viewerId,
-    required String subjectId,
-    required String? addresseeName,
-  }) async {
-    final name = addresseeName?.trim();
-    if (name == null || name.isEmpty || viewerId == subjectId) return;
+  /// Runs after claiming the invite and before writing trust. The merge owns
+  /// the contact name for a phantom invite.
+  Future<void> _recordInviteContactOrMerge(
+    Invitation invitation,
+    String userId,
+    InviteOrigin origin,
+  ) async {
+    final ownerId = invitation.userId;
+    if (invitation.phantomId case final phantomId?) {
+      final mergeOrigin = switch (origin) {
+        InviteOrigin.newAccount => PhantomMergeOrigin.inviteNew,
+        InviteOrigin.existingAccount => PhantomMergeOrigin.inviteExisting,
+      };
+      await _database.customStatement(
+        'INSERT INTO public.phantom_merge_job '
+        '(id, phantom_id, owner_id, user_id, invitation_id, origin) '
+        r'VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING',
+        [
+          generateId('PM'),
+          phantomId,
+          ownerId,
+          userId,
+          invitation.id,
+          mergeOrigin.code,
+        ],
+      );
+      return;
+    }
+
+    final name = invitation.addresseeName?.trim();
+    if (name == null || name.isEmpty || ownerId == userId) return;
     await _database
         .into(_database.userContacts)
         .insert(
           UserContactsCompanion.insert(
-            viewerId: viewerId,
-            subjectId: subjectId,
+            viewerId: ownerId,
+            subjectId: userId,
             contactName: name,
           ),
           onConflict: DoUpdate(
@@ -250,15 +273,7 @@ class UserRepository implements UserRepositoryPort {
         },
       );
 
-  @override
-  Future<UserEntity> createInvited({
-    required String invitationId,
-    required String publicKey,
-    required String displayName,
-    String? handle,
-    InvitedPostForwardCreated? onPostForwardCreated,
-    InvitedRequestLapsed? onRequestLapsed,
-  }) => _database.withJoinedTransaction<UserEntity>(() async {
+  Future<Invitation> _requirePendingInvitation(String invitationId) async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingleOrNull();
@@ -268,20 +283,63 @@ class UserRepository implements UserRepositoryPort {
       );
     }
     if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
+      throw const InvitationWrongException.used();
     }
-    if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
+    if (InvitationEntity.hasExpired(
+      createdAt: invitation.createdAt.dateTime,
+      phantomId: invitation.phantomId,
+      ttl: _env.invitationTTL,
+    )) {
+      throw const InvitationWrongException.expired();
     }
+    return invitation;
+  }
 
+  Future<bool> _claimInvitation(
+    Invitation invitation,
+    String userId,
+    InviteOrigin origin,
+  ) async {
+    final updated =
+        await (_database.update(_database.invitations)..where(
+              (row) => row.id.equals(invitation.id) & row.invitedId.isNull(),
+            ))
+            .write(
+              InvitationsCompanion(
+                invitedId: Value(userId),
+                inviteOrigin: Value(origin.key),
+                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+    if (updated == 0 && invitation.phantomId != null) {
+      // The claim may have waited for a different joiner. Read the committed
+      // outcome so a consumed code and a deleted code keep distinct results.
+      await _requirePendingInvitation(invitation.id);
+    }
+    return updated != 0;
+  }
+
+  Future<void> _claimSignupInvitation(
+    Invitation invitation,
+    String userId,
+  ) async {
+    if (!await _claimInvitation(invitation, userId, InviteOrigin.newAccount)) {
+      throw const InvitationWrongException(
+        description: 'Can`t update invitation!',
+      );
+    }
+  }
+
+  @override
+  Future<UserEntity> createInvited({
+    required String invitationId,
+    required String publicKey,
+    required String displayName,
+    String? handle,
+    InvitedPostForwardCreated? onPostForwardCreated,
+    InvitedRequestLapsed? onRequestLapsed,
+  }) => _database.withJoinedTransaction<UserEntity>(() async {
+    final invitation = await _requirePendingInvitation(invitationId);
     final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _database.managers.users.createReturning(
@@ -294,22 +352,7 @@ class UserRepository implements UserRepositoryPort {
       ),
     );
     await _createDeviceCredential(accountId: user.id, publicKey: publicKey);
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(user.id),
-                inviteOrigin: Value(InviteOrigin.newAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
-      throw const InvitationWrongException(
-        description: 'Can`t update invitation!',
-      );
-    }
+    await _claimSignupInvitation(invitation, user.id);
 
     await _finishInvitedSignup(
       invitation,
@@ -409,29 +452,7 @@ class UserRepository implements UserRepositoryPort {
     InvitedPostForwardCreated? onPostForwardCreated,
     InvitedRequestLapsed? onRequestLapsed,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
-    final invitation = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .getSingleOrNull();
-    if (invitation == null) {
-      throw const InvitationWrongException(
-        description: 'Invitation not found',
-      );
-    }
-    if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
-    }
-    if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
-    }
-
+    final invitation = await _requirePendingInvitation(invitationId);
     final scope = await _lockInvitedSignupScope(invitation);
 
     final user = await _createUserWithCredential(
@@ -442,22 +463,7 @@ class UserRepository implements UserRepositoryPort {
       publicData: publicData,
       contacts: contacts,
     );
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(user.id),
-                inviteOrigin: Value(InviteOrigin.newAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
-      throw const InvitationWrongException(
-        description: 'Can`t update invitation!',
-      );
-    }
+    await _claimSignupInvitation(invitation, user.id);
 
     final descendantUser = await _database.managers.users
         .filter((e) => e.id(user.id))
@@ -493,10 +499,10 @@ class UserRepository implements UserRepositoryPort {
       canForward = false;
     }
 
-    await _upsertInviteContact(
-      viewerId: invitation.userId,
-      subjectId: user.id,
-      addresseeName: invitation.addresseeName,
+    await _recordInviteContactOrMerge(
+      invitation,
+      user.id,
+      InviteOrigin.newAccount,
     );
     await _inviteSeedPrompt.insertPending(
       inviterId: invitation.userId,
@@ -932,8 +938,33 @@ class UserRepository implements UserRepositoryPort {
       );
 
   @override
-  Future<void> deleteById({required String id}) =>
-      _database.managers.users.filter((e) => e.id(id)).delete();
+  Future<void> deleteById({required String id}) async {
+    if (_database.mutatingTransactionIdentity == null) {
+      throw StateError('Account deletion requires the erasure transaction');
+    }
+    final account = await _database
+        .customSelect(
+          r'SELECT id FROM public."user" WHERE id = $1 FOR UPDATE',
+          variables: [Variable.withString(id)],
+        )
+        .getSingleOrNull();
+    if (account == null) return;
+
+    // An unchanged pin created by a link belongs to that link. Remove it
+    // before the account FK turns it into a retained map placement.
+    await _database.customStatement(
+      r'''
+DELETE FROM public.constellation_anchor a
+USING public.phantom_merge m
+WHERE m.user_id = $1 AND m.undone_at IS NULL
+  AND a.viewer_id = m.owner_id AND a.person_id = m.user_id
+  AND m.undo #> '{pin,previousPersonPosition}' = 'null'::jsonb
+  AND a.revision::text = m.undo #>> '{pin,personWatermark}'
+''',
+      [id],
+    );
+    await _database.managers.users.filter((e) => e.id(id)).delete();
+  }
 
   @override
   Future<InviteAcceptance> acceptRequestInvite({
@@ -969,28 +1000,7 @@ class UserRepository implements UserRepositoryPort {
     required _InviteAcceptanceMode mode,
     Future<void> Function()? onForwardCreated,
   }) => _database.withJoinedTransaction(() async {
-    final invitation = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .getSingleOrNull();
-    if (invitation == null) {
-      throw const InvitationWrongException(
-        description: 'Invitation not found',
-      );
-    }
-    if (invitation.invitedId != null) {
-      throw const InvitationWrongException(
-        description: 'Invitation already used!',
-        reason: InvitationWrongReason.used,
-      );
-    } else if (invitation.createdAt.dateTime
-        .add(_env.invitationTTL)
-        .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(
-        description: 'Invitation expired!',
-        reason: InvitationWrongReason.expired,
-      );
-    }
-
+    final invitation = await _requirePendingInvitation(invitationId);
     final beaconId = invitation.beaconId;
     final parentEdgeId = invitation.parentForwardEdgeId;
     final requestId = mode == _InviteAcceptanceMode.requestAdmission
@@ -1039,26 +1049,19 @@ class UserRepository implements UserRepositoryPort {
     // Claim the row first, atomically — everything below is a side effect
     // of a *successful* claim. A losing racer must get none of it (no
     // contact/forward/vote/trust-edge writes for an accept that didn't win).
-    final changedRowCount =
-        await (_database.update(_database.invitations)..where(
-              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
-            ))
-            .write(
-              InvitationsCompanion(
-                invitedId: Value(userId),
-                inviteOrigin: Value(InviteOrigin.existingAccount.key),
-                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-    if (changedRowCount == 0) {
+    if (!await _claimInvitation(
+      invitation,
+      userId,
+      InviteOrigin.existingAccount,
+    )) {
       return InviteAcceptance.notClaimed;
     }
     if (requestLapsed) return InviteAcceptance.requestLapsed;
 
-    await _upsertInviteContact(
-      viewerId: invitation.userId,
-      subjectId: userId,
-      addresseeName: invitation.addresseeName,
+    await _recordInviteContactOrMerge(
+      invitation,
+      userId,
+      InviteOrigin.existingAccount,
     );
 
     final forwardCreated =

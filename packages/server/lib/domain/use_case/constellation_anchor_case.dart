@@ -93,7 +93,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
       position:
           xUnits == null || yUnits == null || coordinateSpaceVersion == null
           ? null
-          : _parsePosition(
+          : parsePosition(
               xUnits: xUnits,
               yUnits: yUnits,
               coordinateSpaceVersion: coordinateSpaceVersion,
@@ -156,7 +156,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     return validation.target;
   }
 
-  ConstellationAnchorPosition _parsePosition({
+  static ConstellationAnchorPosition parsePosition({
     required double xUnits,
     required double yUnits,
     required int coordinateSpaceVersion,

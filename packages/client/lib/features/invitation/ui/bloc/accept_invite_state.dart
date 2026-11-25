@@ -10,13 +10,17 @@ abstract class AcceptInviteState extends StateBase with _$AcceptInviteState {
   const factory AcceptInviteState({
     @Default(StateIsLoading()) StateStatus status,
     @Default('') String code,
-    Profile? pendingInviter,
-    InvitePreviewBeacon? pendingBeacon,
+    ({Profile inviter, InvitePreviewBeacon? beacon, bool phantomInvite})?
+    pendingInvite,
     String? pendingSignupCode,
   }) = _AcceptInviteState;
 
   const AcceptInviteState._();
 
+  Profile? get pendingInviter => pendingInvite?.inviter;
+
+  InvitePreviewBeacon? get pendingBeacon => pendingInvite?.beacon;
+
   bool get needsConfirmation =>
-      pendingInviter != null && status is StateIsSuccess;
+      pendingInvite != null && status is StateIsSuccess;
 }

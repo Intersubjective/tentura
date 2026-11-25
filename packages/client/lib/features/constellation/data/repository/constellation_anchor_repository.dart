@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/model/constellation_anchor_position_input.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -28,11 +29,6 @@ final class ConstellationAnchorRepository
   ConstellationAnchorRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
-
-  /// Whole-number [double]s serialize as JSON integers on Flutter web; V2
-  /// `Float!` variables reject those values at parse time.
-  static double _graphQlFloatVariable(double value) =>
-      value == value.roundToDouble() ? value + 1e-9 : value;
 
   @override
   Future<ConstellationAnchorApplyResult> apply({
@@ -119,11 +115,10 @@ final class ConstellationAnchorRepository
                   createdAt: DateTime.parse(s.createdAt),
                   anchors: {
                     for (final a in s.anchors)
-                      (a.targetKind == Gv2_ConstellationAnchorTargetKind.PERSON
-                          ? ConstellationAnchorTarget.person(a.targetId)
-                          : ConstellationAnchorTarget.beacon(
-                              a.targetId,
-                            )): ConstellationAnchorPosition(
+                      mapWireAnchorTarget(
+                        a.targetKind,
+                        a.targetId,
+                      ): ConstellationAnchorPosition(
                         xUnits: a.xUnits,
                         yUnits: a.yUnits,
                         coordinateSpaceVersion: a.coordinateSpaceVersion,
@@ -224,10 +219,7 @@ final class ConstellationAnchorRepository
       ..baseRevision = op.baseRevision?.toDecimalString();
     final position = op.position;
     if (position != null) {
-      b.position
-        ..xUnits = _graphQlFloatVariable(position.xUnits)
-        ..yUnits = _graphQlFloatVariable(position.yUnits)
-        ..coordinateSpaceVersion = position.coordinateSpaceVersion;
+      b.position.replace(anchorPositionToWire(position));
     }
   });
 

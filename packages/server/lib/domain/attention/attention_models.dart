@@ -337,7 +337,7 @@ extension AttentionDestinationKindWireName on AttentionDestinationKind {
 
 enum AttentionFeedView { all, unread, needsYou }
 
-enum AttentionSurface { myWork, activity }
+enum AttentionSurface { myWork, activity, fieldPersonLinks }
 
 AttentionSurface attentionSurfaceFromWireName(String value) =>
     AttentionSurface.values.firstWhere((surface) => surface.name == value);

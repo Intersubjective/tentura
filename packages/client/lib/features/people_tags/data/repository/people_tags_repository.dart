@@ -177,23 +177,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
         GPersonTagRestoreReq(
           (b) => b.vars
             ..clientOpId = clientOpId
-            ..snapshot.replace(
-              Gv2_PersonTagSnapshotInput(
-                (s) => s
-                  ..tag.replace(
-                    Gv2_PersonTagInput(
-                      (t) => t
-                        ..id = snapshot.tag.id
-                        ..name = snapshot.tag.name
-                        ..glyph = snapshot.tag.glyph
-                        ..color = snapshot.tag.color
-                        ..ord = snapshot.tag.ord,
-                    ),
-                  )
-                  ..memberIds = ListBuilder(snapshot.memberIds)
-                  ..sources = ListBuilder(snapshot.sources),
-              ),
-            ),
+            ..snapshot.replace(snapshot.toInput()),
         ),
       )
       .firstLinkResponse(label: 'PersonTagRestore')

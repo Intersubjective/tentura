@@ -2,6 +2,8 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'package:tentura_server/domain/entity/fact_copy_outcome.dart';
 import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 
 import 'input/_input_types.dart';
 
@@ -63,6 +65,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlInputConstellationAnchorOp,
   gqlTypeConstellationAnchorOpResult,
   gqlTypeConstellationAnchorsApplyResult,
+  gqlTypeConstellationLinkHint,
+  gqlTypeConstellationPhantom,
   gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -162,8 +166,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationTagMagnet,
   gqlTypePersonTag,
   gqlTypePersonTagSnapshot,
+  gqlTypePersonTagSnapshotMember,
   gqlInputPersonTag,
   gqlInputPersonTagSnapshot,
+  gqlInputPersonTagSnapshotMember,
   gqlInputPersonTagMemberOp,
   gqlTypePersonTagMembers,
   gqlTypePersonTagInherited,
@@ -1147,6 +1153,7 @@ final gqlTypeConstellationPeer =
       )
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
+        field('mergedPhantomId', graphQLString),
         field('displayName', graphQLString),
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),
@@ -1268,7 +1275,7 @@ final gqlEnumConstellationProjection = enumTypeFromStrings(
 
 final gqlEnumConstellationAnchorTargetKind = enumTypeFromStrings(
   'ConstellationAnchorTargetKind',
-  const ['PERSON', 'BEACON'],
+  const ['PERSON', 'BEACON', 'PHANTOM'],
 );
 
 final gqlTypeConstellationAnchor =
@@ -1454,6 +1461,30 @@ final gqlTypeConstellationTagMagnet =
         field('revision', graphQLInt.nonNullable()),
       ]);
 
+final gqlTypeConstellationLinkHint =
+    GraphQLObjectType('ConstellationLinkHint', null)
+      ..fields.addAll([
+        field('phantomId', graphQLString.nonNullable()),
+        field('userId', graphQLString.nonNullable()),
+      ]);
+
+final gqlTypeConstellationPhantom =
+    GraphQLObjectType('ConstellationPhantom', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('emoji', graphQLString),
+        field('hasPrivateAvatar', graphQLBoolean.nonNullable()),
+        field(
+          'ownTagIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('pinState', graphQLString),
+        field('inviteState', graphQLString.nonNullable()),
+        field('inviteCreatedAt', graphQLString),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -1479,6 +1510,18 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        field(
+          'linkHints',
+          GraphQLListType(
+            gqlTypeConstellationLinkHint.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'phantoms',
+          GraphQLListType(
+            gqlTypeConstellationPhantom.nonNullable(),
+          ).nonNullable(),
+        ),
         // Everyone the viewer trusts directly (#246), each with a node in
         // `peers`; never capped. Empty in an ANCHORS read.
         field(
@@ -1603,6 +1646,7 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('beacon_id', graphQLString),
     // Issuer's private name for the invitee; nullable for legacy rows.
     field('addressee_name', graphQLString),
+    field('phantom_id', graphQLString),
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),
@@ -2415,16 +2459,21 @@ final gqlTypePersonTag = GraphQLObjectType('PersonTag', null)
     field('countOffField', graphQLInt.nonNullable()),
   ]);
 
+final gqlTypePersonTagSnapshotMember =
+    GraphQLObjectType('PersonTagSnapshotMember', null)
+      ..fields.addAll([
+        field('kind', graphQLString.nonNullable()),
+        field('id', graphQLString.nonNullable()),
+        field('membershipId', graphQLString.nonNullable()),
+        field('source', graphQLInt.nonNullable()),
+      ]);
+
 final gqlTypePersonTagSnapshot = GraphQLObjectType('PersonTagSnapshot', null)
   ..fields.addAll([
     field('tag', gqlTypePersonTag.nonNullable()),
     field(
-      'memberIds',
-      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-    ),
-    field(
-      'sources',
-      GraphQLListType(graphQLInt.nonNullable()).nonNullable(),
+      'members',
+      GraphQLListType(gqlTypePersonTagSnapshotMember.nonNullable()),
     ),
   ]);
 
@@ -2439,20 +2488,43 @@ final gqlInputPersonTag = GraphQLInputObjectType(
   ],
 );
 
-final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
-  'PersonTagSnapshotInput',
+final gqlInputPersonTagSnapshotMember = GraphQLInputObjectType(
+  'PersonTagSnapshotMemberInput',
   inputFields: [
-    GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
-    GraphQLInputObjectField(
-      'memberIds',
-      _DynamicListType(graphQLString).nonNullable(),
-    ),
-    GraphQLInputObjectField(
-      'sources',
-      _DynamicListType(graphQLInt).nonNullable(),
-    ),
+    GraphQLInputObjectField('kind', graphQLString.nonNullable()),
+    GraphQLInputObjectField('id', graphQLString.nonNullable()),
+    GraphQLInputObjectField('membershipId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('source', graphQLInt.nonNullable()),
   ],
 );
+
+final GraphQLInputObjectType gqlInputPersonTagSnapshot =
+    _PersonTagSnapshotInput();
+
+final class _PersonTagSnapshotInput extends GraphQLInputObjectType {
+  _PersonTagSnapshotInput()
+    : super(
+        'PersonTagSnapshotInput',
+        inputFields: [
+          GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
+          GraphQLInputObjectField(
+            'members',
+            _DynamicListType(gqlInputPersonTagSnapshotMember),
+          ),
+        ],
+      );
+
+  @override
+  ValidationResult<Map<String, dynamic>> validate(String key, Object? input) {
+    if (input is Map && input['members'] is List) {
+      final validation = super.validate(key, input);
+      if (validation.successful) return validation;
+    }
+    throw PeopleTagsException(
+      peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+    );
+  }
+}
 
 /// One `add`, `remove` or `keep` in `personTagMembersApply`.
 /// `keep` converts an inherited membership to a manual one.

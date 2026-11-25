@@ -92,11 +92,22 @@ abstract class PersonTagSuggestionState with _$PersonTagSuggestionState {
 abstract class PersonTagSnapshot with _$PersonTagSnapshot {
   const factory PersonTagSnapshot({
     required PersonTag tag,
-    required List<String> memberIds,
-    required List<int> sources,
+    required List<PersonTagSnapshotMember> members,
   }) = _PersonTagSnapshot;
 
   const PersonTagSnapshot._();
+}
+
+enum PersonTagSnapshotMemberKind { person, phantom }
+
+@freezed
+abstract class PersonTagSnapshotMember with _$PersonTagSnapshotMember {
+  const factory PersonTagSnapshotMember({
+    required PersonTagSnapshotMemberKind kind,
+    required String id,
+    required int source,
+    required String membershipId,
+  }) = _PersonTagSnapshotMember;
 }
 
 /// One add or remove in a batch of membership edits.

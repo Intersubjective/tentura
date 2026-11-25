@@ -40,8 +40,7 @@ const _deleteDoc = r'''
 mutation Delete($id: String!, $clientOpId: String!) {
   personTagDelete(id: $id, clientOpId: $clientOpId) {
     tag { id name glyph color ord }
-    memberIds
-    sources
+    members { kind id membershipId source }
   }
 }
 ''';

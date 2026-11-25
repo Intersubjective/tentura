@@ -39,6 +39,40 @@ import '../contacts/contacts_case_test.dart';
 const _beaconId = 'Bscroll000001';
 String _id(int index) => 'U${index.toString().padLeft(11, '0')}';
 
+class _SlowFrameTester extends WidgetController implements WidgetTester {
+  _SlowFrameTester(this._tester) : super(_tester.binding);
+
+  final WidgetTester _tester;
+  int delayedFrames = 0;
+
+  @override
+  TestWidgetsFlutterBinding get binding => _tester.binding;
+
+  @override
+  Future<void> pump([
+    Duration? duration,
+    EnginePhase phase = EnginePhase.sendSemanticsUpdate,
+  ]) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await _tester.pump(duration, phase);
+    delayedFrames++;
+  }
+
+  @override
+  Future<int> pumpAndSettle([
+    Duration duration = const Duration(milliseconds: 100),
+    EnginePhase phase = EnginePhase.sendSemanticsUpdate,
+    Duration timeout = const Duration(minutes: 10),
+  ]) => _tester.pumpAndSettle(duration, phase, timeout);
+
+  @override
+  Future<void> enterText(FinderBase<Element> finder, String text) =>
+      _tester.enterText(finder, text);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _ProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState();
@@ -78,10 +112,10 @@ class _Capabilities extends Fake implements CapabilityRepositoryPort {
   ];
 }
 
-Map<String, dynamic> _wireCandidate(int i) => {
+Map<String, dynamic> _wireCandidate(int i, {String? displayName}) => {
   '__typename': 'v2_user',
   'id': _id(i),
-  'displayName': 'Человек ${i.toString().padLeft(3, '0')}',
+  'displayName': displayName ?? 'Человек ${i.toString().padLeft(3, '0')}',
   'handle': null,
   'description': '',
   'my_vote': i < 100 ? 1 : 0,
@@ -117,6 +151,7 @@ Future<void> _withPicker(
   required bool selectedWithBand,
   required Future<void> Function(ForwardCubit cubit, Map<String, int> builds)
   check,
+  String? Function(int)? displayNameFor,
 }) async {
   await usePhoneSurface(tester);
   tester.view
@@ -154,7 +189,8 @@ Future<void> _withPicker(
           'ForwardCandidatesFetch': {
             '__typename': 'query_root',
             'forwardCandidates': [
-              for (var i = 0; i < 300; i++) _wireCandidate(i),
+              for (var i = 0; i < 300; i++)
+                _wireCandidate(i, displayName: displayNameFor?.call(i)),
             ],
           },
           'BeaconInvolvementData': {
@@ -288,6 +324,99 @@ List<String> _compositingViolations(Finder entry, String state) {
 }
 
 void main() {
+  testWidgets(
+    'the intended recipient is selectable among matching names during slow frames',
+    (tester) async {
+      const targetIndex = 99;
+      const sharedName = 'Александр Иванов';
+      const revealBudget = Duration(seconds: 2);
+      const watchdog = Duration(milliseconds: 2500);
+      await _withPicker(
+        tester,
+        selectedWithBand: false,
+        displayNameFor: (i) => i < 20 || i == targetIndex ? sharedName : null,
+        check: (cubit, _) async {
+          final id = _id(targetIndex);
+          final checkbox = find.byKey(
+            TestIds.key(TestIds.forwardRecipientCheckbox(id)),
+          );
+          final picker = find.byType(ForwardRecipientPicker);
+          final l10n = L10n.of(tester.element(picker))!;
+          final search = find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                widget.decoration?.hintText == l10n.forwardOverlaySearchHint,
+          );
+          final earlierMatch = find.byKey(
+            TestIds.key(TestIds.forwardRecipientCheckbox(_id(0))),
+          );
+          final scrollable = find
+              .descendant(
+                of: picker,
+                matching: find.byType(Scrollable),
+              )
+              .first;
+          expect(
+            find.byKey(ForwardRecipientPicker.newSectionKey),
+            findsNothing,
+          );
+
+          // Prove the same fixture and delayed-frame budget permit reaching
+          // the target through the real search and scrolling the results.
+          final searchFrames = _SlowFrameTester(tester);
+          final searchTime = Stopwatch()..start();
+          await (() async {
+            await tester.enterText(search, sharedName);
+            FocusManager.instance.primaryFocus?.unfocus();
+            await searchFrames.pump();
+            expect(earlierMatch.hitTestable(), findsOneWidget);
+            expect(checkbox.hitTestable(), findsNothing);
+            for (var step = 0; step < 5; step++) {
+              if (checkbox.hitTestable().evaluate().isNotEmpty) break;
+              await tester.drag(scrollable, const Offset(0, -400));
+              await searchFrames.pump();
+            }
+            expect(checkbox.hitTestable(), findsOneWidget);
+          })().timeout(watchdog);
+          searchTime.stop();
+          expect(searchTime.elapsed, lessThan(revealBudget));
+
+          await tester.enterText(search, '');
+          FocusManager.instance.primaryFocus?.unfocus();
+          final position = tester.state<ScrollableState>(scrollable).position;
+          position.jumpTo(position.minScrollExtent);
+          await tester.pumpAndSettle();
+          expect(checkbox, findsNothing);
+          expect(cubit.state.selectedIds, isEmpty);
+
+          final slowFrames = _SlowFrameTester(tester);
+          final revealTime = Stopwatch()..start();
+          final Finder revealed;
+          try {
+            revealed = await revealForwardRecipientCheckbox(
+              slowFrames,
+              id,
+              timeout: revealBudget,
+            ).timeout(watchdog);
+          } finally {
+            revealTime.stop();
+            expect(
+              slowFrames.delayedFrames,
+              greaterThan(0),
+              reason: 'reveal must wait for a delayed frame',
+            );
+          }
+          expect(revealTime.elapsed, lessThan(revealBudget));
+          expect(revealed.hitTestable(), findsOneWidget);
+          expect(tester.element(revealed), same(tester.element(checkbox)));
+          await tester.tap(revealed);
+          await tester.pumpAndSettle();
+          expect(cubit.state.selectedIds, {id});
+          expect(tester.takeException(), isNull);
+        },
+      );
+    },
+  );
   testWidgets(
     'recipient helper reveals a lazy checkbox without a NEW section at 375x667 RU',
     (tester) async {

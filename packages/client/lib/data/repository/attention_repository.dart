@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -307,6 +309,11 @@ final class AttentionRepository implements AttentionRepositoryPort {
       coordinationItemId: coordinationItemId,
       actorUserId: actorUserId,
       sourceEventKey: sourceEventKey,
+      personLinkNotice: _personLinkNotice(
+        sourceEventKey,
+        targetEntityId,
+        presentationPayloadJson,
+      ),
       destinationKind: destinationKind,
       targetEntityId: targetEntityId,
       presentationKey: presentationKey,
@@ -339,6 +346,41 @@ final class AttentionRepository implements AttentionRepositoryPort {
       postRootExcerpt: postRootExcerpt,
       postRootImageId: postRootImageId,
       eventsPreview: eventsPreview,
+    );
+  }
+
+  static PersonLinkNotice? _personLinkNotice(
+    String? sourceKey,
+    String? phantomId,
+    String payload,
+  ) {
+    if (phantomId == null || !phantomId.startsWith('PH')) return null;
+    final source = sourceKey?.split(':');
+    if (source == null ||
+        source.length != 2 ||
+        source.last.isEmpty ||
+        (source.first != 'phantomMerged' && source.first != 'phantomJoined')) {
+      return null;
+    }
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, Object?> ||
+        decoded['targetEntityId'] != phantomId) {
+      return null;
+    }
+    if (source.first == 'phantomJoined') {
+      return PersonJoinedNotice(phantomId: phantomId);
+    }
+    final name = decoded['displayName'];
+    return PersonMergedNotice(
+      phantomId: phantomId,
+      mergeId: source.last,
+      displayName: name is String && name.trim().isNotEmpty ? name : null,
     );
   }
 

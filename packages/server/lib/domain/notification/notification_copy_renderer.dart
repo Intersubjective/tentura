@@ -153,17 +153,19 @@ class NotificationCopyRenderer {
     final actor = _actor(identity, ru);
     final x = readable ? _text(facts['excerpt']) : '';
     String withX(String sentence) => x.isEmpty ? sentence : '$sentence: $x';
-    String? date(String key) => switch (DateTime.tryParse(
-      _text(facts[key]),
-    )) {
-      final at? => NotificationText.formatDate(
-        at,
-        locale,
-        tzOffsetMinutes: tzOffsetMinutes,
-        now: now,
-      ),
-      null => null,
-    };
+    String? date(String key, {bool omitMidnight = false}) =>
+        switch (DateTime.tryParse(
+          _text(facts[key]),
+        )) {
+          final at? => NotificationText.formatDate(
+            at,
+            locale,
+            tzOffsetMinutes: tzOffsetMinutes,
+            now: now,
+            omitMidnight: omitMidnight,
+          ),
+          null => null,
+        };
     final step = x;
     String withStep(String Function(String s) named, String unnamed) =>
         step.isEmpty ? unnamed : named(NotificationText.quote(step, locale));
@@ -307,7 +309,7 @@ class NotificationCopyRenderer {
       }(),
       AttentionEventType.deadlineChanged => (
         t('Deadline changed', 'Срок изменён'),
-        switch (date('newEndAt')) {
+        switch (date('newEndAt', omitMidnight: true)) {
           final d? => t(
             '$actor moved the deadline to $d',
             '$actor: новый срок — $d',
@@ -317,7 +319,7 @@ class NotificationCopyRenderer {
       ),
       AttentionEventType.deadlineReminder => (
         t('Deadline tomorrow', 'Срок завтра'),
-        switch (date('newEndAt')) {
+        switch (date('newEndAt', omitMidnight: true)) {
           final d? => t('Deadline: $d', 'Срок: $d'),
           null => t('The deadline is tomorrow', 'Срок — завтра'),
         },

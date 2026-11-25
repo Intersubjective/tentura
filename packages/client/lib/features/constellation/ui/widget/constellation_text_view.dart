@@ -161,7 +161,9 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           for (final person in cubit.fieldPeople)
             if (!person.isViewer || _hasRows(cubit, person.id)) person,
         ];
+        final phantoms = cubit.shownField?.phantoms ?? const [];
         if (people.isEmpty &&
+            phantoms.isEmpty &&
             !cubit.hasActiveFilters &&
             !cubit.hasHiddenLayers &&
             constellationFieldHasNoContacts(field, cubit.viewerId)) {
@@ -169,7 +171,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           // "no requests".
           return const ConstellationNoContactsEmptyState();
         }
-        if (people.isEmpty) {
+        if (people.isEmpty && phantoms.isEmpty) {
           return Semantics(
             liveRegion: true,
             label: l10n.constellationEmptyFiltered,
@@ -201,6 +203,10 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
             if (constellationPersonMatches(person, _query) &&
                 !lens.isAuthorDimmed(person.id))
               person,
+        ];
+        final matchingPhantoms = [
+          for (final phantom in phantoms)
+            if (constellationNameMatches(phantom.displayName, _query)) phantom,
         ];
         final store = _peopleTags;
         final direct = [
@@ -236,7 +242,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
                 ),
               ),
             ),
-          if (matching.isEmpty)
+          if (matching.isEmpty && matchingPhantoms.isEmpty)
             Semantics(
               liveRegion: true,
               child: Text(
@@ -276,6 +282,23 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
               ),
             for (final person in others) personGroup(person),
           ],
+          for (final phantom in matchingPhantoms)
+            Padding(
+              key: Key('constellation.text.phantom.${phantom.id}'),
+              padding: EdgeInsets.only(bottom: tt.rowGap),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    phantom.displayName,
+                    style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  TenturaMetaText(l10n.constellationPhantomStatus),
+                ],
+              ),
+            ),
         ];
 
         return Column(

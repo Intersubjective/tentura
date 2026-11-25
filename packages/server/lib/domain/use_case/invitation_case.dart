@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -41,6 +42,7 @@ final class InvitationCase extends UseCaseBase {
     BeaconRoomRepositoryPort? room,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
     required super.env,
     required super.logger,
   }) : _postLock = postLock,
@@ -71,6 +73,7 @@ final class InvitationCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
 
   final TransactionalAttentionCase? _attention;
+  final PhantomMergeWakePort _phantomMergeWake;
 
   Future<InvitationEntity> create({
     required String userId,
@@ -157,7 +160,7 @@ final class InvitationCase extends UseCaseBase {
     return beacon;
   }
 
-  /// Renames the addressee of the caller's own, still unconsumed invite.
+  /// Renames the addressee of the caller's own, unconsumed ordinary invite.
   Future<InvitationEntity> update({
     required String invitationId,
     required String userId,
@@ -174,7 +177,9 @@ final class InvitationCase extends UseCaseBase {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
     );
-    if (invitation == null || invitation.isAccepted || invitation.isExpired) {
+    if (invitation == null ||
+        invitation.isAccepted ||
+        invitation.isExpiredWithTtl(env.invitationTTL)) {
       throw IdNotFoundException(id: invitationId);
     }
     return invitation;
@@ -197,7 +202,7 @@ final class InvitationCase extends UseCaseBase {
 
     final codeStatus = invitation.isAccepted
         ? InviteCodeStatus.consumed
-        : invitation.isExpired
+        : invitation.isExpiredWithTtl(env.invitationTTL)
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
@@ -206,12 +211,14 @@ final class InvitationCase extends UseCaseBase {
         ? null
         : await _previewBeaconForInvite(invitation, beaconId, codeStatus);
 
+    final phantomInvite = invitation.phantomId != null;
     final InviteCallerStatus callerStatus;
     if (callerUserId == null) {
       callerStatus = InviteCallerStatus.anonymous;
     } else if (callerUserId == invitation.issuer.id) {
       callerStatus = InviteCallerStatus.isInviter;
-    } else if (beacon?.kind != BeaconKind.post &&
+    } else if (!phantomInvite &&
+        beacon?.kind != BeaconKind.post &&
         await _friendshipLookup.isReciprocalSubscribe(
           viewerId: callerUserId,
           peerId: invitation.issuer.id,
@@ -237,6 +244,7 @@ final class InvitationCase extends UseCaseBase {
       callerStatus: callerStatus,
       inviter: inviter,
       beacon: beacon,
+      phantomInvite: phantomInvite,
     );
   }
 
@@ -332,7 +340,9 @@ final class InvitationCase extends UseCaseBase {
   Future<InviteAcceptance> accept({
     required String invitationId,
     required String userId,
-  }) => _accept(invitationId, userId, byCode: false);
+    bool reportExpiry = false,
+  }) =>
+      _accept(invitationId, userId, byCode: false, reportExpiry: reportExpiry);
 
   Future<InviteAcceptance> acceptAsExisting({
     required String code,
@@ -343,6 +353,7 @@ final class InvitationCase extends UseCaseBase {
     String invitationId,
     String userId, {
     required bool byCode,
+    bool reportExpiry = false,
   }) async {
     final invitation = await _invitationRepository.getById(
       invitationId: invitationId,
@@ -356,7 +367,14 @@ final class InvitationCase extends UseCaseBase {
         description: 'Cannot accept your own invite',
       );
     }
-    if (invitation.isExpired || (byCode && invitation.isAccepted)) {
+    if (invitation.phantomId != null && invitation.isAccepted) {
+      throw const InvitationWrongException.used();
+    }
+    final isExpired = invitation.isExpiredWithTtl(env.invitationTTL);
+    if (isExpired && reportExpiry) {
+      throw const InvitationWrongException.expired();
+    }
+    if (isExpired || (byCode && invitation.isAccepted)) {
       throw IdNotFoundException(id: invitationId);
     }
 
@@ -409,7 +427,7 @@ final class InvitationCase extends UseCaseBase {
         final claimed = await _userRepository.bindMutual(
           invitationId: invitationId,
           userId: userId,
-          bindFriendship: !alreadyFriends,
+          bindFriendship: !alreadyFriends || invitation.phantomId != null,
         );
         return InviteAcceptance.fromClaim(claimed: claimed);
       },
@@ -464,7 +482,7 @@ final class InvitationCase extends UseCaseBase {
     mutation,
     bool emitMutualConnection = false,
     bool emitInviteAccepted = true,
-  }) {
+  }) async {
     final attention = _attention!;
     Future<InviteAcceptance> acceptInvite() => attention.runAction(
       actorUserId: userId,
@@ -500,7 +518,11 @@ final class InvitationCase extends UseCaseBase {
         return accepted;
       },
     );
-    return attention.retryOnConflict(acceptInvite);
+    final result = await attention.retryOnConflict(acceptInvite);
+    if (invitation.phantomId != null && result.isConsumed) {
+      await _phantomMergeWake.wake(invitation.id);
+    }
+    return result;
   }
 
   Future<InviteAcceptance> _acceptPostInviteOnly({

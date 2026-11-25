@@ -1,4 +1,8 @@
+import 'dart:math' show max;
+
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart'
+    show ConstellationAnchorPhantomTarget;
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'package:tentura_server/consts/constellation_consts.dart';
@@ -92,7 +96,10 @@ final class ConstellationFieldSnapshotReader {
     // Everyone the viewer trusts directly is on the field (#246) and outside
     // the peer cap (Q6): a visible one as an ordinary peer, any other as a
     // contact node without content (Q5).
-    final directContactIds = await _directContactIds(viewerId);
+    final (:directContactIds, :phantoms) = await _directContactsAndPhantoms(
+      viewerId,
+      anchorProjection,
+    );
     final visibleSet = visiblePeerIds.toSet();
     final directVisibleIds = <String>{
       for (final id in directContactIds)
@@ -113,10 +120,17 @@ final class ConstellationFieldSnapshotReader {
             !temporaryBeacons.containsKey(id))
           id,
     };
+    final population = {
+      ...visibleSet,
+      ...directContactIds,
+      ...bondContexts.keys,
+      ...temporaryBeacons.keys,
+    };
 
     final kept = await _cappedPeerIds(
       viewerId: viewerId,
       context: context,
+      peerBudget: max(0, kConstellationPeerCap - phantoms.length),
       visiblePeerIds: visiblePeerIds,
       reservedPeerIds: reservedPeerIds,
       directContactIds: directContactIds.toSet(),
@@ -240,7 +254,23 @@ final class ConstellationFieldSnapshotReader {
           peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
-    final taggedPeers = await _withPeopleTags(viewerId, peers, loadedAt);
+    final shownPeerIds = peerIds.difference({viewerId}).toList();
+    population
+      ..addAll(shownPeerIds)
+      ..remove(viewerId);
+    final (seen, linkHints) = await _readFirstSeenAndLinkHints(
+      viewerId,
+      shownPeerIds,
+      population,
+      loadedAt,
+    );
+    final taggedPeers = await _withPeopleTags(
+      viewerId,
+      peers,
+      shownPeerIds,
+      seen,
+      loadedAt,
+    );
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
@@ -252,6 +282,8 @@ final class ConstellationFieldSnapshotReader {
       requestsCapped: requestsCapped,
       posts: postFeed.posts,
       memberWebs: postFeed.memberWebs,
+      linkHints: linkHints,
+      phantoms: phantoms,
       directContactIds: [
         for (final id in directContactIds)
           if (peerIds.contains(id)) id,
@@ -260,6 +292,79 @@ final class ConstellationFieldSnapshotReader {
           ? anchorProjection
           : _withPinnedContactNodes(anchorProjection, contactOnlyIds),
     );
+  }
+
+  /// Reads explicit contacts and all active, owner-only phantoms together.
+  Future<({List<String> directContactIds, List<PhantomRecord> phantoms})>
+  _directContactsAndPhantoms(
+    String viewerId,
+    ConstellationAnchorProjection projection,
+  ) async {
+    final pinnedIds = {
+      for (final anchor in projection.anchors)
+        if (anchor.target case ConstellationAnchorPhantomTarget(:final id)) id,
+    };
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT vu.object AS id, false AS is_phantom, NULL::text AS display_name,
+       NULL::text AS emoji, NULL::text AS created_at,
+       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at
+FROM public.vote_user vu
+INNER JOIN public."user" u ON u.id = vu.object
+WHERE vu.subject = $1
+  AND vu.amount > 0
+  AND vu.object <> $1
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_block ub
+    WHERE (ub.blocker_id = $1 AND ub.blocked_id = vu.object)
+       OR (ub.blocker_id = vu.object AND ub.blocked_id = $1)
+  )
+UNION ALL
+SELECT p.id, true, p.display_name, p.emoji, p.created_at::text,
+       ARRAY(
+         SELECT m.tag_id FROM public.phantom_tag_member m
+         WHERE m.phantom_id = p.id AND m.owner_id = p.owner_id
+         ORDER BY m.tag_id
+       ),
+       (
+         SELECT i.created_at::text FROM public.invitation i
+         WHERE i.phantom_id = p.id AND i.user_id = p.owner_id
+           AND i.invited_id IS NULL
+       )
+FROM public.phantom p
+WHERE p.owner_id = $1 AND p.merged_at IS NULL AND p.merged_user_id IS NULL
+ORDER BY id
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    final directContactIds = <String>[];
+    final phantoms = <PhantomRecord>[];
+    for (final row in rows) {
+      final id = row.read<String>('id');
+      if (row.read<bool>('is_phantom')) {
+        final inviteCreatedAt = row.readNullable<String>('invite_created_at');
+        phantoms.add(
+          PhantomRecord(
+            id: id,
+            displayName: row.read<String>('display_name'),
+            emoji: row.readNullable<String>('emoji'),
+            ownTagIds: List<String>.unmodifiable(
+              row.read<List<Object?>>('own_tag_ids'),
+            ),
+            pinState: pinnedIds.contains(id) ? PhantomPinState.pinned : null,
+            inviteCreatedAt: inviteCreatedAt == null
+                ? null
+                : DateTime.parse(inviteCreatedAt).toUtc(),
+            createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+          ),
+        );
+      } else {
+        directContactIds.add(id);
+      }
+    }
+    return (directContactIds: directContactIds, phantoms: phantoms);
   }
 
   /// Bond peers (people sharing a live Request with the viewer) outside
@@ -387,32 +492,6 @@ ORDER BY b.user_id, b.id
     }
     final dst = a.dst.compareTo(b.dst);
     return dst != 0 ? dst : a.tier.compareTo(b.tier);
-  }
-
-  /// People the viewer trusts directly (positive explicit trust, `vote_user`,
-  /// as the friends list reads it), with no block in either direction, in id
-  /// order. Unlike the visible set this needs no MeritRank round trip.
-  Future<List<String>> _directContactIds(String viewerId) async {
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT vu.object AS id
-FROM public.vote_user vu
-INNER JOIN public."user" u ON u.id = vu.object
-WHERE vu.subject = $1
-  AND vu.amount > 0
-  AND vu.object <> $1
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_block ub
-    WHERE (ub.blocker_id = $1 AND ub.blocked_id = vu.object)
-       OR (ub.blocker_id = vu.object AND ub.blocked_id = $1)
-  )
-ORDER BY vu.object
-''',
-          variables: [Variable.withString(viewerId)],
-        )
-        .get();
-    return [for (final row in rows) row.read<String>('id')];
   }
 
   ConstellationFieldRepository get _repo =>
@@ -615,15 +694,16 @@ ORDER BY m.beacon_id, m.person_id
   /// [read]; the caller records them after the snapshot closes.
   List<String> unseenPeerIds = const [];
 
-  /// True when the viewer has no first-seen row at all (the backfill case).
+  /// True when the viewer has yet to complete the initial backfill.
   bool firstSeenBackfill = false;
 
-  /// The peers kept under [kConstellationPeerCap], reserved ones aside:
+  /// The peers kept under [peerBudget], reserved ones aside:
   /// own-tagged > direct contacts > bond / temporary > BFS depth over the
   /// visible trust graph > id.
   Future<({Set<String> ids, bool capped})> _cappedPeerIds({
     required String viewerId,
     required String context,
+    required int peerBudget,
     required List<String> visiblePeerIds,
     required Set<String> reservedPeerIds,
     required Set<String> directContactIds,
@@ -638,7 +718,7 @@ ORDER BY m.beacon_id, m.person_id
       ])
         if (!reservedPeerIds.contains(id)) id,
     };
-    if (candidates.length <= kConstellationPeerCap) {
+    if (candidates.length <= peerBudget) {
       return (ids: candidates, capped: false);
     }
 
@@ -679,7 +759,7 @@ ORDER BY m.beacon_id, m.person_id
         final byDepth = (depth[a] ?? 1 << 30).compareTo(depth[b] ?? 1 << 30);
         return byDepth != 0 ? byDepth : a.compareTo(b);
       });
-    return (ids: ranked.take(kConstellationPeerCap).toSet(), capped: true);
+    return (ids: ranked.take(peerBudget).toSet(), capped: true);
   }
 
   /// The viewer's own tag ids per person among [personIds].
@@ -710,70 +790,50 @@ ORDER BY person_id, tag_id
     return result;
   }
 
-  /// [peers] with the viewer's own tags, automatic tag kinds and first-seen
-  /// time; also notes who has no first-seen row yet.
+  /// [peers] with the viewer's own tags, automatic tags and first-seen times.
   Future<List<ConstellationPeerRecord>> _withPeopleTags(
     String viewerId,
     List<ConstellationPeerRecord> peers,
+    List<String> ids,
+    Map<String, DateTime?> seen,
     DateTime loadedAt,
   ) async {
-    final ids = [
-      for (final peer in peers)
-        if (peer.id != viewerId) peer.id,
-    ];
-    if (ids.isEmpty) {
-      return peers;
-    }
+    if (ids.isEmpty) return peers;
     final own = await _ownTagIds(viewerId, ids);
-    final idsVariable = Variable(TypedValue(Type.textArray, ids));
-    final autoRows = await _database
+    final rows = await _database
         .customSelect(
           r'''
-SELECT peer_id, kind::int AS kind
+SELECT peer_id, kind::int AS kind, NULL::text AS merged_phantom_id
 FROM public.person_auto_tags($1, $2::text[])
+UNION ALL
+SELECT merged_user_id, NULL::int, id
+FROM (
+  SELECT DISTINCT ON (p.merged_user_id) p.merged_user_id, p.id
+  FROM public.phantom p
+  JOIN public.phantom_merge m ON m.id = p.current_merge_id
+    AND m.phantom_id = p.id AND m.owner_id = p.owner_id
+    AND m.user_id = p.merged_user_id AND m.origin = p.merge_origin
+  WHERE p.owner_id = $1 AND p.merged_user_id = ANY($2::text[])
+    AND p.merged_at IS NOT NULL AND m.undone_at IS NULL
+  ORDER BY p.merged_user_id, p.merged_at DESC, p.id
+) current_merges
 ORDER BY peer_id, kind
 ''',
-          variables: [Variable.withString(viewerId), idsVariable],
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, ids)),
+          ],
         )
         .get();
     final auto = <String, Set<int>>{};
-    for (final row in autoRows) {
-      (auto[row.read<String>('peer_id')] ??= {}).add(row.read<int>('kind'));
-    }
-    final seenRows = await _database
-        .customSelect(
-          r'''
-SELECT peer_id,
-       CASE WHEN isfinite(first_seen_at) THEN first_seen_at END AS seen_at
-FROM public.person_field_first_seen
-WHERE viewer_id = $1 AND peer_id = ANY($2::text[])
-''',
-          variables: [Variable.withString(viewerId), idsVariable],
-        )
-        .get();
-    final seen = {
-      for (final row in seenRows)
-        row.read<String>('peer_id'): readCustomSelectTimestamptz(
-          row.data['seen_at'],
-        ),
-    };
-    unseenPeerIds = [
-      for (final id in ids)
-        if (!seen.containsKey(id)) id,
-    ];
-    if (unseenPeerIds.isNotEmpty) {
-      firstSeenBackfill =
-          !(await _database
-                  .customSelect(
-                    r'''
-SELECT EXISTS (
-  SELECT 1 FROM public.person_field_first_seen WHERE viewer_id = $1
-) AS present
-''',
-                    variables: [Variable.withString(viewerId)],
-                  )
-                  .getSingle())
-              .read<bool>('present');
+    final mergedIds = <String, String>{};
+    for (final row in rows) {
+      final peerId = row.read<String>('peer_id');
+      if (row.readNullable<String>('merged_phantom_id') case final phantomId?) {
+        mergedIds[peerId] = phantomId;
+      } else {
+        (auto[peerId] ??= {}).add(row.read<int>('kind'));
+      }
     }
     // The first response already shows later arrivals as New, even though
     // their first-seen rows are written after this read-only snapshot closes.
@@ -793,8 +853,93 @@ SELECT EXISTS (
             ownTagIds: own[peer.id] ?? const [],
             autoTagKinds: (auto[peer.id] ?? const <int>{}).toList(),
             firstSeenAt: seen[peer.id],
+            mergedPhantomId: mergedIds[peer.id],
           ),
     ];
+  }
+
+  Future<(Map<String, DateTime?>, List<ConstellationLinkHint>)>
+  _readFirstSeenAndLinkHints(
+    String viewerId,
+    List<String> shownPeerIds,
+    Set<String> population,
+    DateTime loadedAt,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+WITH initialization AS (
+  SELECT COALESCE((
+    SELECT backfill_pending FROM public.person_field_first_seen_init
+    WHERE viewer_id = $1
+  ), true) AS pending
+), named_phantoms AS (
+  SELECT id, created_at,
+         substring(lower(display_name) FROM '^[[:space:]]*([^[:space:]]+)') AS first_name
+  FROM public.phantom
+  WHERE owner_id = $1 AND merged_at IS NULL
+), sightings AS (
+  SELECT s.peer_id,
+         CASE WHEN isfinite(s.first_seen_at) THEN s.first_seen_at END AS seen_at
+  FROM public.person_field_first_seen s
+  CROSS JOIN initialization i
+  WHERE s.viewer_id = $1
+    AND s.peer_id = ANY(CASE WHEN i.pending THEN $2::text[] ELSE $3::text[] END)
+), hints AS (
+  SELECT p.id AS peer_id, h.id AS phantom_id
+  FROM named_phantoms h
+  JOIN public."user" p ON p.id = ANY($2::text[])
+  LEFT JOIN public.user_contact c ON c.viewer_id = $1 AND c.subject_id = p.id
+  LEFT JOIN public.person_field_first_seen s ON s.viewer_id = $1 AND s.peer_id = p.id
+  CROSS JOIN initialization i
+  WHERE char_length(h.first_name) >= 2
+    AND h.first_name IN (
+      substring(lower(p.display_name) FROM '^[[:space:]]*([^[:space:]]+)'),
+      substring(lower(c.contact_name) FROM '^[[:space:]]*([^[:space:]]+)')
+    )
+    AND COALESCE(s.first_seen_at, CASE WHEN i.pending
+      THEN '-infinity'::timestamptz ELSE $4::timestamptz END) > h.created_at
+    AND NOT EXISTS (
+      SELECT 1 FROM public.phantom_link_hint_dismissal d
+      WHERE d.phantom_id = h.id AND d.user_id = p.id
+    )
+)
+SELECT i.pending, m.peer_id, m.seen_at, m.phantom_id
+FROM initialization i
+LEFT JOIN (
+  SELECT peer_id, seen_at, NULL::text AS phantom_id FROM sightings
+  UNION ALL
+  SELECT peer_id, NULL::timestamptz, phantom_id FROM hints
+) m ON true
+ORDER BY m.phantom_id, m.peer_id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, population.toList())),
+            Variable(TypedValue(Type.textArray, shownPeerIds)),
+            Variable.withString(loadedAt.toIso8601String()),
+          ],
+        )
+        .get();
+    // The outer join returns the marker even when there are no peers.
+    firstSeenBackfill = rows.first.read<bool>('pending');
+    final seen = <String, DateTime?>{};
+    final linkHints = <ConstellationLinkHint>[];
+    for (final row in rows) {
+      final peerId = row.readNullable<String>('peer_id');
+      if (peerId == null) continue;
+      final phantomId = row.readNullable<String>('phantom_id');
+      if (phantomId == null) {
+        seen[peerId] = readCustomSelectTimestamptz(row.data['seen_at']);
+      } else {
+        linkHints.add((phantomId: phantomId, userId: peerId));
+      }
+    }
+    unseenPeerIds = [
+      for (final id in firstSeenBackfill ? population : shownPeerIds)
+        if (!seen.containsKey(id)) id,
+    ];
+    return (seen, linkHints);
   }
 
   Future<List<ConstellationRequestRecord>> _ownRequests({

@@ -12,7 +12,7 @@ abstract class InvitationRepositoryPort {
     String? parentForwardEdgeId,
   });
 
-  /// Renames the addressee of the caller's own, still unconsumed invite.
+  /// Renames the addressee of the caller's own, unconsumed ordinary invite.
   /// Throws `IdNotFoundException` when no such invite exists.
   Future<InvitationEntity> updateAddresseeName({
     required String invitationId,

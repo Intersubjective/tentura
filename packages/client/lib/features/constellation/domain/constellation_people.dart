@@ -82,12 +82,14 @@ List<ConstellationFieldPerson> constellationFieldPeople({
 
 /// Whether [person] matches a name search: every word of [query] is found,
 /// ignoring case (and «ё» vs «е»), in the name or the handle.
-bool constellationPersonMatches(ConstellationFieldPerson person, String query) {
+bool constellationPersonMatches(
+  ConstellationFieldPerson person,
+  String query,
+) => constellationNameMatches('${person.name} ${person.handle ?? ''}', query);
+
+bool constellationNameMatches(String name, String query) {
   final words = _fold(query).split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
-  if (words.isEmpty) {
-    return true;
-  }
-  final haystack = _fold('${person.name} ${person.handle ?? ''}');
+  final haystack = _fold(name);
   return words.every(haystack.contains);
 }
 

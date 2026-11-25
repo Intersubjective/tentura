@@ -59,6 +59,7 @@ final class MutationInvitation extends GqlNodeBase {
         .accept(
           invitationId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
+          reportExpiry: true,
         )
         .then((result) => result.isConsumed),
   );

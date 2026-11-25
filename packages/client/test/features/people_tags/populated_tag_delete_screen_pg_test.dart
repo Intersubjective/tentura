@@ -218,10 +218,11 @@ void main() {
             expect(find.text('Neighbours'), findsNothing);
             expect(peopleTags.peopleInTag(id), isEmpty);
             expect(repository.deletedSnapshot!.tag.count, repository.tag.count);
-            expect(repository.deletedSnapshot!.memberIds, [
-              repository.memberId,
-            ]);
-            expect(repository.deletedSnapshot!.sources, [2]);
+            final member = repository.deletedSnapshot!.members.single;
+            expect(member.kind, PersonTagSnapshotMemberKind.person);
+            expect(member.id, repository.memberId);
+            expect(member.source, 2);
+            expect(member.membershipId, isNotEmpty);
 
             await tester.tap(find.text(l10n.peopleTagsUndo));
             await tester.pumpAndSettle();

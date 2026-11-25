@@ -23,7 +23,7 @@ void main() {
 
   group('web bootstrap versions are assigned at build time', () {
     test(
-      'the coordinated client release stamps its version into the built bootstrap URL',
+      'the current client release stamps its version into the built bootstrap URL',
       () async {
         final packageVersion = Pubspec.parse(
           _sourcePubspec.readAsStringSync(),
@@ -60,11 +60,21 @@ void main() {
             'build/web',
           ]),
         );
+        final bootstrapVersion = _bootstrapVersion(
+          fixture.file('build/web/index.html').readAsStringSync(),
+        );
+        expect(bootstrapVersion, packageVersion);
+        final manifest =
+            jsonDecode(
+                  fixture.file('build/web/manifest.json').readAsStringSync(),
+                )
+                as Map<String, dynamic>;
         expect(
-          _bootstrapVersion(
-            fixture.file('build/web/index.html').readAsStringSync(),
+          (
+            bootstrap: bootstrapVersion,
+            manifest: manifest['version'],
           ),
-          '7.65.0',
+          (bootstrap: '7.69.1', manifest: '7.69.1'),
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),

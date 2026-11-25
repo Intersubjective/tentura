@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/data/gql/_g/image_model_v2.data.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -81,8 +82,37 @@ ConstellationField mapConstellationFieldFromFieldFetch(
   peersCapped: payload.peersCapped,
   requestsCapped: payload.requestsCapped,
   directContactIds: payload.directContactIds.toList(growable: false),
+  phantoms:
+      payload.phantoms?.map(_mapPhantom).toList(growable: false) ?? const [],
+  linkHints:
+      payload.linkHints
+          ?.map((hint) => (phantomId: hint.phantomId, userId: hint.userId))
+          .toList(growable: false) ??
+      const [],
   anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
 );
+
+Phantom _mapPhantom(
+  GConstellationFieldFetchData_constellationField_phantoms row,
+) {
+  final pinState = row.pinState;
+  final inviteState = PhantomInviteState.values.byName(row.inviteState);
+  final inviteCreatedAt = row.inviteCreatedAt;
+  return Phantom(
+    id: row.id,
+    displayName: row.displayName,
+    emoji: row.emoji,
+    hasPrivateAvatar: row.hasPrivateAvatar,
+    ownTagIds: row.ownTagIds.toList(growable: false),
+    pinState: pinState == null ? null : PhantomPinState.values.byName(pinState),
+    inviteState: inviteState,
+    inviteCreatedAt:
+        inviteState == PhantomInviteState.live && inviteCreatedAt != null
+        ? DateTime.parse(inviteCreatedAt).toUtc()
+        : null,
+    createdAt: DateTime.parse(row.createdAt).toUtc(),
+  );
+}
 
 List<ConstellationMemberWeb> mapBeaconMemberWebs(
   Iterable<GBeaconMemberWebsData_beaconMemberWebs> webs,
@@ -136,6 +166,7 @@ ConstellationPerson _mapPersonFields({
   String? temporaryBeaconId,
   Iterable<({String beaconId, String title})> bondContexts = const [],
   bool isNew = false,
+  String? mergedPhantomId,
 }) => ConstellationPerson(
   id: id,
   pinState: pinState,
@@ -154,6 +185,7 @@ ConstellationPerson _mapPersonFields({
   handle: handle,
   image: image?.asEntity,
   isNew: isNew,
+  mergedPhantomId: mergedPhantomId,
 );
 
 ConstellationFieldMembership _membershipFromWire(String? presence) =>
@@ -168,6 +200,7 @@ ConstellationPerson _mapFieldFetchPerson(
   id: peer.id,
   pinState: peer.pinState,
   contactOnly: peer.contactOnly,
+  mergedPhantomId: peer.mergedPhantomId,
   visible: !peer.contactOnly,
   presence: peer.presence,
   temporaryBeaconId: peer.temporaryBeaconId,
@@ -530,15 +563,7 @@ ConstellationAnchor _mapWireAnchor({
   required String revision,
   required String placedAt,
 }) {
-  final target = ConstellationAnchorTarget.tryFromWire(
-    kindWire: targetKind.name,
-    targetId: targetId,
-  );
-  if (target == null) {
-    throw FormatException(
-      'Malformed constellation anchor target kind: ${targetKind.name}',
-    );
-  }
+  final target = mapWireAnchorTarget(targetKind, targetId);
   final positionValidation = ConstellationAnchorPosition.validate(
     xUnits: xUnits,
     yUnits: yUnits,
@@ -578,9 +603,13 @@ Gv2_ConstellationProjection projectionToWire(
 
 Gv2_ConstellationAnchorTargetKind targetKindToWire(
   ConstellationAnchorTargetKind kind,
-) => switch (kind) {
-  ConstellationAnchorTargetKind.person =>
-    Gv2_ConstellationAnchorTargetKind.PERSON,
-  ConstellationAnchorTargetKind.beacon =>
-    Gv2_ConstellationAnchorTargetKind.BEACON,
-};
+) => Gv2_ConstellationAnchorTargetKind.valueOf(kind.wireValue);
+
+ConstellationAnchorTarget mapWireAnchorTarget(
+  Gv2_ConstellationAnchorTargetKind kind,
+  String id,
+) =>
+    ConstellationAnchorTarget.tryFromWire(kindWire: kind.name, targetId: id) ??
+    (throw FormatException(
+      'Malformed constellation anchor target kind: ${kind.name}',
+    ));

@@ -160,53 +160,90 @@ class ConstellationAppBarRow extends StatelessWidget {
       );
     }
 
-    // On a phone (#659) the bar keeps the title, the person search and a
-    // full-size Map/List toggle; everything else goes into a menu.
+    final createButton = composer == null
+        ? null
+        : PopupMenuButton<ConstellationCreateAction>(
+            key: const Key('constellation.app_bar.create_here'),
+            tooltip: l10n.constellationCreateHere,
+            icon: const Icon(Icons.add),
+            popUpAnimationStyle: AnimationStyle.noAnimation,
+            itemBuilder: (_) => constellationCreateMenuItems(
+              l10n,
+              phantomsEnabled: cubit.phantomsEnabled,
+            ),
+            onSelected: (action) => unawaited(
+              startConstellationCreate(
+                context,
+                action: action,
+                cubit: cubit,
+                composer: composer,
+              ),
+            ),
+          );
     if (context.windowClass == WindowClass.compact) {
-      return Row(
-        children: [
-          // Never cut to "F…": a title that does not fit is scaled down
-          // whole instead — but only at the default text size. Under a
-          // larger system text size shrinking it would undo the reader's
-          // choice, so it keeps that size and ellipsizes.
-          Expanded(
-            child:
-                MediaQuery.textScalerOf(context).scale(1) >
-                    _kTitleShrinkMaxTextScale
-                ? Text(
-                    l10n.constellationTitle,
-                    style: theme.textTheme.titleLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      l10n.constellationTitle,
-                      style: theme.textTheme.titleLarge,
-                      maxLines: 1,
-                    ),
-                  ),
-          ),
-          Visibility(
-            visible: showLegend,
-            maintainSize: true,
-            maintainAnimation: true,
-            maintainState: true,
-            child: const ConstellationPersonSearchButton(),
-          ),
-          // Not Flexible: the toggle keeps its own (icon-only) size.
-          _ConstellationViewModeToggle(
-            viewMode: state.viewMode,
-            onChanged: cubit.setViewMode,
-          ),
-          _ConstellationOverflowMenu(
-            showMapActions: showLegend,
-            legendExpanded: legendExpanded,
-            onToggleLegend: onToggleLegend,
-          ),
-        ],
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final textScaler = MediaQuery.textScalerOf(context);
+          final titleStyle = theme.textTheme.titleLarge;
+          // Reserve the title and the five touch targets (search, both
+          // view modes, create and overflow) before showing create inline.
+          final showCreateInline =
+              createButton != null &&
+              cubit.phantomsEnabled &&
+              constraints.maxWidth >=
+                  5 * kMinInteractiveDimension +
+                      _measureTextWidth(
+                        l10n.constellationTitle,
+                        titleStyle,
+                        textScaler,
+                        Directionality.of(context),
+                      );
+          return Row(
+            children: [
+              // Never cut to "F…": a title that does not fit is scaled down
+              // whole instead — but only at the default text size. Under a
+              // larger system text size shrinking it would undo the reader's
+              // choice, so it keeps that size and ellipsizes.
+              Expanded(
+                child: textScaler.scale(1) > _kTitleShrinkMaxTextScale
+                    ? Text(
+                        l10n.constellationTitle,
+                        style: titleStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          l10n.constellationTitle,
+                          style: titleStyle,
+                          maxLines: 1,
+                        ),
+                      ),
+              ),
+              Visibility(
+                visible: showLegend,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: const ConstellationPersonSearchButton(),
+              ),
+              // Not Flexible: the toggle keeps its own (icon-only) size.
+              _ConstellationViewModeToggle(
+                viewMode: state.viewMode,
+                onChanged: cubit.setViewMode,
+              ),
+              if (showCreateInline) createButton,
+              _ConstellationOverflowMenu(
+                showMapActions: showLegend,
+                showCreate: createButton != null && !showCreateInline,
+                legendExpanded: legendExpanded,
+                onToggleLegend: onToggleLegend,
+              ),
+            ],
+          );
+        },
       );
     }
 
@@ -261,25 +298,7 @@ class ConstellationAppBarRow extends StatelessWidget {
           maintainState: true,
           child: const ConstellationSelectionToggle(),
         ),
-        if (composer != null)
-          PopupMenuButton<BeaconKind>(
-            key: const Key('constellation.app_bar.create_here'),
-            tooltip: l10n.constellationCreateHere,
-            icon: const Icon(Icons.add),
-            popUpAnimationStyle: AnimationStyle.noAnimation,
-            itemBuilder: (_) => constellationCreateMenuItems(l10n),
-            onSelected: (kind) {
-              final controller = cubit.graphController;
-              final size = controller.viewportSize;
-              if (size == null) {
-                return;
-              }
-              composer.start(
-                kind,
-                controller.viewportLocalToScene(size.center(Offset.zero)),
-              );
-            },
-          ),
+        ?createButton,
         SemanticsFreeTooltip(
           message: l10n.constellationFiltersOpen,
           child: IconButton(
@@ -419,26 +438,32 @@ class _ConstellationViewModeToggle extends StatelessWidget {
     // Two segments + divider + outer padding allowance.
     const chrome = 48.0;
     final mapW =
-        _measure(mapLabel, style, textScaler, textDirection) + iconSize + gap;
+        _measureTextWidth(mapLabel, style, textScaler, textDirection) +
+        iconSize +
+        gap;
     final textW =
-        _measure(textLabel, style, textScaler, textDirection) + iconSize + gap;
+        _measureTextWidth(textLabel, style, textScaler, textDirection) +
+        iconSize +
+        gap;
     return mapW + textW + chrome <= maxWidth;
   }
+}
 
-  static double _measure(
-    String text,
-    TextStyle style,
-    TextScaler textScaler,
-    TextDirection textDirection,
-  ) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: textDirection,
-      textScaler: textScaler,
-      maxLines: 1,
-    )..layout();
-    return painter.width;
-  }
+double _measureTextWidth(
+  String text,
+  TextStyle? style,
+  TextScaler textScaler,
+  TextDirection textDirection,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: textDirection,
+    textScaler: textScaler,
+    maxLines: 1,
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
 }
 
 enum _ConstellationOverflowAction { legend, select, createHere, filters }
@@ -448,11 +473,13 @@ enum _ConstellationOverflowAction { legend, select, createHere, filters }
 class _ConstellationOverflowMenu extends StatelessWidget {
   const _ConstellationOverflowMenu({
     required this.showMapActions,
+    required this.showCreate,
     required this.legendExpanded,
     required this.onToggleLegend,
   });
 
   final bool showMapActions;
+  final bool showCreate;
   final bool legendExpanded;
   final VoidCallback onToggleLegend;
 
@@ -529,7 +556,7 @@ class _ConstellationOverflowMenu extends StatelessWidget {
             label: l10n.constellationArrangeEntry,
             checked: selection.state.arranging,
           ),
-        if (composer != null)
+        if (showCreate)
           item(
             menuContext,
             action: _ConstellationOverflowAction.createHere,
@@ -567,31 +594,12 @@ class _ConstellationOverflowMenu extends StatelessWidget {
     required ConstellationComposerCubit? composer,
   }) async {
     final box = context.findRenderObject();
-    final overlay = Overlay.of(context).context.findRenderObject();
-    if (composer == null || box is! RenderBox || overlay is! RenderBox) {
-      return;
-    }
-    final anchor = box.localToGlobal(
-      box.size.bottomCenter(Offset.zero),
-      ancestor: overlay,
-    );
-    final kind = await showMenu<BeaconKind>(
-      context: context,
-      position: RelativeRect.fromRect(
-        anchor & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      items: constellationCreateMenuItems(L10n.of(context)!),
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-    );
-    final controller = cubit.graphController;
-    final size = controller.viewportSize;
-    if (kind == null || size == null) {
-      return;
-    }
-    composer.start(
-      kind,
-      controller.viewportLocalToScene(size.center(Offset.zero)),
+    if (composer == null || box is! RenderBox) return;
+    await showConstellationCreateMenu(
+      context,
+      cubit: cubit,
+      composer: composer,
+      globalPosition: box.localToGlobal(box.size.bottomCenter(Offset.zero)),
     );
   }
 }

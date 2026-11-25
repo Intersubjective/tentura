@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../l10n/l10n.dart';
-import '../message/common_messages.dart';
-import '../util/copy_text_to_clipboard.dart';
+import '../util/share_link.dart';
 import '../util/ui_utils.dart';
 import '../widget/qr_code.dart';
 
@@ -20,6 +18,7 @@ class ShareCodeDialog extends StatefulWidget {
     required String header,
     // TBD: get id only, build link here
     required Uri link,
+    String? text,
     String? caption,
     Future<String>? captionUpdate,
   }) async {
@@ -30,6 +29,7 @@ class ShareCodeDialog extends StatefulWidget {
       builder: (_) => ShareCodeDialog(
         header: header,
         link: link.toString(),
+        text: text,
         caption: caption,
         captionUpdate: captionUpdate,
         used: used,
@@ -41,6 +41,7 @@ class ShareCodeDialog extends StatefulWidget {
   const ShareCodeDialog({
     required this.header,
     required this.link,
+    this.text,
     this.caption,
     this.captionUpdate,
     this.used,
@@ -49,6 +50,9 @@ class ShareCodeDialog extends StatefulWidget {
 
   final String header;
   final String link;
+
+  /// Complete copy and share payload, including the link, when provided.
+  final String? text;
 
   /// Set to true once the link was copied, shared or selected, or the QR
   /// was shown.
@@ -95,21 +99,6 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
 
   void _markUsed() => widget.used?.value = true;
 
-  Future<void> _copyLink(BuildContext context, L10n l10n) async {
-    _markUsed();
-    final ok = await copyTextToClipboard(link);
-    if (!context.mounted) return;
-    // A refused write said nothing before (#349); the link stays selectable.
-    showSnackBar(
-      context,
-      text:
-          (ok
-                  ? const LinkCopiedToClipboardMessage()
-                  : const LinkCopyFailedMessage())
-              .toL10n(l10n.localeName),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -154,38 +143,24 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
         label: Text(l10n.shareLink),
         onPressed: () async {
           _markUsed();
-          try {
-            final renderObject = context.findRenderObject();
-            final sharePositionOrigin =
-                renderObject is RenderBox && renderObject.hasSize
-                ? renderObject.localToGlobal(Offset.zero) & renderObject.size
-                : null;
-            final result = await SharePlus.instance.share(
-              ShareParams(
-                subject: header,
-                title: l10n.shareLink,
-                uri: Uri.parse(link),
-                mailToFallbackEnabled: false,
-                // iPad popover anchor; optional on other platforms.
-                sharePositionOrigin: sharePositionOrigin,
-              ),
-            );
-            if (context.mounted &&
-                result.status == ShareResultStatus.unavailable) {
-              await _copyLink(context, l10n);
-            }
-          } catch (e) {
-            if (context.mounted) {
-              await _copyLink(context, l10n);
-            }
-          }
+          await shareLink(
+            context,
+            link: link,
+            subject: header,
+            text: widget.text,
+          );
         },
       ),
     );
     final copyButton = OutlinedButton.icon(
       icon: const Icon(Icons.copy_outlined),
       label: Text(l10n.copyToClipboard),
-      onPressed: () => _copyLink(context, l10n),
+      onPressed: () {
+        _markUsed();
+        unawaited(
+          copyShareLink(context, link: link, text: widget.text),
+        );
+      },
     );
 
     final children = linkFirst

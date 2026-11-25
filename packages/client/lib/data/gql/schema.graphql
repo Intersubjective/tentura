@@ -3622,6 +3622,7 @@ type invitation {
 
   """An object relationship"""
   issuer: user
+  phantom_id: String
   updated_at: timestamptz!
   user_id: String!
 }
@@ -3660,6 +3661,7 @@ input invitation_bool_exp {
   invited: user_bool_exp
   invited_id: String_comparison_exp
   issuer: user_bool_exp
+  phantom_id: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_id: String_comparison_exp
 }
@@ -3688,6 +3690,7 @@ type invitation_max_fields {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
@@ -3701,6 +3704,7 @@ type invitation_min_fields {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
@@ -3737,6 +3741,7 @@ input invitation_order_by {
   invited: user_order_by
   invited_id: order_by
   issuer: user_order_by
+  phantom_id: order_by
   updated_at: order_by
   user_id: order_by
 }
@@ -3767,6 +3772,9 @@ enum invitation_select_column {
   invited_id
 
   """column name"""
+  phantom_id
+
+  """column name"""
   updated_at
 
   """column name"""
@@ -3793,6 +3801,7 @@ input invitation_stream_cursor_value_input {
   id: String
   invite_origin: String
   invited_id: String
+  phantom_id: String
   updated_at: timestamptz
   user_id: String
 }
@@ -4105,6 +4114,14 @@ type mutation_root {
   inviteSeedPromptSkip(subjectId: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
+  phantomCreate(name: String!, emoji: String, position: v2_ConstellationAnchorPositionInput): String!
+  phantomUpdate(id: String!, name: String!, emoji: String): Boolean!
+  phantomDelete(id: String!): Boolean!
+  phantomInviteEnsure(id: String!): String!
+  phantomInviteRotate(id: String!): String!
+  phantomLink(phantomId: String!, userId: String!): Boolean!
+  phantomUnmerge(mergeId: String, phantomId: String!): Boolean!
+  phantomHintDismiss(phantomId: String!, userId: String!): Boolean!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
   postClose(id: String!): Boolean!
   postLeave(id: String!): Boolean!
@@ -8307,6 +8324,7 @@ type v2_ConstellationAnchorProjection {
 enum v2_ConstellationAnchorTargetKind {
   BEACON
   PERSON
+  PHANTOM
 }
 
 type v2_ConstellationLayoutSnapshotAnchor {
@@ -8361,9 +8379,29 @@ type v2_ConstellationField {
   memberWebs: [v2_ConstellationMemberWeb!]!
   peers: [v2_ConstellationPeer!]!
   peersCapped: Boolean!
+  # Older snapshot payloads may omit this additive field.
+  phantoms: [v2_ConstellationPhantom!]
+  linkHints: [v2_ConstellationLinkHint!]
   posts: [v2_ConstellationPost!]!
   requests: [v2_ConstellationRequest!]!
   requestsCapped: Boolean!
+}
+
+type v2_ConstellationLinkHint {
+  phantomId: String!
+  userId: String!
+}
+
+type v2_ConstellationPhantom {
+  id: String!
+  displayName: String!
+  emoji: String
+  hasPrivateAvatar: Boolean!
+  ownTagIds: [String!]!
+  pinState: String
+  inviteState: String!
+  inviteCreatedAt: String
+  createdAt: String!
 }
 
 type v2_ConstellationMemberWeb {
@@ -8383,6 +8421,7 @@ type v2_ConstellationBondContext {
 }
 
 type v2_ConstellationPeer {
+  mergedPhantomId: String
   bondContexts: [v2_ConstellationBondContext!]!
   contactOnly: Boolean!
   displayName: String
@@ -8737,15 +8776,27 @@ type v2_PersonTagMembers {
 }
 
 type v2_PersonTagSnapshot {
-  memberIds: [String!]!
-  sources: [Int!]!
+  members: [v2_PersonTagSnapshotMember!]!
   tag: v2_PersonTag!
 }
 
 input v2_PersonTagSnapshotInput {
-  memberIds: [String!]!
-  sources: [Int!]!
+  members: [v2_PersonTagSnapshotMemberInput!]!
   tag: v2_PersonTagInput!
+}
+
+type v2_PersonTagSnapshotMember {
+  id: String!
+  kind: String!
+  membershipId: String!
+  source: Int!
+}
+
+input v2_PersonTagSnapshotMemberInput {
+  id: String!
+  kind: String!
+  membershipId: String!
+  source: Int!
 }
 
 type v2_PersonTagSuggestionState {

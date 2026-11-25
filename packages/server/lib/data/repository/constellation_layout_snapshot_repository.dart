@@ -281,6 +281,7 @@ WHERE viewer_id = \$1 AND client_op_id = \$2
     String clientOpId,
     List<ConstellationLayoutSnapshotAnchor> anchors,
   ) async {
+    final resolved = await _resolveAnchors(viewerId, anchors);
     await lockConstellationViewerCursor(_db, viewerId);
     await insertConstellationLayoutSnapshot(
       _db,
@@ -289,7 +290,69 @@ WHERE viewer_id = \$1 AND client_op_id = \$2
       reason: ConstellationLayoutSnapshotReason.restore,
       clientOpId: clientOpId,
     );
-    await _applyAnchors(viewerId, anchors);
+    await _applyAnchors(viewerId, resolved);
+  }
+
+  Future<List<ConstellationLayoutSnapshotAnchor>> _resolveAnchors(
+    String viewerId,
+    List<ConstellationLayoutSnapshotAnchor> anchors,
+  ) async {
+    const phantomKind = ConstellationAnchorTargetKind.phantom;
+    final phantomIds = [
+      for (final anchor in anchors)
+        if (anchor.targetKind == phantomKind) anchor.targetId,
+    ];
+    final targetsByPhantomId = <String, ConstellationAnchorTarget>{};
+    if (phantomIds.isNotEmpty) {
+      final rows = await _db
+          .customSelect(
+            r'''
+SELECT id, merged_at IS NULL AS active, merged_user_id
+FROM public.phantom
+WHERE owner_id = $1 AND id = ANY($2::text[])
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable(TypedValue(Type.textArray, phantomIds)),
+            ],
+          )
+          .get();
+      for (final row in rows) {
+        final id = row.read<String>('id');
+        if (row.read<bool>('active')) {
+          targetsByPhantomId[id] = ConstellationAnchorPhantomTarget(id);
+        } else if (row.readNullable<String>('merged_user_id')
+            case final userId?) {
+          targetsByPhantomId[id] = ConstellationAnchorPersonTarget(userId);
+        }
+      }
+    }
+
+    final resolved =
+        <
+          (ConstellationAnchorTargetKind, String),
+          ConstellationLayoutSnapshotAnchor
+        >{};
+    for (final anchor in anchors) {
+      if (anchor.targetKind != phantomKind) {
+        resolved.putIfAbsent((
+          anchor.targetKind,
+          anchor.targetId,
+        ), () => anchor);
+        continue;
+      }
+      final target = targetsByPhantomId[anchor.targetId];
+      if (target == null) continue;
+      // The saved phantom position takes precedence regardless of input order.
+      resolved[(target.kind, target.id)] = ConstellationLayoutSnapshotAnchor(
+        targetKind: target.kind,
+        targetId: target.id,
+        x: anchor.x,
+        y: anchor.y,
+        coordinateSpaceVersion: anchor.coordinateSpaceVersion,
+      );
+    }
+    return resolved.values.toList();
   }
 
   /// Makes the live anchors equal [anchors] for targets that still exist and
@@ -352,12 +415,13 @@ RETURNING a.target_kind, a.target_id
         .customSelect(
           r'''
 INSERT INTO public.constellation_anchor (
-  id, viewer_id, person_id, beacon_id,
+  id, viewer_id, person_id, beacon_id, phantom_id,
   x_units, y_units, coordinate_space_version, revision, placed_at
 )
 SELECT s.new_id, $1,
        CASE WHEN s.kind = 'person' THEN s.id END,
        CASE WHEN s.kind = 'beacon' THEN s.id END,
+       CASE WHEN s.kind = 'phantom' THEN s.id END,
        s.x, s.y, s.cs, 0, 'epoch'::timestamptz
 FROM unnest($2::text[], $3::text[], $4::double precision[],
             $5::double precision[], $6::integer[], $7::text[])
@@ -367,6 +431,7 @@ WHERE (
       SELECT 1 FROM public."user" u WHERE u.id = s.id))
     OR (s.kind = 'beacon' AND EXISTS (
       SELECT 1 FROM public.beacon b WHERE b.id = s.id))
+    OR s.kind = 'phantom'
   )
   AND NOT EXISTS (
     SELECT 1 FROM public.constellation_anchor a

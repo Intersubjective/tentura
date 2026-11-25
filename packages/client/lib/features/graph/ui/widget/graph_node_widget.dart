@@ -241,6 +241,14 @@ class GraphNodeWidget extends StatelessWidget {
         beacon: constellationRequestAsIdentityBeacon(request),
         size: nodeDetails.size,
       ),
+      FieldPhantomNode(:final phantom) => CircleAvatar(
+        radius: nodeDetails.size / 2,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+        child: switch (phantom.emoji) {
+          final emoji? when emoji.isNotEmpty => Text(emoji),
+          _ => Icon(Icons.person_outline, size: nodeDetails.size / 2),
+        },
+      ),
       FieldBeaconNode() || FieldDraftNode() => CircleAvatar(
         radius: nodeDetails.size / 2,
         child: Icon(

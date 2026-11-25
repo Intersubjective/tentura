@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import '../common_fields.dart';
 import 'beacon_forward_edges.dart';
 import 'beacons.dart';
+import 'phantoms.dart';
 import 'users.dart';
 
 class Invitations extends Table with TimestampsFields {
@@ -22,6 +23,12 @@ class Invitations extends Table with TimestampsFields {
   late final parentForwardEdgeId = text()
       .nullable()
       .references(BeaconForwardEdges, #id)();
+
+  late final phantomId = text().nullable().references(
+    Phantoms,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
 
   /// Inviter's private name for the invitee; copied to `user_contact` on
   /// consumption. Nullable for legacy rows only — required for new invites.

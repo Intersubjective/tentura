@@ -8,6 +8,33 @@ const _scrubbedHeaderKeys = {
   'set-cookie',
 };
 
+final _phantomMutation = RegExp(
+  r'\bphantom(?:Create|Update|Delete|InviteEnsure|InviteRotate|Link|Unmerge|HintDismiss)\b',
+  caseSensitive: false,
+);
+
+Breadcrumb? scrubPhantomBreadcrumb(Breadcrumb? breadcrumb, Hint _) {
+  if (breadcrumb == null) return null;
+
+  final operationName = breadcrumb.data?['operationName'];
+  final operation =
+      (operationName is String
+          ? _phantomMutation.firstMatch(operationName)
+          : null) ??
+      _phantomMutation.firstMatch(breadcrumb.message ?? '');
+  if (operation == null) return breadcrumb;
+
+  // Either payload field can contain variables, so retain only the known
+  // mutation name and the breadcrumb's metadata.
+  return Breadcrumb(
+    message: operation.group(0),
+    timestamp: breadcrumb.timestamp,
+    category: breadcrumb.category,
+    level: breadcrumb.level,
+    type: breadcrumb.type,
+  );
+}
+
 SentryEvent? scrubAndFilterSentryEvent(SentryEvent event, Hint hint) {
   if (isBenignSentryEvent(event, hint)) {
     return null;

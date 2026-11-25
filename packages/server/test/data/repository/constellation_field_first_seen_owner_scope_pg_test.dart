@@ -250,10 +250,12 @@ FROM public.person_field_first_seen WHERE viewer_id = @viewer
         );
         // Reset the first-read fixture so both phases write for the same viewer.
         await writer.execute(
-          Sql.named(
-            'DELETE FROM public.person_field_first_seen '
-            'WHERE viewer_id = @viewer',
-          ),
+          Sql.named('''
+WITH reset_marker AS (
+  DELETE FROM public.person_field_first_seen_init WHERE viewer_id = @viewer
+)
+DELETE FROM public.person_field_first_seen WHERE viewer_id = @viewer
+'''),
           parameters: {'viewer': _viewer},
         );
         expect(

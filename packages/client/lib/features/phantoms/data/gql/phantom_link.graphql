@@ -1,0 +1,3 @@
+mutation PhantomLink($phantomId: String!, $userId: String!) {
+  phantomLink(phantomId: $phantomId, userId: $userId)
+}

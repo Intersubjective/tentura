@@ -522,9 +522,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       _canvasLongPressTimer = Timer(kLongPressTimeout, () {
         _canvasLongPressed = true;
         final position = _controller.viewportLocalToScene(_canvasDownViewport!);
-        if (!_liftFromCanvasHold(position)) {
-          _configuration.onCanvasLongPress?.call(position);
-        }
+        if (_liftFromCanvasHold(position)) return;
+        final onLongPress = _configuration.onCanvasLongPress;
+        if (onLongPress == null) return;
+        // The action can open an overlay that receives the pointer release.
+        // The hold is complete, so the next press starts on its own.
+        _activePointers.remove(event.pointer);
+        _cancelCanvasPress();
+        onLongPress(position);
       });
     }
   }

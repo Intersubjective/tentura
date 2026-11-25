@@ -96,7 +96,8 @@ class InvitationRepository implements InvitationRepositoryPort {
               (t) =>
                   t.id.equals(invitationId) &
                   t.userId.equals(userId) &
-                  t.invitedId.isNull(),
+                  t.invitedId.isNull() &
+                  t.phantomId.isNull(),
             ))
             .writeReturning(
               InvitationsCompanion(

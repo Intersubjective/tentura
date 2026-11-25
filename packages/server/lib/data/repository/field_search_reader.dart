@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 
 import '../database/tentura_db.dart';
 import 'constellation_field_repository.dart';
+import 'field_population_sql.dart';
 
 /// Closed Requests are those the Field lists only when closed ones are on.
 final _closedRequestStatuses = kConstellationShowClosedFieldBeaconStatuses
@@ -152,17 +153,7 @@ ORDER BY page.activity_at DESC, page.id DESC
         ];
         final people = await _database.customSelect(
           '''
-WITH visible AS MATERIALIZED (
-  SELECT unnest(public.person_visible_peer_ids_tx(\$1, \$2)) AS id
-), bond AS MATERIALIZED (
-  SELECT peer_id AS id FROM public.person_bond_peers(\$1)
-), temporary AS MATERIALIZED (
-  SELECT peer_id AS id FROM public.person_temporary_forward_peers(\$1)
-), population AS (
-  SELECT id FROM visible UNION SELECT id FROM bond UNION SELECT id FROM temporary
-  UNION SELECT object FROM public.vote_user WHERE subject = \$1 AND amount > 0
-  UNION SELECT \$1
-), profiles AS (
+WITH $fieldPopulationCtesSql, profiles AS (
   SELECT u.id, u.display_name,
     CASE WHEN u.id = \$1 OR u.id IN (SELECT id FROM visible UNION SELECT id FROM bond UNION SELECT id FROM temporary)
       THEN u.handle END AS handle

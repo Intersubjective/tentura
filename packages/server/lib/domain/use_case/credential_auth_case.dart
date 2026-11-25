@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -25,6 +26,7 @@ final class CredentialAuthCase extends UseCaseBase {
     this._invitationCase, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
@@ -35,6 +37,7 @@ final class CredentialAuthCase extends UseCaseBase {
   final InvitationRepositoryPort _invitationRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final PhantomMergeWakePort _phantomMergeWake;
   final InvitationCase _invitationCase;
 
   /// Returns the account id after login or signup. `isNewAccount` is true only
@@ -230,6 +233,9 @@ final class CredentialAuthCase extends UseCaseBase {
       );
     }
     final (accountId, requestLapsed) = accepted;
+    if (invitation?.phantomId != null) {
+      await _phantomMergeWake.wake(inviteId);
+    }
     if (requestLapsed) onRequestLapsed?.call();
     return (accountId: accountId, isNewAccount: true);
   }

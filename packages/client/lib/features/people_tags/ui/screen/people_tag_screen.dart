@@ -9,6 +9,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
+import 'package:tentura/features/phantoms/ui/widget/phantom_field_builder.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
 
@@ -54,7 +56,7 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
 
   void _loadProfiles() => unawaited(
     _run(() async {
-      final people = _peopleTags.peopleInTag(widget.tagId);
+      final people = _accountMemberIds;
       final inviterIds = {
         for (final id in people) _peopleTags.inheritedFrom(widget.tagId, id),
       }.whereType<String>();
@@ -97,16 +99,30 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
     ),
   );
 
+  // The membership wire index contains both account IDs and private person
+  // IDs. Only account IDs go through the public profile lookup.
+  Iterable<String> get _accountMemberIds =>
+      _peopleTags.peopleInTag(widget.tagId).where((id) => !id.startsWith('PH'));
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PhantomFieldBuilder(
+    builder: (context, field) =>
+        _buildMembers(context, field?.phantoms ?? const []),
+  );
+
+  Widget _buildMembers(BuildContext context, List<Phantom> fieldPeople) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return StreamBuilder<void>(
       stream: _peopleTags.changes,
       builder: (context, _) {
         final tag = _tag;
-        final people = _peopleTags.peopleInTag(widget.tagId).toList()
+        final people = _accountMemberIds.toList()
           ..sort((a, b) => _label(a).compareTo(_label(b)));
+        final phantoms = [
+          for (final person in fieldPeople)
+            if (person.ownTagIds.contains(widget.tagId)) person,
+        ];
         return Scaffold(
           appBar: TenturaTopBar.of(
             context,
@@ -135,7 +151,7 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
                         TagGlyph(glyph: tag.glyph, colorIndex: tag.color),
                       SizedBox(width: tt.rowGap),
                       Text(
-                        '${people.length}',
+                        '${people.length + phantoms.length}',
                         key: const Key('people-tag-count'),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
@@ -189,6 +205,8 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
                         ),
                       ),
                     ),
+                  for (final person in phantoms)
+                    ListTile(title: Text(person.displayName)),
                 ],
               ),
             ),

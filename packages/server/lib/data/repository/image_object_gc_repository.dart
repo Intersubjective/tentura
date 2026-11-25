@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/consts.dart' show kImageExt, kImagesPath;
+import 'package:tentura_server/domain/entity/leased_job_retry.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 
@@ -56,7 +57,7 @@ ON CONFLICT (image_id) DO NOTHING
 WITH due AS (
   SELECT image_id
   FROM public.image_object_gc
-  WHERE attempts < 10
+  WHERE attempts < $4
     AND next_attempt_at <= $2
     AND (lease_until IS NULL OR lease_until <= $2)
   ORDER BY next_attempt_at, enqueued_at, image_id
@@ -75,6 +76,7 @@ RETURNING gc.*
             Variable<String>(leaseOwner),
             Variable(TypedValue(Type.timestampTz, now.toUtc())),
             Variable(TypedValue(Type.integer, limit)),
+            Variable(TypedValue(Type.integer, kLeasedJobMaxAttempts)),
           ],
         )
         .get();

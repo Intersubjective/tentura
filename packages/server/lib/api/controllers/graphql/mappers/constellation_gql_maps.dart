@@ -20,6 +20,24 @@ Map<String, dynamic> constellationFieldToGqlMap(
     snapshot.directContactIds,
     growable: false,
   ),
+  'linkHints': [
+    for (final hint in snapshot.linkHints)
+      {'phantomId': hint.phantomId, 'userId': hint.userId},
+  ],
+  'phantoms': [
+    for (final phantom in snapshot.phantoms)
+      {
+        'id': phantom.id,
+        'displayName': phantom.displayName,
+        'emoji': phantom.emoji,
+        'hasPrivateAvatar': phantom.hasPrivateAvatar,
+        'ownTagIds': phantom.ownTagIds,
+        'pinState': phantom.pinState?.name,
+        'inviteState': phantom.inviteState.name,
+        'inviteCreatedAt': phantom.inviteCreatedAt?.toIso8601String(),
+        'createdAt': phantom.createdAt.toIso8601String(),
+      },
+  ],
   'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
   'memberWebs': snapshot.memberWebs
       .map(constellationMemberWebToGqlMap)
@@ -99,6 +117,7 @@ Map<String, dynamic> constellationAnchorsResetResultToGqlMap(
 
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
+  'mergedPhantomId': peer.mergedPhantomId,
   'pinState': peer.pinState,
   'visible': peer.visible,
   'contactOnly': peer.contactOnly,

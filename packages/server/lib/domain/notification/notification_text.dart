@@ -96,21 +96,32 @@ abstract final class NotificationText {
   }
 
   /// `21 Nov, 18:00` / `21 ноября, 18:00`; year only when it differs from
-  /// the current local year.
+  /// the current local year. With [omitMidnight], exact local midnight is
+  /// displayed as a date without a time.
   static String formatDate(
     DateTime at,
     String locale, {
     required int tzOffsetMinutes,
     required DateTime now,
+    bool omitMidnight = false,
   }) {
     final offset = Duration(minutes: tzOffsetMinutes);
     final local = at.toUtc().add(offset);
     final year = now.toUtc().add(offset).year;
     final month = (_isRu(locale) ? _ruMonths : _enMonths)[local.month - 1];
     final yearPart = local.year == year ? '' : ' ${local.year}';
+    final date = '${local.day} $month$yearPart';
+    if (omitMidnight &&
+        local.hour == 0 &&
+        local.minute == 0 &&
+        local.second == 0 &&
+        local.millisecond == 0 &&
+        local.microsecond == 0) {
+      return date;
+    }
     final hh = local.hour.toString().padLeft(2, '0');
     final mm = local.minute.toString().padLeft(2, '0');
-    return '${local.day} $month$yearPart, $hh:$mm';
+    return '$date, $hh:$mm';
   }
 
   /// A relative duration, never a clock time (plan K16): `15 min`, `1 h 5 min`.

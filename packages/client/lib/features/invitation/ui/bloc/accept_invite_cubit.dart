@@ -106,8 +106,8 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
       _goHome();
       return;
     }
-    final inviter = state.pendingInviter;
-    final beacon = state.pendingBeacon;
+    final pendingInvite = state.pendingInvite;
+    final beacon = pendingInvite?.beacon;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await _repository.acceptExistingInvite(code);
@@ -118,11 +118,17 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
         _postJoinNavigation.setFromBeaconInvite(
           beaconId: beacon.id,
           beaconTitle: beacon.title,
-          inviterName: inviter?.displayName ?? '',
+          inviterName: pendingInvite?.inviter.displayName ?? '',
           showSnackbar: true,
           isPost: beacon.isPost,
         );
         _finishWithMessage(null, navigateToInbox: true);
+      } else if (pendingInvite case (
+        :final inviter,
+        beacon: _,
+        phantomInvite: true,
+      )) {
+        _finishWithMessage(InviteMapConfirmationMessage(inviter.displayName));
       } else {
         _finishWithMessage(const InviteAcceptedMessage());
       }
@@ -160,8 +166,11 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
         emit(
           state.copyWith(
             status: StateStatus.isSuccess,
-            pendingInviter: inviter.toProfile(),
-            pendingBeacon: preview.beacon,
+            pendingInvite: (
+              inviter: inviter.toProfile(),
+              beacon: preview.beacon,
+              phantomInvite: preview.phantomInvite,
+            ),
           ),
         );
     }
@@ -184,8 +193,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
-        pendingInviter: null,
-        pendingBeacon: null,
+        pendingInvite: null,
       ),
     );
   }
@@ -195,8 +203,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
-        pendingInviter: null,
-        pendingBeacon: null,
+        pendingInvite: null,
         pendingSignupCode: null,
       ),
     );
@@ -216,8 +223,13 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(
       state.copyWith(
         status: const StateIsSuccess(),
-        pendingInviter: showLapsedNotice ? inviter.toProfile() : null,
-        pendingBeacon: showLapsedNotice ? beacon : null,
+        pendingInvite: showLapsedNotice
+            ? (
+                inviter: inviter.toProfile(),
+                beacon: beacon,
+                phantomInvite: false,
+              )
+            : null,
         pendingSignupCode: code,
       ),
     );
@@ -228,8 +240,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     emit(
       state.copyWith(
         pendingSignupCode: null,
-        pendingInviter: null,
-        pendingBeacon: null,
+        pendingInvite: null,
       ),
     );
   }

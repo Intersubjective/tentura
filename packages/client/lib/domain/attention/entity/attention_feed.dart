@@ -9,14 +9,17 @@ enum AttentionView { all, unread, needsYou }
 
 enum AttentionSurface {
   myWork,
-  activity;
+  activity,
+  fieldPersonLinks;
 
   static const myWorkWire = 'myWork';
   static const activityWire = 'activity';
+  static const fieldPersonLinksWire = 'fieldPersonLinks';
 
   String get wireName => switch (this) {
     AttentionSurface.myWork => myWorkWire,
     AttentionSurface.activity => activityWire,
+    AttentionSurface.fieldPersonLinks => fieldPersonLinksWire,
   };
 
   static AttentionSurface fromWire(String wire) {
@@ -25,6 +28,8 @@ enum AttentionSurface {
         return AttentionSurface.myWork;
       case activityWire:
         return AttentionSurface.activity;
+      case fieldPersonLinksWire:
+        return AttentionSurface.fieldPersonLinks;
       default:
         return AttentionSurface.activity;
     }
@@ -69,6 +74,7 @@ enum AttentionItemKind {
 abstract final class AttentionFeedDestinationId {
   static const activityStream = 'activity_stream';
   static const history = 'notification_history';
+  static const fieldPersonLinks = 'field_person_links';
 }
 
 /// Repository surface filter for a mounted feed destination.
@@ -78,6 +84,8 @@ AttentionSurface? surfaceForDestination(String destinationId) {
   switch (destinationId) {
     case AttentionFeedDestinationId.activityStream:
       return AttentionSurface.activity;
+    case AttentionFeedDestinationId.fieldPersonLinks:
+      return AttentionSurface.fieldPersonLinks;
     case AttentionFeedDestinationId.history:
       return null;
     default:

@@ -17,6 +17,7 @@ query ConstellationFieldFetch(
     directContactIds
     peers {
       id
+      mergedPhantomId
       pinState
       contactOnly
       presence
@@ -82,6 +83,21 @@ query ConstellationFieldFetch(
       beaconId
       personId
       state
+    }
+    linkHints {
+      phantomId
+      userId
+    }
+    phantoms {
+      id
+      displayName
+      emoji
+      hasPrivateAvatar
+      ownTagIds
+      pinState
+      inviteState
+      inviteCreatedAt
+      createdAt
     }
     anchorProjection {
       revision

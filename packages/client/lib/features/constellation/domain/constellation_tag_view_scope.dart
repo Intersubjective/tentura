@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 
 import 'constellation_tag_filter.dart';
 import 'entity/constellation_field.dart';
@@ -12,12 +13,14 @@ enum ConstellationTagViewOthers { hide, dots, asIs }
 class ConstellationTagViewScope {
   const ConstellationTagViewScope({
     required this.memberIds,
+    this.phantomMemberIds = const {},
     this.hiddenIds = const {},
     this.dotIds = const {},
     this.othersAsIsIds = const {},
   });
 
   final Set<String> memberIds;
+  final Set<String> phantomMemberIds;
   final Set<String> hiddenIds;
   final Set<String> dotIds;
   final Set<String> othersAsIsIds;
@@ -45,26 +48,32 @@ ConstellationTagViewScope resolveConstellationTagViewScope({
   required Iterable<ConstellationPerson> people,
   required Set<String> Function(String personId) ownTagIdsOf,
   required ConstellationTagViewOthers others,
+  Iterable<Phantom> phantoms = const [],
 }) {
   final members = <String>{};
   final rest = <String>{};
   for (final person in people) {
-    (filter.matches(person, ownTagIds: ownTagIdsOf(person.id))
-            ? members
-            : rest)
+    (filter.matches(person, ownTagIds: ownTagIdsOf(person.id)) ? members : rest)
         .add(person.id);
   }
+  final phantomMembers = {
+    for (final person in phantoms)
+      if (filter.matchesPhantom(person)) person.id,
+  };
   return switch (others) {
     ConstellationTagViewOthers.hide => ConstellationTagViewScope(
       memberIds: members,
+      phantomMemberIds: phantomMembers,
       hiddenIds: rest,
     ),
     ConstellationTagViewOthers.dots => ConstellationTagViewScope(
       memberIds: members,
+      phantomMemberIds: phantomMembers,
       dotIds: rest,
     ),
     ConstellationTagViewOthers.asIs => ConstellationTagViewScope(
       memberIds: members,
+      phantomMemberIds: phantomMembers,
       othersAsIsIds: rest,
     ),
   };

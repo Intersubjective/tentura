@@ -35,81 +35,120 @@ const _accountId = 'Uviewer000001';
 void main() {
   testWidgets(
     'an installed client below the announced floor sees the update banner',
-    (
-      tester,
-    ) async {
-      // The server's PostgreSQL-backed websocket test verifies that the deployed
-      // default is sent in this frame. Use that default as wire input here.
-      final serverEnv = File('../server/lib/env.dart').readAsStringSync();
-      final floor = RegExp(
-        "const kDefaultMinClientVersion = '([^']+)';",
-      ).firstMatch(serverEnv)!.group(1)!;
-
-      final socket = _PongSocket();
-      final remote = RemoteApiService(const Env(), socket);
-      final update = AppUpdateCubit(
-        appUpdateRepository: AppUpdateRepository(remote),
-        platformRepository: _InstalledPlatform(),
+    (tester) async {
+      final floor = _defaultServerFloor();
+      expect(
+        await _updateBannerCount(
+          tester,
+          installedVersion: _installedVersion,
+          floor: floor,
+        ),
+        1,
+        reason: 'Client $_installedVersion received min_client_version $floor.',
       );
-      final sync = buildTestRealtimeSync();
-      final realtime = RealtimeStatusCubit.forTesting(
-        sync.case_,
-        pausedDelay: Duration.zero,
-      );
-      final effects = UiEffectBus();
-      final screen = ScreenCubit(effects);
-      final auth = _SignedInAuth();
-      final settings = _AppSettings();
-      final postJoin = PostJoinNavigationCubit();
-      final router = _AppRouter(auth, settings, postJoin);
-      addTearDown(() async {
-        await update.dispose();
-        await remote.close();
-        await realtime.close();
-        await sync.port.dispose();
-        await screen.close();
-      });
-      GetIt.I.pushNewScope(
-        init: (getIt) {
-          getIt
-            ..registerSingleton<RootRouter>(router)
-            ..registerSingleton<AuthCubit>(auth)
-            ..registerSingleton<SettingsCubit>(settings)
-            ..registerSingleton<ProfileCubit>(_UnusedProfile())
-            ..registerSingleton<PresenceCubit>(_UnusedPresence())
-            ..registerSingleton<ScreenCubit>(screen)
-            ..registerSingleton<UiEffectPort>(effects)
-            ..registerSingleton<AppUpdateCubit>(update)
-            ..registerSingleton<RealtimeStatusCubit>(realtime);
-        },
-      );
-      try {
-        await usePhoneSurface(tester);
-        await tester.pumpWidget(const App());
-        await tester.pumpAndSettle();
-        expect(find.text('Signed-in page'), findsOneWidget);
-
-        await remote.bindRealtimeAccount(_accountId);
-        socket.pong(_installedVersion);
-        await tester.pumpAndSettle();
-        expect(find.byType(MaterialBanner), findsNothing);
-
-        socket.pong(floor);
-        await tester.pumpAndSettle();
-        expect(
-          find.text('A new version is available. Please update the app.'),
-          findsOneWidget,
-          reason:
-              'Client $_installedVersion received min_client_version $floor.',
-        );
-      } finally {
-        await tester.pumpWidget(const SizedBox.shrink());
-        router.dispose();
-        await GetIt.I.popScope();
-      }
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  testWidgets(
+    'the default floor prompts the previous client release to update '
+    'and lets the current release continue',
+    (tester) async {
+      final floor = _defaultServerFloor();
+      final current = await _updateBannerCount(
+        tester,
+        installedVersion: '7.69.1',
+        floor: floor,
+      );
+      final previous = await _updateBannerCount(
+        tester,
+        installedVersion: '7.69.0',
+        floor: floor,
+      );
+      expect(
+        (previous: previous, current: current),
+        (previous: 1, current: 0),
+        reason: 'Update banners after receiving min_client_version $floor.',
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
+}
+
+String _defaultServerFloor() {
+  // The server's PostgreSQL-backed websocket test verifies that the deployed
+  // default is sent in this frame. Use that default as wire input here.
+  final serverEnv = File('../server/lib/env.dart').readAsStringSync();
+  return RegExp(
+    "const kDefaultMinClientVersion = '([^']+)';",
+  ).firstMatch(serverEnv)!.group(1)!;
+}
+
+Future<int> _updateBannerCount(
+  WidgetTester tester, {
+  required String installedVersion,
+  required String floor,
+}) async {
+  final socket = _PongSocket();
+  final remote = RemoteApiService(const Env(), socket);
+  final update = AppUpdateCubit(
+    appUpdateRepository: AppUpdateRepository(remote),
+    platformRepository: _InstalledPlatform(installedVersion),
+  );
+  final sync = buildTestRealtimeSync();
+  final realtime = RealtimeStatusCubit.forTesting(
+    sync.case_,
+    pausedDelay: Duration.zero,
+  );
+  final effects = UiEffectBus();
+  final screen = ScreenCubit(effects);
+  final auth = _SignedInAuth();
+  final settings = _AppSettings();
+  final postJoin = PostJoinNavigationCubit();
+  final router = _AppRouter(auth, settings, postJoin);
+  addTearDown(() async {
+    await update.dispose();
+    await remote.close();
+    await realtime.close();
+    await sync.port.dispose();
+    await screen.close();
+  });
+  GetIt.I.pushNewScope(
+    init: (getIt) {
+      getIt
+        ..registerSingleton<RootRouter>(router)
+        ..registerSingleton<AuthCubit>(auth)
+        ..registerSingleton<SettingsCubit>(settings)
+        ..registerSingleton<ProfileCubit>(_UnusedProfile())
+        ..registerSingleton<PresenceCubit>(_UnusedPresence())
+        ..registerSingleton<ScreenCubit>(screen)
+        ..registerSingleton<UiEffectPort>(effects)
+        ..registerSingleton<AppUpdateCubit>(update)
+        ..registerSingleton<RealtimeStatusCubit>(realtime);
+    },
+  );
+  try {
+    await usePhoneSurface(tester);
+    await tester.pumpWidget(const App());
+    await tester.pumpAndSettle();
+    expect(find.text('Signed-in page'), findsOneWidget);
+
+    await remote.bindRealtimeAccount(_accountId);
+    socket.pong(installedVersion);
+    await tester.pumpAndSettle();
+    expect(find.byType(MaterialBanner), findsNothing);
+
+    socket.pong(floor);
+    await tester.pumpAndSettle();
+    return find
+        .text('A new version is available. Please update the app.')
+        .evaluate()
+        .length;
+  } finally {
+    await tester.pumpWidget(const SizedBox.shrink());
+    router.dispose();
+    await GetIt.I.popScope();
+  }
 }
 
 class _PongSocket implements RealtimeSocket, RealtimeSocketFactory {
@@ -142,8 +181,12 @@ class _PongSocket implements RealtimeSocket, RealtimeSocketFactory {
 }
 
 class _InstalledPlatform extends Fake implements PlatformRepositoryPort {
+  _InstalledPlatform(this.version);
+
+  final String version;
+
   @override
-  Future<String> getAppVersion() async => _installedVersion;
+  Future<String> getAppVersion() async => version;
 }
 
 class _SignedInAuth extends Fake implements AuthCubit {

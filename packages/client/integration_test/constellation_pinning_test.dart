@@ -30,6 +30,40 @@ void main() {
     Future<void> journey(String name, Future<void> Function() body) async {
       await runE2eStep(name, body);
     }
+
+    Future<void> expectDeletedPin(
+      String id, {
+      required String pinState,
+      required double x,
+      required double y,
+    }) async {
+      final projection = await fetchConstellationAnchorProjection(
+        showClosed: true,
+      );
+      expect(
+        projection['anchors'],
+        contains(
+          allOf(
+            containsPair('targetKind', 'BEACON'),
+            containsPair('targetId', id),
+            containsPair('xUnits', x),
+            containsPair('yUnits', y),
+          ),
+        ),
+      );
+      expect(
+        projection['pinnedRequests'],
+        contains(
+          allOf(
+            containsPair('id', id),
+            containsPair('pinState', pinState),
+            containsPair('title', isEmpty),
+            containsPair('authorId', isEmpty),
+          ),
+        ),
+      );
+    }
+
     final warmupTitle = uniqueRequestTitle('Constellation warmup');
     final warmupBeaconId = await createPublishedBeacon(title: warmupTitle);
     await forwardBeaconTo(
@@ -129,6 +163,11 @@ void main() {
       expect(personX, isNot(equals(beforePersonX)));
       expect(requestX, isNot(equals(beforeRequestX)));
       expect(personX, isNot(requestX));
+      // The touch drag enters Arranging, which replaces the normal toolbar.
+      await tapConstellationControl(
+        tester,
+        find.byKey(const Key('constellation.arranging.done')),
+      );
     });
 
     await journey('overlapping pins survive reload with topmost hit', () async {
@@ -244,38 +283,38 @@ void main() {
       expect(closedAnchor['yUnits'], 0.75);
     });
 
-    await journey('cancelled Request stays absent even with Show closed', () async {
-      final cancelledTitle = uniqueRequestTitle('Constellation cancelled');
-      final cancelledId = await createPublishedBeacon(title: cancelledTitle);
-      await upsertConstellationAnchor(
-        targetKind: 'BEACON',
-        targetId: cancelledId,
-        xUnits: 0.5,
-        yUnits: 0.5,
-      );
-      await deleteBeaconById(cancelledId);
-      await reloadConstellation(tester);
-      await openConstellationFilters(tester);
-      await toggleConstellationShowClosed(tester);
-      await pumpBounded(tester, frames: 12);
-      expect(
-        find.byKey(Key('constellation.text.request.$cancelledId')),
-        findsNothing,
-      );
-      final anchors = await fetchConstellationAnchors(showClosed: true);
-      expect(
-        constellationAnchorByTarget(
-          anchors,
+    await journey(
+      'a deleted Request keeps only its pin with Show closed',
+      () async {
+        final cancelledTitle = uniqueRequestTitle('Constellation cancelled');
+        final cancelledId = await createPublishedBeacon(title: cancelledTitle);
+        await upsertConstellationAnchor(
           targetKind: 'BEACON',
           targetId: cancelledId,
-        ),
-        isNull,
-      );
-    });
+          xUnits: 0.5,
+          yUnits: 0.5,
+        );
+        await deleteBeaconById(cancelledId);
+        await reloadConstellation(tester);
+        expect(
+          readConstellationCubit(tester).state.membershipFilters.showClosed,
+          isTrue,
+        );
+        expect(
+          find.byKey(Key('constellation.text.request.$cancelledId')),
+          findsNothing,
+        );
+        await expectDeletedPin(
+          cancelledId,
+          pinState: 'deleted',
+          x: 0.5,
+          y: 0.5,
+        );
+      },
+    );
 
     await journey('participation filter toggles membership state', () async {
       await reloadConstellation(tester);
-      await openConstellationFilters(tester);
       await toggleConstellationParticipatedOnly(tester);
       await pumpBounded(tester, frames: 12);
       expect(
@@ -284,27 +323,24 @@ void main() {
       );
     });
 
-    await journey('authorization loss and physical deletion remove anchors', () async {
-      final lossTitle = uniqueRequestTitle('Constellation auth loss');
-      final lossId = await createPublishedBeacon(title: lossTitle);
-      await upsertConstellationAnchor(
-        targetKind: 'BEACON',
-        targetId: lossId,
-        xUnits: 1.0,
-        yUnits: -1.0,
-      );
-      await deleteBeaconById(lossId);
-      await reloadConstellation(tester);
-      final anchors = await fetchConstellationAnchors(showClosed: true);
-      expect(
-        constellationAnchorByTarget(
-          anchors,
+    await journey(
+      'physically deleting a Request leaves a pin tombstone',
+      () async {
+        // The delete API physically removes drafts and soft-deletes published
+        // Requests. Pin a draft to exercise the foreign-key tombstone.
+        final lossTitle = uniqueRequestTitle('Constellation deleted draft');
+        final lossId = await createDraftRequest(title: lossTitle);
+        await upsertConstellationAnchor(
           targetKind: 'BEACON',
           targetId: lossId,
-        ),
-        isNull,
-      );
-    });
+          xUnits: 1,
+          yUnits: -1,
+        );
+        await deleteBeaconById(lossId);
+        await reloadConstellation(tester);
+        await expectDeletedPin(lossId, pinState: 'tombstone', x: 1, y: -1);
+      },
+    );
 
     await journey('cap overflow retains every seeded eligible pin', () async {
       final seeded = <String>[];

@@ -35,6 +35,7 @@ enum RealtimeEntityKind {
   inviteSeedPrompt,
   beaconPlan,
   personTag,
+  phantom,
   ;
 
   /// Maps the closed WebSocket protocol vocabulary into a domain kind.
@@ -66,6 +67,7 @@ enum RealtimeEntityKind {
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
     'beacon_plan' => RealtimeEntityKind.beaconPlan,
     'person_tag' => RealtimeEntityKind.personTag,
+    'phantom' => RealtimeEntityKind.phantom,
     _ => null,
   };
 }
