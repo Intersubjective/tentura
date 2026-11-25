@@ -55,6 +55,9 @@ const _requestItem = Key('constellation.canvas.create_menu.request');
 const _postItem = Key('constellation.canvas.create_menu.post');
 const _shareChannel = MethodChannel('dev.fluttercommunity.plus/share');
 final _now = DateTime.utc(2026, 11, 24, 12);
+// Five sheets, with two taps to open each, one to focus the name,
+// one to select its tag and one to save (or save and copy).
+const _addFivePeopleTapBudget = 25;
 
 Finder get _canvas => find.byType(GraphView<NodeDetails, EdgeDetails>);
 Finder get _banner => find.byKey(ConstellationNoContactsBanner.bannerKey);
@@ -80,6 +83,147 @@ Finder get _message => _editableNamed(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  group('Adding people in the default Field', () {
+    for (final (gesture, rightClick) in [
+      ('right-clicking', true),
+      ('long-pressing', false),
+    ]) {
+      testWidgets('$gesture the canvas opens the add-person sheet', (
+        tester,
+      ) async {
+        await _withField(tester, (_) async {
+          await _openCanvasMenu(
+            tester,
+            _emptyPoint(tester),
+            rightClick: rightClick,
+          );
+          _expectPublicCopy();
+          await _choosePerson(tester, find.text(_canvasAction).hitTestable());
+          _expectSheet();
+          _expectPublicCopy();
+        }, enabled: null);
+      });
+    }
+
+    testWidgets(
+      'the app bar adds five tagged people and copies one invite within the tap budget',
+      (tester) async {
+        const people = {
+          'Anna': 'Gardening',
+          'Mateo': 'Neighbours',
+          'Leila': 'Gardening',
+          'Nina': 'Neighbours',
+          'Omar': 'Gardening',
+        };
+        final clipboard = _recordClipboard(tester);
+        await _withField(tester, (field) async {
+          var taps = 0;
+          Future<void> tap(Finder target) async {
+            taps++;
+            await _tap(tester, target);
+            _expectPublicCopy();
+          }
+
+          _expectPublicCopy();
+          for (final entry in people.entries) {
+            final copyInvite = entry.key == people.keys.last;
+            await tap(find.byKey(_appBarAdd));
+            expect(
+              _personInMenu().hitTestable(),
+              findsOneWidget,
+              reason: 'The default app-bar menu offers + Person',
+            );
+            await tap(_personInMenu());
+            _expectSheet();
+            await tap(_name);
+            await _enterName(tester, entry.key);
+            _expectPublicCopy();
+            final tag = find.ancestor(
+              of: find.text(entry.value),
+              matching: find.byType(FilterChip),
+            );
+            await tap(tag);
+            await tap(find.text(copyInvite ? _copy : _save));
+          }
+
+          _expectInvitePayload(
+            clipboard.single,
+            _personalLine.replaceFirst('Anna', people.keys.last),
+          );
+          expect(
+            taps,
+            lessThanOrEqualTo(_addFivePeopleTapBudget),
+            reason:
+                'Adding five tagged people and copying one invite took '
+                '$taps taps (budget $_addFivePeopleTapBudget).',
+          );
+          expect(
+            find.text(
+              'The link has been copied to the clipboard',
+              findRichText: true,
+            ),
+            findsOneWidget,
+          );
+
+          // Copy saves the fifth person and leaves the sheet open.
+          await _dismissOverlay(tester);
+          final invitedId = field.invites.single.variables['id'];
+          await field.deliverPersonChange(tester, id: invitedId! as String);
+          final snapshot = field.cubit.state.field!;
+          final saved = snapshot.phantoms;
+          expect(saved, hasLength(people.length));
+          expect(
+            {for (final person in saved) person.displayName: person.ownTagIds},
+            {
+              for (final entry in people.entries)
+                entry.key: [_tags[entry.value]],
+            },
+          );
+          expect(
+            snapshot.resolvedAnchorProjection.anchors.map(
+              (anchor) => anchor.target.id,
+            ),
+            unorderedEquals(saved.map((person) => person.id)),
+          );
+          expect(
+            {
+              for (final person in saved)
+                person.displayName: person.inviteState.name,
+            },
+            {
+              for (final name in people.keys)
+                name: name == people.keys.last ? 'live' : 'none',
+            },
+          );
+          expect(
+            saved.singleWhere((person) => person.id == invitedId).displayName,
+            people.keys.last,
+          );
+
+          // The Field's list presents the status as visible text for each row.
+          await _tap(tester, find.byIcon(Icons.view_list_outlined));
+          _expectPublicCopy();
+          for (final person in saved) {
+            final row = find.byKey(
+              ValueKey('constellation.text.phantom.${person.id}'),
+            );
+            expect(
+              find.descendant(of: row, matching: find.text(person.displayName)),
+              findsOneWidget,
+            );
+            expect(
+              find.descendant(
+                of: row,
+                matching: find.text('Not on Tentura yet'),
+              ),
+              findsOneWidget,
+            );
+          }
+        }, enabled: null);
+      },
+    );
+  });
 
   testWidgets(
     'holding an empty point offers a person alongside Request and Post',
@@ -506,6 +650,17 @@ void _expectSheet() {
   }
 }
 
+void _expectPublicCopy() {
+  expect(
+    find.textContaining(
+      RegExp(r'\bphantom\b', caseSensitive: false),
+      findRichText: true,
+    ),
+    findsNothing,
+    reason: 'The Field, menus, sheet and messages use public terminology',
+  );
+}
+
 Offset _emptyPoint(WidgetTester tester) =>
     tester.getRect(_canvas).bottomRight - const Offset(100, 85);
 
@@ -638,7 +793,7 @@ const _tags = {'Gardening': 'tag-gardening', 'Neighbours': 'tag-neighbours'};
 Future<void> _withField(
   WidgetTester tester,
   Future<void> Function(_FieldHarness) body, {
-  bool enabled = true,
+  bool? enabled = true,
   Locale locale = const Locale('en'),
 }) async {
   final sent = <WireSent>[];
@@ -700,21 +855,33 @@ class _FieldHarness {
   List<WireSent> get invites => _calls('PhantomInviteEnsure');
   List<WireSent> get tagWrites => _calls('PersonTagMembersApply');
 
-  Future<void> mount(WidgetTester tester, {required bool enabled}) async {
+  Future<void> mount(WidgetTester tester, {required bool? enabled}) async {
     final sync = buildTestRealtimeSync();
     _clock = FakeClockPort(_now);
     _wakeUp = FakeWakeUpPort();
     _realtime = sync.port;
-    final store = ConstellationFieldStoreCase(
-      repository,
-      _Account(),
-      _clock,
-      _wakeUp,
-      sync.case_,
-      env: const Env(),
-      logger: Logger.detached('AddPersonFieldTest'),
-      phantomsEnabled: enabled,
-    );
+    final account = _Account();
+    final logger = Logger.detached('AddPersonFieldTest');
+    final store = enabled == null
+        ? ConstellationFieldStoreCase(
+            repository,
+            account,
+            _clock,
+            _wakeUp,
+            sync.case_,
+            env: const Env(),
+            logger: logger,
+          )
+        : ConstellationFieldStoreCase(
+            repository,
+            account,
+            _clock,
+            _wakeUp,
+            sync.case_,
+            env: const Env(),
+            logger: logger,
+            phantomsEnabled: enabled,
+          );
     final fieldCubit = ConstellationCubit(
       case_: store,
       viewer: _viewer,
@@ -766,13 +933,16 @@ class _FieldHarness {
   Offset sceneAt(WidgetTester tester, Offset global) => cubit.graphController
       .viewportLocalToScene(global - tester.getTopLeft(_canvas));
 
-  Future<void> deliverPersonChange(WidgetTester tester) async {
+  Future<void> deliverPersonChange(
+    WidgetTester tester, {
+    String id = _newPerson,
+  }) async {
     // A successful create publishes a separate notification that prompts
     // open Fields to read again. Deliver it through the normal realtime seam.
     _realtime.emitChange(
-      const RealtimeEntityChange(
+      RealtimeEntityChange(
         kind: RealtimeEntityKind.phantom,
-        aggregateId: _newPerson,
+        aggregateId: id,
         operation: RealtimeOperation.insert,
         source: RealtimeChangeSource.serverInvalidation,
       ),
@@ -830,9 +1000,9 @@ class _FieldHarness {
 }
 
 class _FieldServer {
-  Map<String, dynamic>? _person;
-  bool _invited = false;
-  final _memberTags = <String>[];
+  final _people = <String, Map<String, dynamic>>{};
+  final _invited = <String>{};
+  final _memberTags = <String, Set<String>>{};
 
   Future<Map<String, dynamic>> respond(WireSent call) async {
     switch (call.operationName) {
@@ -840,10 +1010,15 @@ class _FieldServer {
       case 'ConstellationAnchorsFetch':
         return _snapshot();
       case 'PhantomCreate':
-        _person = call.variables;
-        return {'phantomCreate': _newPerson};
+        final id = _people.isEmpty
+            ? _newPerson
+            : 'PH${_people.length.toString().padLeft(12, '0')}';
+        _people[id] = call.variables;
+        return {'phantomCreate': id};
       case 'PhantomInviteEnsure':
-        _invited = true;
+        final id = call.variables['id']! as String;
+        expect(_people, contains(id));
+        _invited.add(id);
         return {'phantomInviteEnsure': _code};
       case 'PersonTags':
         return {
@@ -868,11 +1043,11 @@ class _FieldServer {
       case 'PersonTagMembersApply':
         final ops = (call.variables['ops'] as List<Object?>)
             .cast<Map<String, Object?>>();
-        _memberTags.addAll(
-          ops
-              .where((op) => op['personId'] == _newPerson && op['op'] == 'add')
-              .map((op) => op['tagId']! as String),
-        );
+        for (final op in ops.where((op) => op['op'] == 'add')) {
+          final id = op['personId']! as String;
+          expect(_people, contains(id));
+          _memberTags.putIfAbsent(id, () => {}).add(op['tagId']! as String);
+        }
         return {'personTagMembersApply': true};
       default:
         throw StateError('Unexpected GraphQL operation ${call.operationName}');
@@ -893,32 +1068,34 @@ class _FieldServer {
       'posts': <Object?>[],
       'memberWebs': <Object?>[],
       'phantoms': [
-        if (_person case final person?)
+        for (final person in _people.entries)
           {
             '__typename': 'v2_ConstellationPhantom',
-            'id': _newPerson,
-            'displayName': person['name'],
-            'emoji': person['emoji'],
+            'id': person.key,
+            'displayName': person.value['name'],
+            'emoji': person.value['emoji'],
             'hasPrivateAvatar': false,
-            'ownTagIds': _memberTags,
+            'ownTagIds': _memberTags[person.key]?.toList() ?? <String>[],
             'pinState': 'pinned',
-            'inviteState': _invited ? 'live' : 'none',
+            'inviteState': _invited.contains(person.key) ? 'live' : 'none',
             'createdAt': _now.toIso8601String(),
           },
       ],
       'anchorProjection': {
         '__typename': 'v2_ConstellationAnchorProjection',
-        'revision': _person == null ? '0' : '1',
+        'revision': '${_people.length}',
         'anchors': [
-          if (_person?['position'] case final Map<String, dynamic> position)
-            {
-              '__typename': 'v2_ConstellationAnchor',
-              'targetKind': 'PHANTOM',
-              'targetId': _newPerson,
-              ...position,
-              'revision': '1',
-              'placedAt': _now.toIso8601String(),
-            },
+          for (final (index, person) in _people.entries.indexed)
+            if (person.value['position']
+                case final Map<String, dynamic> position)
+              {
+                '__typename': 'v2_ConstellationAnchor',
+                'targetKind': 'PHANTOM',
+                'targetId': person.key,
+                ...position,
+                'revision': '${index + 1}',
+                'placedAt': _now.toIso8601String(),
+              },
         ],
         'pinnedPeers': <Object?>[],
         'pinnedRequests': <Object?>[],

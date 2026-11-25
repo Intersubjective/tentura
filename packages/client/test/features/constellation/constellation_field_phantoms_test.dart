@@ -5,8 +5,6 @@
 @TestOn('vm')
 library;
 
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gql/ast.dart';
 import 'package:gql/language.dart';
@@ -58,21 +56,26 @@ const Function _newStore = ConstellationFieldStoreCase.new;
 final _createdAt = DateTime.utc(2026, 11, 1, 10);
 
 void main() {
-  test('the phantom feature gate defaults to hidden', () {
-    expect(
-      RegExp(
-        r'^\s*const\s+(?:bool\s+)?kPhantomsEnabled\s*=\s*false\s*;',
-        multiLine: true,
-      ).hasMatch(File('lib/consts.dart').readAsStringSync()),
-      isTrue,
-      reason: 'kPhantomsEnabled must default to false',
-    );
-    expect(
-      _newStore is _GatedStoreFactory,
-      isTrue,
-      reason: 'A Field store can opt in without changing the default',
-    );
-  });
+  test(
+    'the release Field enables adding people without accounts by default',
+    () async {
+      const releaseDefault = kPhantomsEnabled;
+      await withRemoteWire(
+        {},
+        <WireSent>[],
+        (remote) async {
+          final field = _FieldHarness(remote);
+          expect(
+            (releaseDefault, field.store.phantomsEnabled),
+            (true, true),
+            reason:
+                'Both the release constant and the default store enable '
+                'people without accounts',
+          );
+        },
+      );
+    },
+  );
 
   test('a Field load preserves names, tags and invite details and clears an '
       'empty follow-up snapshot', () async {
@@ -129,7 +132,7 @@ void main() {
     );
   });
 
-  test('the default Field and its Cubit load successfully without exposing '
+  test('the disabled Field and its Cubit load successfully without exposing '
       'phantoms or their anchors, while opting in admits both', () async {
     final otherTargets = [_person, _request];
     final sent = <WireSent>[];
@@ -145,7 +148,7 @@ void main() {
       },
       sent,
       (remote) async {
-        final disabled = _FieldHarness(remote);
+        final disabled = _FieldHarness(remote, enabled: false);
         final cubit = ConstellationCubit(
           case_: disabled.store,
           viewer: const Profile(id: _viewerId),

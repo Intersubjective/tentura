@@ -94,8 +94,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-    @ignoreParam this.phantomsEnabled = kPhantomsEnabled || _qaPhantomsEnabled,
-  }) {
+    @ignoreParam bool? phantomsEnabled,
+  }) : phantomsEnabled =
+           phantomsEnabled ?? (kPhantomsEnabled || _qaPhantomsEnabled) {
     _subscriptions = [
       account.currentAccountChanges.listen(_onAccountChanged),
       _realtimeSyncCase
@@ -106,7 +107,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
             RealtimeEntityKind.roomMessage,
             RealtimeEntityKind.roomSeen,
             RealtimeEntityKind.constellationField,
-            if (phantomsEnabled) RealtimeEntityKind.phantom,
+            if (this.phantomsEnabled) RealtimeEntityKind.phantom,
           })
           .listen(_onFieldChange),
       _realtimeSyncCase
