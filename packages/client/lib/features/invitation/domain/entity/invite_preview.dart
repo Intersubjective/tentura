@@ -9,6 +9,7 @@ class InvitePreview {
     required this.callerStatus,
     this.inviter,
     this.beacon,
+    this.phantomInvite = false,
   });
 
   factory InvitePreview.fromJson(Map<String, dynamic> json) => InvitePreview(
@@ -16,6 +17,7 @@ class InvitePreview {
     callerStatus: InviteCallerStatusX.fromWire(
       json['callerStatus'] as String? ?? '',
     ),
+    phantomInvite: json['phantomInvite'] == true,
     inviter: json['inviter'] == null
         ? null
         : InvitePreviewInviter.fromJson(
@@ -32,6 +34,7 @@ class InvitePreview {
   final InviteCallerStatus callerStatus;
   final InvitePreviewInviter? inviter;
   final InvitePreviewBeacon? beacon;
+  final bool phantomInvite;
 
   bool get isAvailable => codeStatus == InviteCodeStatus.available;
 }
