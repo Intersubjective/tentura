@@ -91,6 +91,7 @@ query ConstellationFieldFetch(
       ownTagIds
       pinState
       inviteState
+      inviteCreatedAt
       createdAt
     }
     anchorProjection {

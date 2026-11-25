@@ -10907,6 +10907,37 @@
   "@constellationPhantomStatus": {
     "context": "Status of a person without an account in the Field List and search"
   },
+  "personPanelInviteAge": "invite sent {days, plural, =0{today} one{1 day ago} other{{days} days ago}}",
+  "@personPanelInviteAge": {
+    "description": "Age of a live invite shown next to the account status",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "personPanelNewLink": "New link",
+  "personPanelLinkExisting": "This is someone already on Tentura…",
+  "personPanelPickExisting": "Choose someone on your Field",
+  "personPanelNoPeople": "There’s no one on your Field to link to yet.",
+  "personPanelRemove": "Remove from my map",
+  "personPanelRemoveTitle": "Remove this person from your map?",
+  "personPanelRemoveBody": "You can add {name} again later.",
+  "@personPanelRemoveBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "personPanelJoining": "{name} is joining right now",
+  "@personPanelJoining": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationShowDegreeFirst": "1st degree",
   "@constellationShowDegreeFirst": {
     "context": "Field: switch for people the viewer trusts directly (#645)"

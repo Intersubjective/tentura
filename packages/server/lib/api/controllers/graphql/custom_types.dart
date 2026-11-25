@@ -1478,6 +1478,7 @@ final gqlTypeConstellationPhantom =
         ),
         field('pinState', graphQLString),
         field('inviteState', graphQLString.nonNullable()),
+        field('inviteCreatedAt', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
       ]);
 

@@ -309,7 +309,7 @@ final class ConstellationFieldSnapshotReader {
           r'''
 SELECT vu.object AS id, false AS is_phantom, NULL::text AS display_name,
        NULL::text AS emoji, NULL::text AS created_at,
-       NULL::text[] AS own_tag_ids, NULL::boolean AS has_live_invite
+       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at
 FROM public.vote_user vu
 INNER JOIN public."user" u ON u.id = vu.object
 WHERE vu.subject = $1
@@ -327,8 +327,8 @@ SELECT p.id, true, p.display_name, p.emoji, p.created_at::text,
          WHERE m.phantom_id = p.id AND m.owner_id = p.owner_id
          ORDER BY m.tag_id
        ),
-       EXISTS (
-         SELECT 1 FROM public.invitation i
+       (
+         SELECT i.created_at::text FROM public.invitation i
          WHERE i.phantom_id = p.id AND i.user_id = p.owner_id
            AND i.invited_id IS NULL
        )
@@ -344,6 +344,7 @@ ORDER BY id
     for (final row in rows) {
       final id = row.read<String>('id');
       if (row.read<bool>('is_phantom')) {
+        final inviteCreatedAt = row.readNullable<String>('invite_created_at');
         phantoms.add(
           PhantomRecord(
             id: id,
@@ -353,9 +354,9 @@ ORDER BY id
               row.read<List<Object?>>('own_tag_ids'),
             ),
             pinState: pinnedIds.contains(id) ? PhantomPinState.pinned : null,
-            inviteState: row.read<bool>('has_live_invite')
-                ? PhantomInviteState.live
-                : PhantomInviteState.none,
+            inviteCreatedAt: inviteCreatedAt == null
+                ? null
+                : DateTime.parse(inviteCreatedAt).toUtc(),
             createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
           ),
         );

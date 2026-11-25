@@ -16,6 +16,7 @@ abstract class Phantom with _$Phantom {
     required List<String> ownTagIds,
     required PhantomInviteState inviteState,
     required DateTime createdAt,
+    DateTime? inviteCreatedAt,
     String? emoji,
     PhantomPinState? pinState,
   }) = _Phantom;

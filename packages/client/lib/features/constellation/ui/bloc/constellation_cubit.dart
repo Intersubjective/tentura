@@ -230,6 +230,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool get phantomsEnabled => _case.phantomsEnabled;
 
+  DateTime get fieldNowUtc => _case.nowUtc();
+
+  Future<void> refreshAfterPhantomWrite() =>
+      _case.requestRefresh(ConstellationRefreshReason.localWrite);
+
   /// Recomposes at Post deadlines and as the last hour runs out, so a Post
   /// leaves the Field and fades with no network event.
   PostExpiryClock? _expiry;

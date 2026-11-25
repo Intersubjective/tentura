@@ -7,6 +7,7 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../domain/port/phantom_repository_port.dart';
+import '../../domain/exception.dart';
 import '../gql/_g/phantom_create.req.gql.dart';
 import '../gql/_g/phantom_delete.req.gql.dart';
 import '../gql/_g/phantom_hint_dismiss.req.gql.dart';
@@ -110,10 +111,15 @@ final class PhantomRepository implements PhantomRepositoryPort {
     TResult Function(TData) select,
   ) async {
     final label = request.operation.operationName ?? 'V2 mutation';
-    final response = await _remote
-        .request(request)
-        .firstLinkResponse(label: label);
-    return select(response.dataOrThrow(label: label));
+    try {
+      final response = await _remote
+          .request(request)
+          .firstLinkResponse(label: label);
+      return select(response.dataOrThrow(label: label));
+    } on RemoteApiException catch (error) {
+      if (error.code == '1007') throw const PhantomJoiningException();
+      rethrow;
+    }
   }
 
   Future<void> _write<TData, TVars>(

@@ -61,6 +61,9 @@ final class ConstellationFieldReadMark {
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.
   load,
+
+  /// Refresh after an acknowledged mutation, using a read started after it.
+  localWrite,
   realtime,
   catchUp,
   resume,
@@ -641,6 +644,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       if (failure != null) {
         Error.throwWithStackTrace(failure.error, failure.stackTrace);
       }
+      return;
+    }
+    if (reason == ConstellationRefreshReason.localWrite) {
+      await _fullInFlight?.future;
+      await _dispatch();
       return;
     }
     if (reason == ConstellationRefreshReason.resume ||

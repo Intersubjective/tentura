@@ -8385,6 +8385,7 @@ type v2_ConstellationPhantom {
   ownTagIds: [String!]!
   pinState: String
   inviteState: String!
+  inviteCreatedAt: String
   createdAt: String!
 }
 

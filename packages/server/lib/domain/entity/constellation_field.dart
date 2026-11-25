@@ -58,7 +58,7 @@ class PhantomRecord {
     required this.emoji,
     required this.ownTagIds,
     required this.pinState,
-    required this.inviteState,
+    required this.inviteCreatedAt,
     required this.createdAt,
   });
 
@@ -67,8 +67,12 @@ class PhantomRecord {
   final String? emoji;
   final List<String> ownTagIds;
   final PhantomPinState? pinState;
-  final PhantomInviteState inviteState;
+  final DateTime? inviteCreatedAt;
   final DateTime createdAt;
+
+  PhantomInviteState get inviteState => inviteCreatedAt == null
+      ? PhantomInviteState.none
+      : PhantomInviteState.live;
 
   bool get hasPrivateAvatar => false;
 }

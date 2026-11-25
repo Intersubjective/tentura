@@ -29,6 +29,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
+import 'package:tentura/features/phantoms/ui/widget/phantom_context_panel.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
@@ -612,9 +613,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     final cubit = context.read<ConstellationCubit>();
-    final panelVisible =
-        cubit.state.selectedPersonId != null ||
-        cubit.state.selectedRequestId != null;
+    final panelVisible = cubit.state.hasContextPanel;
     final tt = context.tt;
     final compactSheet =
         panelVisible && context.windowClass == WindowClass.compact;
@@ -682,9 +681,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     final cubit = context.read<ConstellationCubit>();
-    final panelVisible =
-        cubit.state.selectedPersonId != null ||
-        cubit.state.selectedRequestId != null;
+    final panelVisible = cubit.state.hasContextPanel;
     final target = cubit.fieldSettleBackRevealTarget(
       insets: _cameraViewportInsets(context, panelVisible),
     );
@@ -890,6 +887,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       FieldBeaconNode() => state.selectedRequestId != null,
       FieldPersonNode(:final person) =>
         person.id != cubit.viewerId && state.selectedPersonId == person.id,
+      FieldPhantomNode() => state.selectedPhantomId == node.id,
       _ => false,
     };
     if (opensPanel) {
@@ -928,16 +926,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
   /// the panel goes away with it, so it comes back to the map, where Tab and
   /// Escape keep working; focus already on a map node stays there.
   void _closePanelOnEscape(ConstellationCubit cubit) {
-    final state = cubit.state;
-    if (state.selectedPersonId != null) {
-      cubit.selectPerson(null);
-    } else if (state.selectedRequestId != null) {
-      unawaited(_dismissRequestPreview(cubit));
-    } else if (state.selectedPhantomId != null) {
-      cubit.selectPhantom(null);
-    } else {
-      return;
-    }
+    if (!cubit.state.hasContextPanel) return;
+    _dismissContextPanel(cubit);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final focus = FocusManager.instance.primaryFocus;
@@ -1265,8 +1255,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     final state = context.read<ConstellationCubit>().state;
-    final panelVisible =
-        state.selectedPersonId != null || state.selectedRequestId != null;
+    final panelVisible = state.hasContextPanel;
     if (!_compactContextPanelOpen(context, panelVisible)) {
       report(false);
       return;
@@ -1290,17 +1279,22 @@ class _ConstellationBodyState extends State<ConstellationBody>
             payload.post?.id == state.selectedRequestId) {
           return payload;
         }
+      } else if (payload is FieldPhantomNode &&
+          payload.id == state.selectedPhantomId) {
+        return payload;
       }
     }
     return null;
   }
 
-  void _dismissCompactContextPanel(ConstellationCubit cubit) {
+  void _dismissContextPanel(ConstellationCubit cubit) {
     final state = cubit.state;
     if (state.selectedPersonId != null) {
       cubit.selectPerson(null);
     } else if (state.selectedRequestId != null) {
       unawaited(_dismissRequestPreview(cubit));
+    } else if (state.selectedPhantomId != null) {
+      cubit.selectPhantom(null);
     }
   }
 
@@ -1337,8 +1331,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     final state = context.read<ConstellationCubit>().state;
-    final panelVisible =
-        state.selectedPersonId != null || state.selectedRequestId != null;
+    final panelVisible = state.hasContextPanel;
     if (!_compactContextPanelOpen(context, panelVisible)) {
       report(false);
       return;
@@ -1407,9 +1400,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     final cubit = context.read<ConstellationCubit>();
-    final panelVisible =
-        cubit.state.selectedPersonId != null ||
-        cubit.state.selectedRequestId != null;
+    final panelVisible = cubit.state.hasContextPanel;
     final snapshotInsets = _cameraViewportInsetsFromContext(
       context,
       panelVisible,
@@ -1432,7 +1423,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return AdaptiveContextOverlay(
       compactDetents: useDetents,
       mapStackHeight: useDetents ? mapStackHeight : null,
-      onDismiss: useDetents ? () => _dismissCompactContextPanel(cubit) : null,
+      onDismiss: useDetents ? () => _dismissContextPanel(cubit) : null,
       onCompactExtentChanged: useDetents ? _onCompactSheetExtentChanged : null,
       onCompactDetentExpandedChanged: useDetents
           ? _onCompactSheetDetentExpanded
@@ -1447,6 +1438,36 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ConstellationState state, {
     required double mapStackHeight,
   }) {
+    final personWithoutAccount = state.selectedPhantom;
+    if (personWithoutAccount != null) {
+      final peopleTags = _peopleTags;
+      return _wrapAdaptiveContextOverlay(
+        context,
+        cubit,
+        StreamBuilder<void>(
+          stream: peopleTags?.changes,
+          builder: (context, _) => PhantomContextPanel(
+            key: ValueKey(personWithoutAccount.id),
+            person: personWithoutAccount,
+            tags: [
+              for (final tag in peopleTags?.tags ?? const <PersonTag>[])
+                if (personWithoutAccount.ownTagIds.contains(tag.id)) tag,
+            ],
+            nowUtc: cubit.fieldNowUtc,
+            linkCandidates: () => [
+              for (final person in cubit.fieldPeople)
+                if (!person.isViewer &&
+                    cubit.fieldPersonById(person.id)?.pinState != 'tombstone')
+                  (id: person.id, name: person.name),
+            ],
+            onChanged: cubit.refreshAfterPhantomWrite,
+            onClose: () => cubit.selectPhantom(null),
+          ),
+        ),
+        mapStackHeight: mapStackHeight,
+      );
+    }
+
     final personId = state.selectedPersonId;
     if (personId != null && personId != cubit.viewerId) {
       if (cubit.fieldPersonById(personId)?.pinState == 'tombstone') {
@@ -1680,12 +1701,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
           BlocListener<ConstellationCubit, ConstellationState>(
             listenWhen: (previous, current) =>
                 previous.selectedPersonId != current.selectedPersonId ||
-                previous.selectedRequestId != current.selectedRequestId,
+                previous.selectedRequestId != current.selectedRequestId ||
+                previous.selectedPhantomId != current.selectedPhantomId,
             listener: (context, state) {
               final cubit = context.read<ConstellationCubit>();
-              final panelVisible =
-                  state.selectedPersonId != null ||
-                  state.selectedRequestId != null;
+              final panelVisible = state.hasContextPanel;
               _syncCompactPanelSideEffects(context, cubit, panelVisible);
               _scheduleFieldContextSheetExpandedReport();
             },
@@ -1703,6 +1723,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               previous.selectedPersonId != current.selectedPersonId ||
               previous.selectedRequestId != current.selectedRequestId ||
               previous.selectedPhantomId != current.selectedPhantomId ||
+              previous.selectedPhantom != current.selectedPhantom ||
               previous.expandedPersonIds != current.expandedPersonIds ||
               previous.viewMode != current.viewMode ||
               previous.tagView != current.tagView ||
@@ -1754,9 +1775,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   return const SizedBox.shrink();
                 }
 
-                final panelVisible =
-                    state.selectedPersonId != null ||
-                    state.selectedRequestId != null;
+                final panelVisible = state.hasContextPanel;
                 final compactPanel = _compactContextPanelOpen(
                   context,
                   panelVisible,
@@ -1811,10 +1830,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               final selection = maybeConstellationSelection(
                                 context,
                               );
-                              final panelOpen =
-                                  cubit.state.selectedPersonId != null ||
-                                  cubit.state.selectedRequestId != null ||
-                                  cubit.state.selectedPhantomId != null;
+                              final panelOpen = cubit.state.hasContextPanel;
                               if (!cubit.state.isComposing &&
                                   cubit.state.placementPhase ==
                                       ConstellationPlacementPhase.idle &&
@@ -3301,8 +3317,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       context,
       cubit,
       node,
-      contextPanelVisible:
-          state.selectedPersonId != null || state.selectedRequestId != null,
+      contextPanelVisible: state.hasContextPanel,
     );
   }
 

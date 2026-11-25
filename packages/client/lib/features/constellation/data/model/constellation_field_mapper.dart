@@ -91,6 +91,8 @@ Phantom _mapPhantom(
   GConstellationFieldFetchData_constellationField_phantoms row,
 ) {
   final pinState = row.pinState;
+  final inviteState = PhantomInviteState.values.byName(row.inviteState);
+  final inviteCreatedAt = row.inviteCreatedAt;
   return Phantom(
     id: row.id,
     displayName: row.displayName,
@@ -98,7 +100,11 @@ Phantom _mapPhantom(
     hasPrivateAvatar: row.hasPrivateAvatar,
     ownTagIds: row.ownTagIds.toList(growable: false),
     pinState: pinState == null ? null : PhantomPinState.values.byName(pinState),
-    inviteState: PhantomInviteState.values.byName(row.inviteState),
+    inviteState: inviteState,
+    inviteCreatedAt:
+        inviteState == PhantomInviteState.live && inviteCreatedAt != null
+        ? DateTime.parse(inviteCreatedAt).toUtc()
+        : null,
     createdAt: DateTime.parse(row.createdAt).toUtc(),
   );
 }

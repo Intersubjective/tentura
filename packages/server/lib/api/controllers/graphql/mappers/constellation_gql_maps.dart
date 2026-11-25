@@ -34,6 +34,7 @@ Map<String, dynamic> constellationFieldToGqlMap(
         'ownTagIds': phantom.ownTagIds,
         'pinState': phantom.pinState?.name,
         'inviteState': phantom.inviteState.name,
+        'inviteCreatedAt': phantom.inviteCreatedAt?.toIso8601String(),
         'createdAt': phantom.createdAt.toIso8601String(),
       },
   ],

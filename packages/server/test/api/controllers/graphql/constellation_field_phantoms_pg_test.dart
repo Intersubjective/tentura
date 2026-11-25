@@ -189,6 +189,36 @@ Future<void> main() async {
       },
     );
 
+    test('reports the live invitation creation time for invite age', () async {
+      final withInvite = await fixture.addPhantom();
+      final withoutInvite = await fixture.addPhantom();
+      final inviteCreatedAt = await fixture.addLiveInvitation(withInvite);
+
+      final snapshot = await field();
+      final invited = snapshot.phantoms.singleWhere(
+        (person) => person.id == withInvite,
+      );
+      final uninvited = snapshot.phantoms.singleWhere(
+        (person) => person.id == withoutInvite,
+      );
+      expect(invited.inviteCreatedAt, inviteCreatedAt);
+      expect(invited.inviteCreatedAt?.isUtc, isTrue);
+      expect(invited.inviteState, PhantomInviteState.live);
+      expect(uninvited.inviteCreatedAt, isNull);
+      expect(uninvited.inviteState, PhantomInviteState.none);
+      expect(
+        _phantoms(snapshot),
+        unorderedEquals([
+          _entry(
+            withInvite,
+            'inviteCreatedAt',
+            inviteCreatedAt.toIso8601String(),
+          ),
+          _entry(withoutInvite, 'inviteCreatedAt', isNull),
+        ]),
+      );
+    });
+
     test(
       'keeps private entries separate even when both owners are visible',
       () async {
@@ -384,6 +414,26 @@ FROM unnest(@ids::text[]) AS id
             parameters: {'id': id},
           )).single.single!
           as DateTime;
+
+  Future<DateTime> addLiveInvitation(String phantom) async {
+    final rows = await writer.executeWithOwnerScopes(
+      [_owner],
+      Sql.named('''
+INSERT INTO public.invitation
+  (user_id, phantom_id, addressee_name, invited_id, created_at)
+VALUES (
+  @owner, @phantom, 'An acquaintance', NULL, '2026-02-03T04:05:06.765432+05:30'
+)
+RETURNING created_at
+'''),
+      parameters: {'owner': _owner, 'phantom': phantom},
+    );
+    final createdAt = rows.single.single;
+    if (createdAt is! DateTime) {
+      throw StateError('The invitation did not return its creation time');
+    }
+    return createdAt.toUtc();
+  }
 
   Future<String> addTag(String name, String phantom) async {
     final id = generateId('PT');
