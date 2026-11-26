@@ -28,9 +28,13 @@ export function parseInviteCodeRaw() {
   }
 }
 
-export async function fetchPreview(code) {
+export function requestContextQuery(requestId) {
+  return requestId ? `?${new URLSearchParams({ r: requestId })}` : '';
+}
+
+export async function fetchPreview(code, requestId) {
   const res = await fetch(
-    `/api/v2/invite/${encodeURIComponent(code)}/preview`,
+    `/api/v2/invite/${encodeURIComponent(code)}/preview${requestContextQuery(requestId)}`,
     {
       headers: { Accept: 'application/json' },
       credentials: 'include',

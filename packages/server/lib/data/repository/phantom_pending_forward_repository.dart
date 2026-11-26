@@ -15,6 +15,21 @@ final class PhantomPendingForwardRepository
   final TenturaDb _database;
 
   @override
+  Future<bool> hasPending({
+    required String phantomId,
+    required String senderId,
+    required String beaconId,
+  }) => _database.managers.phantomPendingForwards
+      .filter(
+        (row) =>
+            row.phantomId.id(phantomId) &
+            row.senderId.id(senderId) &
+            row.beaconId.id(beaconId) &
+            row.state.equals(PhantomPendingForwardState.pending),
+      )
+      .exists();
+
+  @override
   Future<bool> record(
     OwnerGraphScope scope, {
     required String id,
