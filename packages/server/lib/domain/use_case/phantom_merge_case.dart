@@ -140,15 +140,16 @@ final class PhantomMergeCase {
       origin: origin,
       displayName: entry.displayName,
     );
-    final claimedForwards = origin == PhantomMergeOrigin.manualLink
-        ? const <PhantomForwardClaim>[]
-        : await _pendingForwards.claimForMerge(
-            scope,
-            phantomId: phantomId,
-            senderId: ownerId,
-            mergeId: mergeId,
-            recipientId: userId,
-          );
+    final claimedForwards = await _pendingForwards.assignForMerge(
+      scope,
+      phantomId: phantomId,
+      senderId: ownerId,
+      mergeId: mergeId,
+      recipientId: userId,
+      source: origin == PhantomMergeOrigin.manualLink
+          ? PhantomForwardDeliverySource.manualOffer
+          : PhantomForwardDeliverySource.inviteClaim,
+    );
     return PhantomMerged(mergeId, claimedForwards);
   }
 

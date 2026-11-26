@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import '../entity/phantom_pending_forward.dart';
+import '../exception.dart';
 import '../port/owner_graph_transaction_port.dart';
 import '../port/phantom_pending_forward_repository_port.dart';
 import '../port/post_lock_port.dart';
@@ -43,21 +46,70 @@ final class PhantomForwardDeliveryCase {
     }
   }
 
-  Future<void> _deliverClaim(PhantomForwardClaim claim) => _ownerGraph.run(
-    {claim.senderId},
+  Future<bool> confirm({
+    required String senderId,
+    required String id,
+    String? mergeId,
+  }) async {
+    await _settle(
+      senderId,
+      () async {
+        final offer = await _pendingForwards.findById(
+          senderId: senderId,
+          id: id,
+        );
+        if (offer == null ||
+            offer.state != PhantomPendingForwardState.offered ||
+            (mergeId != null && offer.mergeId != mergeId)) {
+          throw IdNotFoundException(id: id);
+        }
+        return (
+          id: id,
+          senderId: senderId,
+          beaconId: offer.beaconId,
+          parentForwardEdgeId: offer.parentForwardEdgeId,
+          mergeId: offer.mergeId,
+        );
+      },
+      source: PhantomForwardDeliverySource.manualOffer,
+    );
+    return true;
+  }
+
+  Future<void> _deliverClaim(PhantomForwardClaim claim) => _settle(
     claim.senderId,
+    () => claim,
+    source: PhantomForwardDeliverySource.inviteClaim,
+  );
+
+  Future<void> _settle(
+    String senderId,
+    FutureOr<PhantomForwardClaim> Function() readClaim, {
+    required PhantomForwardDeliverySource source,
+  }) => _ownerGraph.run(
+    {senderId},
+    senderId,
     (scope) => _attention.runAction(
-      actorUserId: claim.senderId,
+      actorUserId: senderId,
       action: (transaction) async {
+        final claim = await readClaim();
         await _postLock.lockForPostDelivery(
           claim.beaconId,
-          senderId: claim.senderId,
+          senderId: senderId,
         );
         final parentIsLive = await _pendingForwards.lockParentChain(
           scope,
           claim,
         );
-        final target = await _pendingForwards.lockClaim(scope, claim);
+        final target = await _pendingForwards.lockDelivery(
+          scope,
+          claim,
+          source: source,
+        );
+        final confirming = source == PhantomForwardDeliverySource.manualOffer;
+        if (confirming && target is! PhantomForwardDelivery) {
+          throw IdNotFoundException(id: claim.id);
+        }
         if (target == null) return;
 
         final resolution = switch (target) {
@@ -68,9 +120,22 @@ final class PhantomForwardDeliveryCase {
             transaction: transaction,
             claim: claim,
             delivery: target,
+            source: source,
           ),
         };
-        await _pendingForwards.resolve(scope, claim, resolution);
+        if (confirming && resolution is PhantomForwardLapsed) {
+          throw UnauthorizedException(
+            description: resolution == PhantomForwardLapsed.parentUnavailable
+                ? 'Invalid parent forward edge for sender'
+                : 'Recipient is not available for forwarding',
+          );
+        }
+        await _pendingForwards.resolve(
+          scope,
+          claim,
+          resolution,
+          source: source,
+        );
         if (target is PhantomForwardDelivery &&
             resolution is PhantomForwardLapsed) {
           await _pendingForwards.recordJoinerCard(scope, claim, target);

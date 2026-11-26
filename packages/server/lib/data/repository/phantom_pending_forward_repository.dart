@@ -98,35 +98,57 @@ ON CONFLICT DO NOTHING
   }
 
   @override
-  Future<List<PhantomForwardClaim>> claimForMerge(
+  Future<List<PhantomForwardClaim>> assignForMerge(
     OwnerGraphScope scope, {
     required String phantomId,
     required String senderId,
     required String mergeId,
     required String recipientId,
+    required PhantomForwardDeliverySource source,
   }) async {
     requireOwnerGraphScope(_database, scope, senderId);
     final rows = await _database.customWriteReturning(
       r'''
-WITH claimed AS (
+WITH assigned AS (
   UPDATE public.phantom_pending_forward
-  SET state = 'claimed', merge_id = $3, recipient_id = $4
+  SET state = $5, merge_id = $3, recipient_id = $4
   WHERE phantom_id = $1 AND sender_id = $2 AND state = 'pending'
   RETURNING id, sender_id, beacon_id, parent_forward_edge_id, merge_id, created_at
 )
 SELECT id, sender_id, beacon_id, parent_forward_edge_id, merge_id
-FROM claimed ORDER BY created_at, id
+FROM assigned ORDER BY created_at, id
 ''',
       variables: [
         Variable.withString(phantomId),
         Variable.withString(senderId),
         Variable.withString(mergeId),
         Variable.withString(recipientId),
+        Variable.withString(source.state.name),
       ],
       updates: {_database.phantomPendingForwards},
       updateKind: UpdateKind.update,
     );
-    return rows.map(_claim).toList();
+    if (source == PhantomForwardDeliverySource.inviteClaim) {
+      return rows.map(_claim).toList();
+    }
+    if (rows.isEmpty) return const [];
+    final recipient = await _database
+        .customSelect(
+          r'SELECT display_name FROM public."user" WHERE id = $1',
+          variables: [Variable.withString(recipientId)],
+        )
+        .getSingle();
+    final displayName = recipient.read<String>('display_name');
+    for (final row in rows) {
+      await _attention.recordRequestForwardOffered(
+        ownerId: senderId,
+        beaconId: row.read<String>('beacon_id'),
+        pendingForwardId: row.read<String>('id'),
+        mergeId: mergeId,
+        displayName: displayName,
+      );
+    }
+    return const [];
   }
 
   @override
@@ -158,10 +180,11 @@ ORDER BY created_at, id
   }
 
   @override
-  Future<PhantomForwardClaimTarget?> lockClaim(
+  Future<PhantomForwardClaimTarget?> lockDelivery(
     OwnerGraphScope scope,
-    PhantomForwardClaim claim,
-  ) async {
+    PhantomForwardClaim claim, {
+    required PhantomForwardDeliverySource source,
+  }) async {
     requireOwnerGraphScope(_database, scope, claim.senderId);
     final row = await _database
         .customSelect(
@@ -172,7 +195,7 @@ SELECT f.note,
 FROM public.phantom_pending_forward f
 JOIN public.phantom p ON p.id = f.phantom_id AND p.owner_id = f.sender_id
 WHERE f.id = $1 AND f.sender_id = $2 AND f.merge_id IS NOT DISTINCT FROM $3
-  AND f.state = 'claimed' AND f.beacon_id = $4
+  AND f.state = $6 AND f.beacon_id = $4
   AND f.parent_forward_edge_id IS NOT DISTINCT FROM $5
 FOR UPDATE OF f
 ''',
@@ -182,6 +205,7 @@ FOR UPDATE OF f
             Variable<String>(claim.mergeId),
             Variable.withString(claim.beaconId),
             Variable<String>(claim.parentForwardEdgeId),
+            Variable.withString(source.state.name),
           ],
         )
         .getSingleOrNull();
@@ -199,8 +223,10 @@ FOR UPDATE OF f
   Future<void> resolve(
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
-    PhantomForwardResolution resolution,
-  ) async {
+    PhantomForwardResolution resolution, {
+    PhantomForwardDeliverySource source =
+        PhantomForwardDeliverySource.inviteClaim,
+  }) async {
     requireOwnerGraphScope(_database, scope, claim.senderId);
     final (state, edgeId, reason) = switch (resolution) {
       PhantomForwardDelivered(:final edgeId) => ('delivered', edgeId, null),
@@ -211,7 +237,7 @@ FOR UPDATE OF f
 UPDATE public.phantom_pending_forward
 SET state = $4, forward_edge_id = $5, lapse_reason = $6, resolved_at = now()
 WHERE id = $1 AND sender_id = $2 AND merge_id IS NOT DISTINCT FROM $3
-  AND state = 'claimed'
+  AND state = $7
 ''',
       variables: [
         Variable.withString(claim.id),
@@ -220,6 +246,7 @@ WHERE id = $1 AND sender_id = $2 AND merge_id IS NOT DISTINCT FROM $3
         Variable.withString(state),
         Variable<String>(edgeId),
         Variable<String>(reason),
+        Variable.withString(source.state.name),
       ],
       updates: {_database.phantomPendingForwards},
       updateKind: UpdateKind.update,

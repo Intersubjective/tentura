@@ -406,11 +406,12 @@ final class ForwardCase extends UseCaseBase {
     );
   }
 
-  /// Delivers a pending Request within the caller's locked claim transaction.
+  /// Delivers a saved Request within the caller's locked transaction.
   Future<PhantomForwardResolution> deliverPending({
     required AttentionTransaction transaction,
     required PhantomForwardClaim claim,
     required PhantomForwardDelivery delivery,
+    required PhantomForwardDeliverySource source,
   }) async {
     final _CheckedForward checked;
     try {
@@ -425,6 +426,7 @@ final class ForwardCase extends UseCaseBase {
       );
       BeaconKindPolicy.requireRequest(checked.beacon);
     } on ExceptionBase {
+      if (source == PhantomForwardDeliverySource.manualOffer) rethrow;
       return PhantomForwardLapsed.forwardNoLongerAllowed;
     }
 

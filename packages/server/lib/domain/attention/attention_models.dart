@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/entity/notification_priority.dart';
 part 'attention_models.freezed.dart';
 
 const kRequestForwardLapsedPresentationKey = 'request_forward_lapsed';
+const kRequestForwardOfferedPresentationKey = 'request_forward_offered';
 
 /// Machine-checkable lifecycle for entries in `updates-event-contract.json`
 /// `eventClassifications` (schema ≥ 3).

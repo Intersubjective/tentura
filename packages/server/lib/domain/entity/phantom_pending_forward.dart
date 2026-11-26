@@ -1,5 +1,14 @@
 enum PhantomPendingForwardState { pending, claimed, delivered, lapsed, offered }
 
+enum PhantomForwardDeliverySource {
+  inviteClaim(PhantomPendingForwardState.claimed),
+  manualOffer(PhantomPendingForwardState.offered);
+
+  const PhantomForwardDeliverySource(this.state);
+
+  final PhantomPendingForwardState state;
+}
+
 typedef PhantomPendingForward = ({
   String id,
   String phantomId,

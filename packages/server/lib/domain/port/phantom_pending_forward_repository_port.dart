@@ -25,12 +25,15 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     required String beaconId,
   });
 
-  Future<List<PhantomForwardClaim>> claimForMerge(
+  /// Returns only invite claims for automatic delivery. Manual offers record
+  /// owner attention in the same transaction and return an empty list.
+  Future<List<PhantomForwardClaim>> assignForMerge(
     OwnerGraphScope scope, {
     required String phantomId,
     required String senderId,
     required String mergeId,
     required String recipientId,
+    required PhantomForwardDeliverySource source,
   });
 
   Future<List<PhantomForwardClaim>> findClaims();
@@ -40,17 +43,20 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     PhantomForwardClaim claim,
   );
 
-  /// Locks an unchanged claim and checks whether its merge is still current.
-  Future<PhantomForwardClaimTarget?> lockClaim(
+  /// Locks the assigned row and checks whether its merge is still current.
+  Future<PhantomForwardClaimTarget?> lockDelivery(
     OwnerGraphScope scope,
-    PhantomForwardClaim claim,
-  );
+    PhantomForwardClaim claim, {
+    required PhantomForwardDeliverySource source,
+  });
 
   Future<void> resolve(
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
-    PhantomForwardResolution resolution,
-  );
+    PhantomForwardResolution resolution, {
+    PhantomForwardDeliverySource source =
+        PhantomForwardDeliverySource.inviteClaim,
+  });
 
   Future<void> recordJoinerCard(
     OwnerGraphScope scope,

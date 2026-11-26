@@ -81,8 +81,8 @@ class TenturaGraphQL extends GraphQL {
 
   /// The stock executor silently skips a selected field the object type
   /// does not define, answering `{"data": {}}` for a misspelled or missing
-  /// mutation. Reject it as a GraphQL error instead, at every level. Fields
-  /// are looked up by response key, as the executor does.
+  /// mutation. Reject it as a GraphQL error instead, at every level.
+  /// An alias changes the response key, while lookup uses the schema name.
   @override
   Future<Map<String, dynamic>> executeSelectionSet(
     DocumentContext document,
@@ -102,12 +102,13 @@ class TenturaGraphQL extends GraphQL {
         variableValues,
         parentType: parentType,
       );
-      for (final key in grouped.keys) {
-        if (key != null &&
-            key != '__typename' &&
-            !objectType.fields.any((f) => f.name == key)) {
+      for (final selection in grouped.values.expand((group) => group)) {
+        final name = _schemaFieldName(selection);
+        if (name != null &&
+            name != '__typename' &&
+            !objectType.fields.any((f) => f.name == name)) {
           throw GraphQLException.fromMessage(
-            'Cannot query field "$key" on type "${objectType.name}".',
+            'Cannot query field "$name" on type "${objectType.name}".',
           );
         }
       }
@@ -124,6 +125,11 @@ class TenturaGraphQL extends GraphQL {
     );
   }
 
+  static String? _schemaFieldName(SelectionContext selection) {
+    final fieldName = selection.field?.fieldName;
+    return fieldName?.alias?.name ?? fieldName?.name;
+  }
+
   @override
   Map<String, dynamic> coerceArgumentValues(
     GraphQLObjectType objectType,
@@ -132,8 +138,7 @@ class TenturaGraphQL extends GraphQL {
   ) {
     final coercedValues = <String, dynamic>{};
     final argumentValues = field.field?.arguments;
-    final fieldName =
-        field.field?.fieldName.alias?.name ?? field.field?.fieldName.name;
+    final fieldName = _schemaFieldName(field);
     final desiredField = objectType.fields.firstWhere(
       (f) => f.name == fieldName,
       orElse: () => throw FormatException(
