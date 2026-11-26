@@ -22,10 +22,23 @@ typedef PhantomForwardClaim = ({
   String senderId,
   String beaconId,
   String? parentForwardEdgeId,
-  String mergeId,
+  String? mergeId,
 });
 
-typedef PhantomForwardDelivery = ({String recipientId, String note});
+sealed class PhantomForwardClaimTarget {
+  const PhantomForwardClaimTarget();
+}
+
+final class PhantomForwardDelivery extends PhantomForwardClaimTarget {
+  const PhantomForwardDelivery({required this.recipientId, required this.note});
+
+  final String recipientId;
+  final String note;
+}
+
+final class PhantomForwardRecipientGone extends PhantomForwardClaimTarget {
+  const PhantomForwardRecipientGone();
+}
 
 sealed class PhantomForwardResolution {
   const PhantomForwardResolution();
@@ -40,7 +53,8 @@ final class PhantomForwardDelivered extends PhantomForwardResolution {
 enum PhantomForwardLapsed implements PhantomForwardResolution {
   forwardNoLongerAllowed('forward_no_longer_allowed'),
   parentUnavailable('parent_unavailable'),
-  recipientPaused('recipient_paused');
+  recipientPaused('recipient_paused'),
+  recipientGone('recipient_gone');
 
   const PhantomForwardLapsed(this.reason);
 

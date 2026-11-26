@@ -26,6 +26,8 @@ final class PhantomForwardDeliveryCase {
   final ForwardCase _forward;
   final Logger _logger;
 
+  Future<void> sweep() async => deliver(await _pendingForwards.findClaims());
+
   Future<void> deliver(Iterable<PhantomForwardClaim> claims) async {
     for (final claim in claims) {
       try {
@@ -55,17 +57,24 @@ final class PhantomForwardDeliveryCase {
           scope,
           claim,
         );
-        final delivery = await _pendingForwards.lockClaim(scope, claim);
-        if (delivery == null) return;
+        final target = await _pendingForwards.lockClaim(scope, claim);
+        if (target == null) return;
 
-        final resolution = parentIsLive
-            ? await _forward.deliverPending(
-                transaction: transaction,
-                claim: claim,
-                delivery: delivery,
-              )
-            : PhantomForwardLapsed.parentUnavailable;
+        final resolution = switch (target) {
+          PhantomForwardRecipientGone() => PhantomForwardLapsed.recipientGone,
+          PhantomForwardDelivery() when !parentIsLive =>
+            PhantomForwardLapsed.parentUnavailable,
+          PhantomForwardDelivery() => await _forward.deliverPending(
+            transaction: transaction,
+            claim: claim,
+            delivery: target,
+          ),
+        };
         await _pendingForwards.resolve(scope, claim, resolution);
+        if (target is PhantomForwardDelivery &&
+            resolution is PhantomForwardLapsed) {
+          await _pendingForwards.recordJoinerCard(scope, claim, target);
+        }
       },
     ),
   );

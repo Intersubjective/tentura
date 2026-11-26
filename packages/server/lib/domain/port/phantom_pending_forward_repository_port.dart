@@ -33,13 +33,15 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     required String recipientId,
   });
 
+  Future<List<PhantomForwardClaim>> findClaims();
+
   Future<bool> lockParentChain(
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
   );
 
-  /// Locks and reads a claim only if it belongs to the person's current merge.
-  Future<PhantomForwardDelivery?> lockClaim(
+  /// Locks an unchanged claim and checks whether its merge is still current.
+  Future<PhantomForwardClaimTarget?> lockClaim(
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
   );
@@ -48,5 +50,11 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
     PhantomForwardResolution resolution,
+  );
+
+  Future<void> recordJoinerCard(
+    OwnerGraphScope scope,
+    PhantomForwardClaim claim,
+    PhantomForwardDelivery delivery,
   );
 }

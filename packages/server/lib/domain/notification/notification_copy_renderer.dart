@@ -143,6 +143,17 @@ class NotificationCopyRenderer {
     final ru = _isRu(locale);
     String t(String en, String ruText) => ru ? ruText : en;
 
+    if (presentationKey == kRequestForwardLapsedPresentationKey) {
+      final actor = _actor(identity, ru);
+      return NotificationCopy(
+        headline: t('Request closed', 'Запрос закрыт'),
+        sentence: t(
+          "$actor sent you a request; it has since closed. You're connected with $actor.",
+          '$actor отправил(а) вам запрос, который уже закрыт. Вы и $actor на связи.',
+        ),
+      );
+    }
+
     final bookmarkOnly = presentationKey == 'closure_opened_bookmark_only';
     final type = bookmarkOnly
         ? AttentionEventType.closureOpened
@@ -722,6 +733,7 @@ class NotificationCopyRenderer {
   /// can.
   static bool isRenderableKey(String key) =>
       key == 'closure_opened_bookmark_only' ||
+      key == kRequestForwardLapsedPresentationKey ||
       AttentionEventType.values.any((type) => _snake(type.name) == key);
 
   static AttentionEventType _eventTypeOf(String key) {

@@ -5,15 +5,20 @@ import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/phantom_pending_forward_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dispatch_repository.dart';
 import 'forward_parent_chain_lock.dart';
 import 'owner_graph_unit_of_work.dart';
 
 @LazySingleton(as: PhantomPendingForwardRepositoryPort)
 final class PhantomPendingForwardRepository
     implements PhantomPendingForwardRepositoryPort {
-  const PhantomPendingForwardRepository(this._database);
+  PhantomPendingForwardRepository(
+    this._database, [
+    AttentionDispatchRepository? attention,
+  ]) : _attention = attention ?? AttentionDispatchRepository(_database);
 
   final TenturaDb _database;
+  final AttentionDispatchRepository _attention;
 
   @override
   Future<bool> hasPending({
@@ -107,9 +112,10 @@ WITH claimed AS (
   UPDATE public.phantom_pending_forward
   SET state = 'claimed', merge_id = $3, recipient_id = $4
   WHERE phantom_id = $1 AND sender_id = $2 AND state = 'pending'
-  RETURNING id, beacon_id, parent_forward_edge_id, created_at
+  RETURNING id, sender_id, beacon_id, parent_forward_edge_id, merge_id, created_at
 )
-SELECT id, beacon_id, parent_forward_edge_id FROM claimed ORDER BY created_at, id
+SELECT id, sender_id, beacon_id, parent_forward_edge_id, merge_id
+FROM claimed ORDER BY created_at, id
 ''',
       variables: [
         Variable.withString(phantomId),
@@ -120,19 +126,27 @@ SELECT id, beacon_id, parent_forward_edge_id FROM claimed ORDER BY created_at, i
       updates: {_database.phantomPendingForwards},
       updateKind: UpdateKind.update,
     );
-    return [
-      for (final row in rows)
-        (
-          id: row.read<String>('id'),
-          senderId: senderId,
-          beaconId: row.read<String>('beacon_id'),
-          parentForwardEdgeId: row.readNullable<String>(
-            'parent_forward_edge_id',
-          ),
-          mergeId: mergeId,
-        ),
-    ];
+    return rows.map(_claim).toList();
   }
+
+  @override
+  Future<List<PhantomForwardClaim>> findClaims() async {
+    final rows = await _database.customSelect('''
+SELECT id, sender_id, beacon_id, parent_forward_edge_id, merge_id
+FROM public.phantom_pending_forward
+WHERE state = 'claimed'
+ORDER BY created_at, id
+''').get();
+    return rows.map(_claim).toList();
+  }
+
+  static PhantomForwardClaim _claim(QueryRow row) => (
+    id: row.read<String>('id'),
+    senderId: row.read<String>('sender_id'),
+    beaconId: row.read<String>('beacon_id'),
+    parentForwardEdgeId: row.readNullable<String>('parent_forward_edge_id'),
+    mergeId: row.readNullable<String>('merge_id'),
+  );
 
   @override
   Future<bool> lockParentChain(
@@ -144,7 +158,7 @@ SELECT id, beacon_id, parent_forward_edge_id FROM claimed ORDER BY created_at, i
   }
 
   @override
-  Future<PhantomForwardDelivery?> lockClaim(
+  Future<PhantomForwardClaimTarget?> lockClaim(
     OwnerGraphScope scope,
     PhantomForwardClaim claim,
   ) async {
@@ -152,11 +166,12 @@ SELECT id, beacon_id, parent_forward_edge_id FROM claimed ORDER BY created_at, i
     final row = await _database
         .customSelect(
           r'''
-SELECT f.recipient_id, f.note
+SELECT f.note,
+       CASE WHEN f.merge_id = p.current_merge_id AND f.recipient_id = p.merged_user_id
+            THEN f.recipient_id END AS current_recipient_id
 FROM public.phantom_pending_forward f
 JOIN public.phantom p ON p.id = f.phantom_id AND p.owner_id = f.sender_id
-  AND p.current_merge_id = f.merge_id AND p.merged_user_id = f.recipient_id
-WHERE f.id = $1 AND f.sender_id = $2 AND f.merge_id = $3
+WHERE f.id = $1 AND f.sender_id = $2 AND f.merge_id IS NOT DISTINCT FROM $3
   AND f.state = 'claimed' AND f.beacon_id = $4
   AND f.parent_forward_edge_id IS NOT DISTINCT FROM $5
 FOR UPDATE OF f
@@ -164,16 +179,18 @@ FOR UPDATE OF f
           variables: [
             Variable.withString(claim.id),
             Variable.withString(claim.senderId),
-            Variable.withString(claim.mergeId),
+            Variable<String>(claim.mergeId),
             Variable.withString(claim.beaconId),
             Variable<String>(claim.parentForwardEdgeId),
           ],
         )
         .getSingleOrNull();
-    return row == null
-        ? null
-        : (
-            recipientId: row.read<String>('recipient_id'),
+    if (row == null) return null;
+    final recipientId = row.readNullable<String>('current_recipient_id');
+    return recipientId == null
+        ? const PhantomForwardRecipientGone()
+        : PhantomForwardDelivery(
+            recipientId: recipientId,
             note: row.read<String>('note'),
           );
   }
@@ -193,12 +210,13 @@ FOR UPDATE OF f
       r'''
 UPDATE public.phantom_pending_forward
 SET state = $4, forward_edge_id = $5, lapse_reason = $6, resolved_at = now()
-WHERE id = $1 AND sender_id = $2 AND merge_id = $3 AND state = 'claimed'
+WHERE id = $1 AND sender_id = $2 AND merge_id IS NOT DISTINCT FROM $3
+  AND state = 'claimed'
 ''',
       variables: [
         Variable.withString(claim.id),
         Variable.withString(claim.senderId),
-        Variable.withString(claim.mergeId),
+        Variable<String>(claim.mergeId),
         Variable.withString(state),
         Variable<String>(edgeId),
         Variable<String>(reason),
@@ -209,5 +227,19 @@ WHERE id = $1 AND sender_id = $2 AND merge_id = $3 AND state = 'claimed'
     if (updated != 1) {
       throw StateError('Lost pending forward claim ${claim.id}');
     }
+  }
+
+  @override
+  Future<void> recordJoinerCard(
+    OwnerGraphScope scope,
+    PhantomForwardClaim claim,
+    PhantomForwardDelivery delivery,
+  ) {
+    requireOwnerGraphScope(_database, scope, claim.senderId);
+    return _attention.recordRequestForwardLapsed(
+      senderId: claim.senderId,
+      recipientId: delivery.recipientId,
+      pendingForwardId: claim.id,
+    );
   }
 }
