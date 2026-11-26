@@ -27,4 +27,17 @@ final class MutationPrivateAvatar extends GqlNodeBase {
       return true;
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get remove => GraphQLObjectField(
+    'personPrivateAvatarDelete',
+    graphQLBoolean.nonNullable(),
+    arguments: PersonSubjectInput.arguments,
+    resolve: (_, args) async {
+      await GetIt.I<PrivateAvatarRepositoryPort>().remove(
+        ownerId: getCredentials(args).sub,
+        subject: PersonSubjectInput.fromArgs(args, purpose: 'the avatar'),
+      );
+      return true;
+    },
+  );
 }

@@ -31,6 +31,7 @@ Map<String, dynamic> constellationFieldToGqlMap(
         'displayName': phantom.displayName,
         'emoji': phantom.emoji,
         'hasPrivateAvatar': phantom.hasPrivateAvatar,
+        'privateAvatarObjectKey': phantom.privateAvatarObjectKey,
         'ownTagIds': phantom.ownTagIds,
         'pinState': phantom.pinState?.name,
         'inviteState': phantom.inviteState.name,
@@ -118,6 +119,10 @@ Map<String, dynamic> constellationAnchorsResetResultToGqlMap(
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
   'mergedPhantomId': peer.mergedPhantomId,
+  if (peer.pinState != kConstellationPinStateTombstone) ...{
+    'hasPrivateAvatar': peer.privateAvatarObjectKey != null,
+    'privateAvatarObjectKey': peer.privateAvatarObjectKey,
+  },
   'pinState': peer.pinState,
   'visible': peer.visible,
   'contactOnly': peer.contactOnly,

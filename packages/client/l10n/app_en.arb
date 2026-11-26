@@ -10862,6 +10862,9 @@
   "@personCreateCanvasAction": {
     "description": "Field action and sheet title for adding a person who is not on Tentura."
   },
+  "personPhotoAdd": "Add photo",
+  "personPhotoChange": "Change photo",
+  "personPhotoRemove": "Remove photo",
   "personCreateAction": "+ Person",
   "@personCreateAction": {
     "description": "Short add-person action in the Field app bar and empty banner."

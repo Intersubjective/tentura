@@ -86,6 +86,7 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     String? displayName,
     String? handle,
     ImageEntity? image,
+    String? privateAvatarObjectKey,
     String? pinState,
     String? mergedPhantomId,
 

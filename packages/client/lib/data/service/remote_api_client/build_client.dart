@@ -397,6 +397,8 @@ class _V2RoutingLink extends Link {
     'PersonNoteSearch',
     'PersonNoteUpsert',
     'PersonNoteDelete',
+    'PersonPrivateAvatarUpload',
+    'PersonPrivateAvatarDelete',
     'PhantomCreate',
     'PhantomUpdate',
     'PhantomDelete',

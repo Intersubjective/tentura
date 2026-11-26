@@ -67,6 +67,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   const PersonNoteFields().upsert,
   const PersonNoteFields().delete,
   const MutationPrivateAvatar().upload,
+  const MutationPrivateAvatar().remove,
   ...MutationFactCard().all,
   ...MutationSavedFact().all,
   ...MutationForward().all,

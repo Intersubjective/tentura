@@ -9,6 +9,11 @@ abstract interface class PrivateAvatarRepositoryPort {
     required Stream<Uint8List> bytes,
   });
 
+  Future<void> remove({
+    required String ownerId,
+    required PersonSubject subject,
+  });
+
   Future<Uint8List> get({
     required String viewerId,
     required String objectKey,

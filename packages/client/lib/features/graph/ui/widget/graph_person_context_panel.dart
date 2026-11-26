@@ -20,6 +20,8 @@ import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
 import 'package:tentura/features/phantoms/domain/entity/person_note.dart';
 import 'package:tentura/features/phantoms/ui/widget/person_notes_block.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_avatar_actions.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_person_avatar.dart';
 
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_person_context_cubit.dart';
@@ -44,6 +46,8 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.subtitle,
     this.onBeforeOpenProfile,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.privateAvatarObjectKey,
+    this.onPhotoChanged,
     super.key,
   });
 
@@ -76,6 +80,9 @@ class GraphPersonContextPanel extends StatelessWidget {
   /// Shows the viewer's private tags on the person; off with the feature gate.
   final bool peopleTagsEnabled;
 
+  final String? privateAvatarObjectKey;
+  final Future<void> Function()? onPhotoChanged;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -106,9 +113,13 @@ class GraphPersonContextPanel extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TenturaAvatar(
-              profile: profile,
-              withContactBadge: true,
+            PrivatePersonAvatar(
+              objectKey: privateAvatarObjectKey,
+              size: tt.avatarSize,
+              fallback: TenturaAvatar(
+                profile: profile,
+                withContactBadge: true,
+              ),
             ),
             SizedBox(width: tt.avatarTextGap),
             Expanded(
@@ -119,6 +130,13 @@ class GraphPersonContextPanel extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (onPhotoChanged case final onChanged?)
+              PrivateAvatarActions(
+                key: ValueKey(profile.id),
+                subject: UserNoteSubject(profile.id),
+                hasPhoto: privateAvatarObjectKey != null,
+                onChanged: onChanged,
+              ),
             FocusTraversalOrder(
               order: const NumericFocusOrder(5),
               child: IconButton(

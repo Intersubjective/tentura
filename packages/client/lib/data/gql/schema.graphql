@@ -4115,6 +4115,8 @@ type mutation_root {
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   personNoteUpsert(subjectUserId: String, subjectPhantomId: String, body: String!): Boolean!
+  personPrivateAvatarDelete(subjectUserId: String, subjectPhantomId: String): Boolean!
+  personPrivateAvatarUpload(subjectUserId: String, subjectPhantomId: String, file: v2_Upload = {}): Boolean!
   personNoteDelete(subjectUserId: String, subjectPhantomId: String): Boolean!
   phantomCreate(name: String!, emoji: String, position: v2_ConstellationAnchorPositionInput): String!
   phantomUpdate(id: String!, name: String!, emoji: String): Boolean!
@@ -8412,6 +8414,7 @@ type v2_ConstellationPhantom {
   displayName: String!
   emoji: String
   hasPrivateAvatar: Boolean!
+  privateAvatarObjectKey: String
   ownTagIds: [String!]!
   pinState: String
   inviteState: String!
@@ -8437,6 +8440,8 @@ type v2_ConstellationBondContext {
 
 type v2_ConstellationPeer {
   mergedPhantomId: String
+  hasPrivateAvatar: Boolean
+  privateAvatarObjectKey: String
   bondContexts: [v2_ConstellationBondContext!]!
   contactOnly: Boolean!
   displayName: String

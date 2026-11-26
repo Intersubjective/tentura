@@ -60,7 +60,7 @@ class PhantomRecord {
     required this.pinState,
     required this.inviteCreatedAt,
     required this.createdAt,
-    required this.hasPrivateAvatar,
+    this.privateAvatarObjectKey,
   });
 
   final String id;
@@ -70,7 +70,9 @@ class PhantomRecord {
   final PhantomPinState? pinState;
   final DateTime? inviteCreatedAt;
   final DateTime createdAt;
-  final bool hasPrivateAvatar;
+  final String? privateAvatarObjectKey;
+
+  bool get hasPrivateAvatar => privateAvatarObjectKey != null;
 
   PhantomInviteState get inviteState => inviteCreatedAt == null
       ? PhantomInviteState.none
@@ -171,6 +173,7 @@ class ConstellationPeerRecord {
     this.autoTagKinds = const [],
     this.firstSeenAt,
     this.mergedPhantomId,
+    this.privateAvatarObjectKey,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -187,12 +190,14 @@ class ConstellationPeerRecord {
       ownTagIds = const [],
       autoTagKinds = const [],
       firstSeenAt = null,
-      mergedPhantomId = null;
+      mergedPhantomId = null,
+      privateAvatarObjectKey = null;
 
   final String id;
 
   /// Private to the snapshot owner.
   final String? mergedPhantomId;
+  final String? privateAvatarObjectKey;
   final String? displayName;
   final String? handle;
   final ImagePublicRecord? image;
@@ -235,12 +240,13 @@ class ConstellationPeerRecord {
   /// seen before first-seen tracking began, or not recorded yet.
   final DateTime? firstSeenAt;
 
-  /// This record carrying the viewer's people tags and first-seen marker.
-  ConstellationPeerRecord withPeopleTags({
+  /// This record carrying the viewer's own Field details.
+  ConstellationPeerRecord withFieldDetails({
     required List<String> ownTagIds,
     required List<int> autoTagKinds,
     required DateTime? firstSeenAt,
     String? mergedPhantomId,
+    String? privateAvatarObjectKey,
   }) => ConstellationPeerRecord(
     id: id,
     displayName: displayName,
@@ -256,6 +262,7 @@ class ConstellationPeerRecord {
     autoTagKinds: autoTagKinds,
     firstSeenAt: firstSeenAt,
     mergedPhantomId: mergedPhantomId,
+    privateAvatarObjectKey: privateAvatarObjectKey,
   );
 
   /// This record with its field presence set.

@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_person_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
@@ -286,16 +287,29 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
             Padding(
               key: Key('constellation.text.phantom.${phantom.id}'),
               padding: EdgeInsets.only(bottom: tt.rowGap),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    phantom.displayName,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  PrivatePersonAvatar(
+                    objectKey: phantom.privateAvatarObjectKey,
+                    size: tt.avatarTinySize,
+                    fallback: const SizedBox.shrink(),
                   ),
-                  TenturaMetaText(l10n.constellationPhantomStatus),
+                  if (phantom.privateAvatarObjectKey != null)
+                    SizedBox(width: tt.avatarTextGap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          phantom.displayName,
+                          style: theme.textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        TenturaMetaText(l10n.constellationPhantomStatus),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -469,6 +483,9 @@ class _PersonRequestGroup extends StatelessWidget {
           _PersonRow(
             person: person,
             profile: profile,
+            privateAvatarObjectKey: cubit.privateAvatarObjectKeyForPerson(
+              authorId,
+            ),
             selected: selectedPersonId == authorId,
             isNewOnField: cubit.fieldPersonById(authorId)?.isNew ?? false,
             onTap: person.isViewer ? null : () => cubit.selectPerson(authorId),
@@ -544,6 +561,7 @@ class _PersonRow extends StatelessWidget {
   const _PersonRow({
     required this.person,
     required this.profile,
+    required this.privateAvatarObjectKey,
     required this.selected,
     required this.isNewOnField,
     required this.onTap,
@@ -551,6 +569,7 @@ class _PersonRow extends StatelessWidget {
 
   final ConstellationFieldPerson person;
   final Profile? profile;
+  final String? privateAvatarObjectKey;
   final bool selected;
   final bool isNewOnField;
   final VoidCallback? onTap;
@@ -583,7 +602,14 @@ class _PersonRow extends StatelessWidget {
             child: Row(
               children: [
                 if (profile != null) ...[
-                  TenturaAvatar.tiny(profile: profile, isSelf: person.isViewer),
+                  PrivatePersonAvatar(
+                    objectKey: privateAvatarObjectKey,
+                    size: tt.avatarTinySize,
+                    fallback: TenturaAvatar.tiny(
+                      profile: profile,
+                      isSelf: person.isViewer,
+                    ),
+                  ),
                   SizedBox(width: tt.avatarTextGap),
                 ],
                 Expanded(

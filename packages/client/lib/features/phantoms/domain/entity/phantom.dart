@@ -18,6 +18,7 @@ abstract class Phantom with _$Phantom {
     required DateTime createdAt,
     DateTime? inviteCreatedAt,
     String? emoji,
+    String? privateAvatarObjectKey,
     PhantomPinState? pinState,
   }) = _Phantom;
 }

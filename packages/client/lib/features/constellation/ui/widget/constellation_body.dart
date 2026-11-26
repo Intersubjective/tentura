@@ -11,7 +11,6 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/app/platform/web_semantics.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/constellation_people.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -32,6 +31,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
 import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/features/phantoms/ui/widget/phantom_context_panel.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_person_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
@@ -1494,6 +1494,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
         cubit,
         GraphPersonContextPanel(
           profile: profile,
+          privateAvatarObjectKey: cubit.privateAvatarObjectKeyForPerson(
+            personId,
+          ),
+          onPhotoChanged: cubit.refreshAfterPhantomWrite,
           isBlocked: cubit.fieldPersonById(personId)?.pinState == 'blockedByMe',
           onUnblock: () => unawaited(_unblockPerson(context, personId)),
           onBeforeOpenProfile: () => maybeConstellationSelection(
@@ -2797,7 +2801,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               camera: cubit.graphController.cameraRevision,
                               scale: () => cubit.graphController.cameraScale,
                             ),
-                      districtPerson: ring == 0 ? null : person,
+                      districtPerson: ring == 0 ? null : node,
                       temporaryOutline:
                           cubit.forwardTreeTemporaryOutlinePersonIds.contains(
                                 person.id,
@@ -3865,12 +3869,12 @@ class _OverviewDot extends StatelessWidget {
 class _DistrictMarker extends StatelessWidget {
   const _DistrictMarker({
     required this.spec,
-    required this.person,
+    required this.node,
     required this.markerKey,
   });
 
   final _OverviewDotSpec spec;
-  final Profile person;
+  final FieldPersonNode node;
   final Key? markerKey;
 
   @override
@@ -3886,9 +3890,11 @@ class _DistrictMarker extends StatelessWidget {
         child: SizedBox.square(
           key: markerKey,
           dimension: kConstellationDistrictMarkerDiameter,
-          child: ClipOval(
-            child: TenturaAvatar(
-              profile: person,
+          child: PrivatePersonAvatar(
+            objectKey: node.privateAvatarObjectKey,
+            size: kConstellationDistrictMarkerDiameter,
+            fallback: TenturaAvatar(
+              profile: node.person,
               size: kConstellationDistrictMarkerDiameter,
             ),
           ),
@@ -3966,7 +3972,7 @@ class _ConstellationMapNode extends StatelessWidget {
   final _OverviewDotSpec? dot;
 
   /// Set for a person who is drawn as an initials circle at the district.
-  final Profile? districtPerson;
+  final FieldPersonNode? districtPerson;
 
   /// Dashed ring of a temporary person, drawn over the node (not at the
   /// overview, where the node is a dot).
@@ -4008,7 +4014,7 @@ class _ConstellationMapNode extends StatelessWidget {
               detail == ConstellationDetailLevel.district
         ? _DistrictMarker(
             spec: dot,
-            person: districtPerson,
+            node: districtPerson,
             markerKey: child.key,
           )
         : child;

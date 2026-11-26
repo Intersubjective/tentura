@@ -119,6 +119,28 @@ SET object_key = EXCLUDED.object_key, blurhash = EXCLUDED.blurhash,
   }
 
   @override
+  Future<void> remove({
+    required String ownerId,
+    required PersonSubject subject,
+  }) => _ownerGraph.run({ownerId}, ownerId, (_) async {
+    // The row trigger retires the object. An already absent row is success.
+    await _database.customUpdate(
+      r'''
+DELETE FROM public.person_private_avatar
+WHERE owner_id = $1
+  AND subject_user_id IS NOT DISTINCT FROM $2
+  AND subject_phantom_id IS NOT DISTINCT FROM $3
+''',
+      variables: [
+        Variable.withString(ownerId),
+        Variable<String>(subject.userId),
+        Variable<String>(subject.phantomId),
+      ],
+      updateKind: UpdateKind.delete,
+    );
+  });
+
+  @override
   Future<Uint8List> get({
     required String viewerId,
     required String objectKey,

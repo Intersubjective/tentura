@@ -5566,6 +5566,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return null;
   }
 
+  String? privateAvatarObjectKeyForPerson(String personId) {
+    for (final peer in state.field?.peers ?? const <ConstellationPerson>[]) {
+      if (peer.id == personId) return peer.privateAvatarObjectKey;
+    }
+    return null;
+  }
+
   Profile? profileForPersonId(String personId) {
     if (personId == _viewer.id) {
       return _viewer;
@@ -5660,7 +5667,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               size: node.size,
             );
           }(),
-          FieldPersonNode(:final person) => () {
+          FieldPersonNode(:final person, :final privateAvatarObjectKey) => () {
             final live = profileForPersonId(person.id);
             if (live == null || live == person) {
               return node;
@@ -5668,6 +5675,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             changed = true;
             return FieldPersonNode(
               person: live,
+              privateAvatarObjectKey: privateAvatarObjectKey,
               ring: node.ring,
               isKept: node.isKept,
               pinned: node.pinned,

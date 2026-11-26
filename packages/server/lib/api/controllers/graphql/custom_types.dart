@@ -1156,6 +1156,8 @@ final gqlTypeConstellationPeer =
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
         field('mergedPhantomId', graphQLString),
+        field('hasPrivateAvatar', graphQLBoolean),
+        field('privateAvatarObjectKey', graphQLString),
         field('displayName', graphQLString),
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),
@@ -1477,6 +1479,7 @@ final gqlTypeConstellationPhantom =
         field('displayName', graphQLString.nonNullable()),
         field('emoji', graphQLString),
         field('hasPrivateAvatar', graphQLBoolean.nonNullable()),
+        field('privateAvatarObjectKey', graphQLString),
         field(
           'ownTagIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
