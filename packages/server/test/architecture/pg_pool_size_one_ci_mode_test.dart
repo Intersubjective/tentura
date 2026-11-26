@@ -95,6 +95,17 @@ void main() {
       expect(yaml, matches(RegExp('^  $_multiTag:', multiLine: true)));
     });
 
+    test('the private avatar row-lock tests opt into the normal pool', () {
+      final source = File(
+        'test/data/database/private_avatar_cleanup_pg_test.dart',
+      ).readAsStringSync();
+      final fileTags = _tagDeclarations.first.firstMatch(source)?.group(1);
+      expect(
+        fileTags,
+        allOf(contains("'pg'"), contains("'$_multiTag'")),
+      );
+    });
+
     test('one dart test command runs the pg suite with the pool override and '
         'without the multi-connection tests', () {
       final pooled = [
