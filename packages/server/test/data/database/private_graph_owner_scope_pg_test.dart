@@ -40,6 +40,7 @@ const _privateGraphTables = {
   'person_private_avatar',
   'phantom',
   'phantom_merge',
+  'phantom_pending_forward',
   'phantom_tag_member',
 };
 
