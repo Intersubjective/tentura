@@ -21,6 +21,50 @@ final class PhantomPendingForwardRepository
   final AttentionDispatchRepository _attention;
 
   @override
+  Future<
+    List<
+      ({
+        String id,
+        String phantomId,
+        String displayName,
+        PhantomPendingForwardState state,
+      })
+    >
+  >
+  listForRequest({
+    required String senderId,
+    required String beaconId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT f.id, f.phantom_id, p.display_name, f.state
+FROM public.phantom_pending_forward f
+JOIN public.phantom p ON p.id = f.phantom_id AND p.owner_id = f.sender_id
+WHERE f.sender_id = $1 AND f.beacon_id = $2
+  AND f.state IN ('pending', 'lapsed')
+ORDER BY f.created_at DESC, f.id DESC
+''',
+          variables: [
+            Variable.withString(senderId),
+            Variable.withString(beaconId),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        (
+          id: row.read<String>('id'),
+          phantomId: row.read<String>('phantom_id'),
+          displayName: row.read<String>('display_name'),
+          state: PhantomPendingForwardState.values.byName(
+            row.read<String>('state'),
+          ),
+        ),
+    ];
+  }
+
+  @override
   Future<bool> hasPending({
     required String phantomId,
     required String senderId,
@@ -145,6 +189,7 @@ FROM assigned ORDER BY created_at, id
         beaconId: row.read<String>('beacon_id'),
         pendingForwardId: row.read<String>('id'),
         mergeId: mergeId,
+        linkedRecipientId: recipientId,
         displayName: displayName,
       );
     }

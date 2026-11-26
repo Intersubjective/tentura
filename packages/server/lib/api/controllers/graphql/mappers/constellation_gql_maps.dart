@@ -7,8 +7,9 @@ import 'package:tentura_server/domain/port/constellation_anchor_repository_port.
 import 'gql_public_user_maps.dart';
 
 Map<String, dynamic> constellationFieldToGqlMap(
-  ConstellationFieldSnapshot snapshot,
-) => {
+  ConstellationFieldSnapshot snapshot, {
+  String? viewerId,
+}) => {
   'loadedAt': snapshot.loadedAt.toIso8601String(),
   'context': snapshot.context,
   'peers': snapshot.peers.map(_peerToGqlMap).toList(growable: false),
@@ -28,6 +29,7 @@ Map<String, dynamic> constellationFieldToGqlMap(
     for (final phantom in snapshot.phantoms)
       {
         'id': phantom.id,
+        'ownerId': viewerId,
         'displayName': phantom.displayName,
         'emoji': phantom.emoji,
         'hasPrivateAvatar': phantom.hasPrivateAvatar,

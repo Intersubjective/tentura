@@ -491,6 +491,7 @@ activity_child_receipts AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IS NOT NULL
+    AND NOT ${AttentionDismissibleSql.linkedPersonForwardOffer('v')}
     AND ${AttentionDismissibleSql.relayShellExcluded('v')}
     -- U11/D16, the load-bearing one. Everything a grouped For You row says
     -- about itself comes from here: `event_total` (the count),
@@ -728,7 +729,7 @@ page_stream AS (
   SELECT $_receiptStreamColumns
   FROM visible v
   WHERE v.surface = 'activity'
-    AND v.beacon_id IS NULL
+    AND (v.beacon_id IS NULL OR ${AttentionDismissibleSql.linkedPersonForwardOffer('v')})
     AND NOT ${AttentionDismissibleSql.fieldPersonLink('v')}
 
   UNION ALL

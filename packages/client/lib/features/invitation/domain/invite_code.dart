@@ -102,3 +102,8 @@ String? extractEntityIdFromText(String text) {
   } on FormatException catch (_) {}
   return null;
 }
+
+Uri inviteLandingUri(String code, {String? requestId}) => Uri(
+  pathSegments: ['', 'invite', code],
+  queryParameters: requestId == null ? null : {'r': requestId},
+);

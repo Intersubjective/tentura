@@ -38,6 +38,7 @@ import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import 'inbox_card_actions.dart';
+import 'linked_person_forward_card.dart';
 import 'activity_forward_outcome_copy.dart';
 import 'activity_invite_card.dart';
 import 'rejection_dialog.dart';
@@ -1110,6 +1111,14 @@ class _ActivityStreamCell extends StatelessWidget {
   }
 
   Widget _streamRow(BuildContext context, AttentionReceipt receipt) {
+    if (receipt.linkedPersonForwardOffer case final offer?) {
+      return LinkedPersonForwardCard(
+        key: ValueKey(receipt.id),
+        offer: offer,
+        onAnswered: () => streamCubit.markRead(receipt.id),
+      );
+    }
+
     Future<void> onOpenReceipt(AttentionReceipt target) async {
       final beaconId = target.beaconId;
       if (beaconId == null || beaconId.isEmpty) {

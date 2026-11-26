@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/entity/phantom_pending_forward.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/phantom_pending_forward_repository_port.dart';
@@ -106,6 +107,48 @@ final class PhantomCase {
     );
     if (inviteId == null) throw IdNotFoundException(id: id);
     return inviteId;
+  }
+
+  Future<
+    List<
+      ({
+        String id,
+        String phantomId,
+        String senderId,
+        String beaconId,
+        String displayName,
+        PhantomPendingForwardState state,
+      })
+    >
+  >
+  pendingForRequest({
+    required String senderId,
+    required String beaconId,
+  }) async {
+    final rows = await _pendingForwards.listForRequest(
+      senderId: senderId,
+      beaconId: beaconId,
+    );
+    if (rows.isEmpty) return const [];
+    final stillForwardable =
+        rows.any((row) => row.state == PhantomPendingForwardState.pending) &&
+        await _forwardCase.canForwardRequestNow(
+          beaconId: beaconId,
+          senderId: senderId,
+        );
+    return [
+      for (final row in rows)
+        (
+          id: row.id,
+          phantomId: row.phantomId,
+          senderId: senderId,
+          beaconId: beaconId,
+          displayName: row.displayName,
+          state: stillForwardable
+              ? row.state
+              : PhantomPendingForwardState.lapsed,
+        ),
+    ];
   }
 
   /// Records a pending Request forward and returns the person's invite code.

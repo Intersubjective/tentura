@@ -19,6 +19,21 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     required String id,
   });
 
+  Future<
+    List<
+      ({
+        String id,
+        String phantomId,
+        String displayName,
+        PhantomPendingForwardState state,
+      })
+    >
+  >
+  listForRequest({
+    required String senderId,
+    required String beaconId,
+  });
+
   Future<bool> hasPending({
     required String phantomId,
     required String senderId,

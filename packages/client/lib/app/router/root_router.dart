@@ -358,7 +358,10 @@ class RootRouter extends RootStackRouter implements AppNavigator {
           if (_authCubit.state.isAuthenticated) {
             return null;
           }
-          final bounced = goToLanding(invitePath: '/invite/$code');
+          final requestId = resolver.route.queryParams.optString('r');
+          final bounced = goToLanding(
+            invitePath: inviteLandingUri(code, requestId: requestId).toString(),
+          );
           return switch (resolveAcceptInviteGuard(
             isAuthenticated: false,
             code: code,

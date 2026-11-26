@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura/consts.dart' show kPhantomsEnabled;
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
@@ -229,6 +230,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   bool _peopleSeenInFlight = false;
 
   bool _fetchInProgress = false;
+  bool _pendingPlaceholderForwardsLoading = false;
   bool _fetchPending = false;
 
   /// Refreshes asked for by one hint burst: room kinds name the slices they
@@ -2014,7 +2016,35 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   }
 
   /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
-  Future<void> loadForwards() => _loadForwards(silent: false);
+  Future<void> loadForwards() async {
+    if (!(state.beacon.accessLevel?.isMember ?? true)) return;
+    await Future.wait([
+      _loadForwards(silent: false),
+      if (kPhantomsEnabled && state.beacon.isRequest)
+        _loadPendingPlaceholderForwards(),
+    ]);
+  }
+
+  Future<void> _loadPendingPlaceholderForwards() async {
+    if (_pendingPlaceholderForwardsLoading) return;
+    _pendingPlaceholderForwardsLoading = true;
+    final beaconId = state.beacon.id;
+    try {
+      final rows = await _case.fetchPendingForwards(beaconId);
+      if (isClosed || state.beacon.id != beaconId) return;
+      emit(
+        state.copyWith(
+          pendingPlaceholderForwards: rows
+              .where((row) => row.senderId == state.myProfile.id)
+              .toList(growable: false),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!isClosed) _showSnackError(error);
+    } finally {
+      _pendingPlaceholderForwardsLoading = false;
+    }
+  }
 
   /// [silent] background loads report no error to the user.
   Future<void> _loadForwards({required bool silent}) async {

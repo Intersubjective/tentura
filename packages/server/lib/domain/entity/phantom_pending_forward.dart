@@ -1,3 +1,5 @@
+import 'forward_delivery_result.dart';
+
 enum PhantomPendingForwardState { pending, claimed, delivered, lapsed, offered }
 
 enum PhantomForwardDeliverySource {
@@ -54,9 +56,10 @@ sealed class PhantomForwardResolution {
 }
 
 final class PhantomForwardDelivered extends PhantomForwardResolution {
-  const PhantomForwardDelivered(this.edgeId);
+  const PhantomForwardDelivered(this.edgeId, this.result);
 
   final String edgeId;
+  final ForwardDeliveryResult result;
 }
 
 enum PhantomForwardLapsed implements PhantomForwardResolution {

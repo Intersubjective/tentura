@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.70.1';
+const _release = '7.71.0';
 const _coordinatedFloor = '7.70.0';
 
 void main() {

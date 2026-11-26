@@ -143,6 +143,7 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
     required String beaconId,
     required String pendingForwardId,
     required String mergeId,
+    required String linkedRecipientId,
     required String displayName,
   }) => _recordPersonalNotice(
     actorUserId: ownerId,
@@ -154,7 +155,11 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
     beaconId: beaconId,
     targetEntityId: pendingForwardId,
     placement: AttentionPlacement.primary,
-    payload: {'mergeId': mergeId, 'displayName': displayName},
+    payload: {
+      'mergeId': mergeId,
+      'displayName': displayName,
+      'recipientId': linkedRecipientId,
+    },
   );
 
   Future<void> _recordPersonalNotice({

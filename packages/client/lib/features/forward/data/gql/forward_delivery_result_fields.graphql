@@ -1,0 +1,7 @@
+fragment ForwardDeliveryResultFields on v2_ForwardDeliveryResult {
+  batchId
+  deliveredRecipientIds
+  availabilitySkippedRecipientIds
+  alreadyForwardedRecipientIds
+  blockedSkippedRecipientIds
+}

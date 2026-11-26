@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
+import '../entity/forward_delivery_result.dart';
 import '../entity/phantom_pending_forward.dart';
 import '../exception.dart';
 import '../port/owner_graph_transaction_port.dart';
@@ -51,7 +52,17 @@ final class PhantomForwardDeliveryCase {
     required String id,
     String? mergeId,
   }) async {
-    await _settle(
+    await confirmForward(senderId: senderId, id: id, mergeId: mergeId);
+    return true;
+  }
+
+  Future<ForwardDeliveryResult> confirmForward({
+    required String senderId,
+    required String id,
+    required String? mergeId,
+    ({String beaconId, String? recipientId})? expectedTarget,
+  }) async {
+    final resolution = await _settle(
       senderId,
       () async {
         final offer = await _pendingForwards.findById(
@@ -60,7 +71,11 @@ final class PhantomForwardDeliveryCase {
         );
         if (offer == null ||
             offer.state != PhantomPendingForwardState.offered ||
-            (mergeId != null && offer.mergeId != mergeId)) {
+            (mergeId != null && offer.mergeId != mergeId) ||
+            (expectedTarget != null &&
+                (offer.beaconId != expectedTarget.beaconId ||
+                    (expectedTarget.recipientId != null &&
+                        offer.recipientId != expectedTarget.recipientId)))) {
           throw IdNotFoundException(id: id);
         }
         return (
@@ -73,16 +88,21 @@ final class PhantomForwardDeliveryCase {
       },
       source: PhantomForwardDeliverySource.manualOffer,
     );
-    return true;
+    return switch (resolution) {
+      PhantomForwardDelivered(:final result) => result,
+      _ => throw StateError('No delivery result for confirmed forward $id'),
+    };
   }
 
-  Future<void> _deliverClaim(PhantomForwardClaim claim) => _settle(
-    claim.senderId,
-    () => claim,
-    source: PhantomForwardDeliverySource.inviteClaim,
-  );
+  Future<void> _deliverClaim(PhantomForwardClaim claim) async {
+    await _settle(
+      claim.senderId,
+      () => claim,
+      source: PhantomForwardDeliverySource.inviteClaim,
+    );
+  }
 
-  Future<void> _settle(
+  Future<PhantomForwardResolution?> _settle(
     String senderId,
     FutureOr<PhantomForwardClaim> Function() readClaim, {
     required PhantomForwardDeliverySource source,
@@ -110,7 +130,7 @@ final class PhantomForwardDeliveryCase {
         if (confirming && target is! PhantomForwardDelivery) {
           throw IdNotFoundException(id: claim.id);
         }
-        if (target == null) return;
+        if (target == null) return null;
 
         final resolution = switch (target) {
           PhantomForwardRecipientGone() => PhantomForwardLapsed.recipientGone,
@@ -140,6 +160,7 @@ final class PhantomForwardDeliveryCase {
             resolution is PhantomForwardLapsed) {
           await _pendingForwards.recordJoinerCard(scope, claim, target);
         }
+        return resolution;
       },
     ),
   );

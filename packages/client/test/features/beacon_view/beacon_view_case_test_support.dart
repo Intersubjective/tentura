@@ -30,6 +30,7 @@ import 'package:tentura/features/closure/data/repository/closure_repository.dart
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/features/forward/domain/entity/placeholder_forward.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
@@ -111,6 +112,11 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
     await _forwardChanges.close();
     await _helpOfferChanges.close();
   }
+
+  @override
+  Future<List<PlaceholderForward>> fetchPendingForwards(
+    String beaconId,
+  ) async => const [];
 
   /// The view load asks for involvement on a beacon it already has. Stubs
   /// still override [fetchBeaconInvolvement].

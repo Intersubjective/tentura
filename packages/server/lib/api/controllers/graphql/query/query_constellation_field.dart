@@ -62,7 +62,10 @@ final class QueryConstellationField extends GqlNodeBase {
                   projection: projection,
                 ),
               )
-              .then(constellationFieldToGqlMap);
+              .then(
+                (snapshot) =>
+                    constellationFieldToGqlMap(snapshot, viewerId: viewerId),
+              );
         },
       );
 }

@@ -430,19 +430,33 @@ final class ForwardCase extends UseCaseBase {
       return PhantomForwardLapsed.forwardNoLongerAllowed;
     }
 
+    final batchId = generateId('X');
     final batch = await _writeForward(
       transaction,
       checked,
       senderId: claim.senderId,
       beaconId: claim.beaconId,
-      batchId: generateId('X'),
+      batchId: batchId,
       noteForRecipient: (_) => delivery.note,
       clientParentEdgeId: claim.parentForwardEdgeId,
     );
     final edgeId =
         batch.createdEdges.singleOrNull?.edgeId ??
         batch.alreadyForwardedEdgeIds[delivery.recipientId];
-    if (edgeId != null) return PhantomForwardDelivered(edgeId);
+    if (edgeId != null) {
+      return PhantomForwardDelivered(
+        edgeId,
+        ForwardDeliveryResult(
+          batchId: batchId,
+          deliveredRecipientIds: [
+            for (final edge in batch.createdEdges) edge.recipientId,
+          ],
+          availabilitySkippedRecipientIds:
+              batch.availabilitySkippedRecipientIds,
+          alreadyForwardedRecipientIds: batch.alreadyForwardedRecipientIds,
+        ),
+      );
+    }
     if (batch.availabilitySkippedRecipientIds.contains(delivery.recipientId)) {
       return PhantomForwardLapsed.recipientPaused;
     }
@@ -556,6 +570,22 @@ final class ForwardCase extends UseCaseBase {
     parentEdgeId: null,
     rejectBlocked: true,
   );
+
+  Future<bool> canForwardRequestNow({
+    required String beaconId,
+    required String senderId,
+  }) async {
+    try {
+      final beacon = await _requireForwardableBeacon(beaconId, senderId);
+      final endAt = beacon.endAt;
+      return beacon.kind == BeaconKind.request &&
+          (endAt == null || endAt.isAfter(DateTime.now()));
+    } on UnauthorizedException {
+      return false;
+    } on IdNotFoundException {
+      return false;
+    }
+  }
 
   /// Checks an outgoing Request under the caller's transaction locks. The
   /// content guard also checks blocks between the sender and the author.

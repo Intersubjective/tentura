@@ -26,6 +26,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
+import 'package:tentura/features/forward/domain/entity/placeholder_forward.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
@@ -608,8 +609,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
         ? kMinInteractiveDimension
         : tt.buttonHeight;
 
+    final pending = state.pendingPlaceholderForwards;
     final forwardsTitle = state.forwardsLoaded
-        ? '${l10n.labelForwards} (${forwardEdges.length})'
+        ? '${l10n.labelForwards} (${forwardEdges.length + pending.length})'
         : l10n.labelForwards;
 
     final List<Widget> forwardsChildren;
@@ -624,7 +626,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
       ];
     } else if (state.forwardsLoaded) {
       final edges = forwardEdges;
-      if (edges.isEmpty) {
+      if (edges.isEmpty && pending.isEmpty) {
         forwardsChildren = [
           Text(
             l10n.beaconForwardsEmpty,
@@ -635,6 +637,22 @@ class BeaconPeopleTabBody extends StatelessWidget {
         ];
       } else {
         final feedRows = <Widget>[
+          for (final row in pending)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.placeholderForwardName(row.displayName)),
+                TenturaStatusText(
+                  switch (row.status) {
+                    PlaceholderForwardStatus.pending =>
+                      l10n.placeholderForwardPending,
+                    PlaceholderForwardStatus.lapsed =>
+                      l10n.placeholderForwardLapsed,
+                  },
+                  maxLines: null,
+                ),
+              ],
+            ),
           for (final e in edges)
             if (e.sender.id == viewerId)
               UnifiedForwardRow.outgoing(

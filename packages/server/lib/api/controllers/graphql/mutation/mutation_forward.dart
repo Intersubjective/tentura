@@ -1,6 +1,7 @@
 import 'dart:convert' show json;
 
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
+import 'package:tentura_server/domain/use_case/phantom_forward_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import '../custom_types.dart';
@@ -17,6 +18,8 @@ final class MutationForward extends GqlNodeBase {
   final _context = InputFieldString(fieldName: 'context');
   final _parentEdgeId = InputFieldString(fieldName: 'parentEdgeId');
   final _perRecipientNotes = InputFieldString(fieldName: 'perRecipientNotes');
+  final _offerId = InputFieldString(fieldName: 'offeredForwardId');
+  final _offerMergeId = InputFieldString(fieldName: 'offeredForwardMergeId');
   final _message = InputFieldString(fieldName: 'message');
 
   static final _reasons = GraphQLFieldInput(
@@ -103,8 +106,36 @@ final class MutationForward extends GqlNodeBase {
       _reasons,
       InputFieldForwardRecipientReasons.field,
       InputFieldForwardRecipientBandProvenance.field,
+      _offerId.fieldNullable,
+      _offerMergeId.fieldNullable,
     ],
     resolve: (_, args) {
+      final senderId = getCredentials(args).sub;
+      final beaconId = InputFieldId.fromArgsNonNullable(args);
+      final recipientIds = InputFieldRecipientIds.fromArgs(args);
+      final offeredForwardId = _offerId.fromArgs(args);
+      final mergeId = _offerMergeId.fromArgs(args);
+      if (offeredForwardId != null) {
+        if (recipientIds.length > 1 || mergeId == null || mergeId.isEmpty) {
+          throw ArgumentError(
+            'A saved offer requires a merge id and accepts at most one recipient',
+          );
+        }
+        return GetIt.I<PhantomForwardDeliveryCase>()
+            .confirmForward(
+              senderId: senderId,
+              id: offeredForwardId,
+              mergeId: mergeId,
+              expectedTarget: (
+                beaconId: beaconId,
+                recipientId: recipientIds.singleOrNull,
+              ),
+            )
+            .then(_forwardDeliveryResultToGqlMap);
+      }
+      if (mergeId != null) {
+        throw ArgumentError('A merge id requires a saved offer');
+      }
       final recipientReasonsList = InputFieldForwardRecipientReasons.fromArgs(
         args,
       );
@@ -126,9 +157,9 @@ final class MutationForward extends GqlNodeBase {
             };
       return _forwardCase
           .forward(
-            senderId: getCredentials(args).sub,
-            beaconId: InputFieldId.fromArgsNonNullable(args),
-            recipientIds: InputFieldRecipientIds.fromArgs(args),
+            senderId: senderId,
+            beaconId: beaconId,
+            recipientIds: recipientIds,
             sharedNote: _note.fromArgs(args) ?? '',
             context: _context.fromArgs(args),
             parentEdgeId: _parentEdgeId.fromArgs(args),

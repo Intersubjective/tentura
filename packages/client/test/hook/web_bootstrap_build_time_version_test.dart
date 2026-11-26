@@ -76,7 +76,7 @@ void main() {
             bootstrap: bootstrapVersion,
             manifest: manifest['version'],
           ),
-          (bootstrap: '7.70.1', manifest: '7.70.1'),
+          (bootstrap: '7.71.0', manifest: '7.71.0'),
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),

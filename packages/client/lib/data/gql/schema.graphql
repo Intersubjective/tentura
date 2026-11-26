@@ -3873,7 +3873,7 @@ type mutation_root {
   beaconDeleteById(id: String!): Boolean!
   beaconExtendClosure(beaconId: String!, expectedEpoch: Int!): Boolean!
   beaconFork(copyPlan: Boolean, factIds: [String!], id: String!, planStepTimes: [v2_PlanStepTimeInput!]): v2_Beacon!
-  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
+  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, offeredForwardId: String, offeredForwardMergeId: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardMarkRead(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
@@ -4121,6 +4121,7 @@ type mutation_root {
   phantomCreate(name: String!, emoji: String, position: v2_ConstellationAnchorPositionInput): String!
   phantomUpdate(id: String!, name: String!, emoji: String): Boolean!
   phantomDelete(id: String!): Boolean!
+  beaconForwardToPhantom(beaconId: String!, phantomId: String!, note: String): String!
   phantomInviteEnsure(id: String!): String!
   phantomInviteRotate(id: String!): String!
   phantomLink(phantomId: String!, userId: String!): Boolean!
@@ -4822,6 +4823,7 @@ type query_root {
   activityOffers(beaconId: String, cursor: String, limit: Int): v2_ActivityOfferPage!
   attentionClearSnapshot(beaconId: String, kind: String!, receiptId: String): v2_AttentionClearSnapshot!
   beaconUpdateSeenBy(id: String!): [v2_BeaconUpdateReader!]!
+  beaconPendingForwards(beaconId: String!): [v2_PendingForward!]
   attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
   attentionRequestHistory(beaconId: String!, cursor: String, limit: Int): v2_AttentionPage!
@@ -7716,6 +7718,15 @@ type v2_AttentionDismissAllResult {
   undoToken: String
 }
 
+type v2_PendingForward {
+  id: String!
+  phantomId: String!
+  senderId: String!
+  beaconId: String!
+  displayName: String!
+  state: String!
+}
+
 type v2_AttentionFeed {
   page: v2_AttentionPage!
   summary: v2_AttentionSummary!
@@ -8411,6 +8422,7 @@ type v2_PersonNoteSubject {
 
 type v2_ConstellationPhantom {
   id: String!
+  ownerId: String
   displayName: String!
   emoji: String
   hasPrivateAvatar: Boolean!

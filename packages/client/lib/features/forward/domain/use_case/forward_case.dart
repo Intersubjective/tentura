@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -464,6 +465,10 @@ final class ForwardCase {
     attributionParentEdgeIds: attributionParentEdgeIds,
     recipientBandProvenance: recipientBandProvenance,
   );
+
+  Future<void> forwardOfferedRequest(LinkedPersonForwardOffer offer) async {
+    await _forwardRepository.forwardOfferedRequest(offer);
+  }
 
   Future<List<ForwardInboundSource>> fetchInboundForwardSources({
     required String beaconId,

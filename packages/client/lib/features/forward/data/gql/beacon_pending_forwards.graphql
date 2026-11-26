@@ -1,0 +1,7 @@
+query BeaconPendingForwards($beaconId: String!) {
+  beaconPendingForwards(beaconId: $beaconId) {
+    senderId
+    displayName
+    state
+  }
+}

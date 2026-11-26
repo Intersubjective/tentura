@@ -552,7 +552,11 @@ final class QueryAttention extends GqlNodeBase {
         'mergeId',
         'userId',
       },
-      kRequestForwardOfferedPresentationKey => const {'displayName', 'mergeId'},
+      kRequestForwardOfferedPresentationKey => const {
+        'displayName',
+        'mergeId',
+        'recipientId',
+      },
       _ => const <String>{},
     };
     final payload = <String, Object>{

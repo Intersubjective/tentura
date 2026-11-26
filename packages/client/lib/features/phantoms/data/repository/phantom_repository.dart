@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../domain/port/phantom_repository_port.dart';
 import '../../domain/exception.dart';
+import '../gql/_g/forward_request_to_placeholder.req.gql.dart';
 import '../gql/_g/phantom_create.req.gql.dart';
 import '../gql/_g/phantom_delete.req.gql.dart';
 import '../gql/_g/phantom_hint_dismiss.req.gql.dart';
@@ -57,6 +58,24 @@ final class PhantomRepository implements PhantomRepositoryPort {
     ),
     (data) => data.phantomUpdate,
   );
+
+  @override
+  Future<Uri> forwardRequest({
+    required String phantomId,
+    required String beaconId,
+    String? note,
+  }) async {
+    final link = await _mutate(
+      GForwardRequestToPlaceholderReq((builder) {
+        builder.vars
+          ..phantomId = phantomId
+          ..beaconId = beaconId
+          ..note = note;
+      }),
+      (data) => data.beaconForwardToPhantom,
+    );
+    return Uri.parse(link);
+  }
 
   @override
   Future<void> delete({required String id}) => _write(

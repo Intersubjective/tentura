@@ -1,0 +1,17 @@
+# import 'forward_delivery_result_fields.graphql'
+
+mutation ConfirmOfferedRequestForward(
+  $beaconId: String!,
+  $recipientIds: [String!]!,
+  $offerId: String!,
+  $mergeId: String!
+) {
+  beaconForward(
+    id: $beaconId,
+    recipientIds: $recipientIds,
+    offeredForwardId: $offerId,
+    offeredForwardMergeId: $mergeId
+  ) {
+    ...ForwardDeliveryResultFields
+  }
+}
