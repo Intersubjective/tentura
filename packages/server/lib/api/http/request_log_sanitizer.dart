@@ -1,7 +1,9 @@
 const _redactedValue = '<redacted>';
 
+// Shelf logs the normalized URI, where the BOM remains percent-encoded.
+// Dart drops a leading UTF-8 BOM when decoding a query parameter name.
 final _sensitiveQueryParameter = RegExp(
-  r'([?&](?:_qa_token|objectKey)=)[^&\s]*',
+  r'([?&](?:%EF%BB%BF)?(?:_qa_token|objectKey)=)[^&\s]*',
 );
 
 String sanitizeRequestLogMessage(String message) => message.replaceAllMapped(

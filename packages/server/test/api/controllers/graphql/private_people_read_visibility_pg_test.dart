@@ -652,6 +652,47 @@ JOIN pg_namespace AS ns ON ns.oid = relation.relnamespace
       }
     });
 
+    for (final (caller, person, status) in [
+      ('the owner', _owner, HttpStatus.ok),
+      ('a denied viewer', _viewer, HttpStatus.forbidden),
+    ]) {
+      test(
+        'avatar download logs hide the key for $caller when the parameter name has a UTF-8 BOM',
+        () async {
+          final key = avatarKeys.first;
+          final requestLogs = <String>[];
+          final response = await runZoned(
+            () => api.downloadAvatar(
+              person,
+              key,
+              queryName: '%EF%BB%BFobjectKey',
+            ),
+            zoneSpecification: ZoneSpecification(
+              print: (_, _, _, line) => requestLogs.add(line),
+            ),
+          );
+          expect(response.statusCode, status);
+          final bytes = await response.read().expand((chunk) => chunk).toList();
+          expect(
+            bytes,
+            status == HttpStatus.ok ? equals(jpeg) : isNot(equals(jpeg)),
+          );
+
+          final downloads = requestLogs.where(
+            (line) => line.contains('/api/v2/private-avatars'),
+          );
+          expect(downloads, hasLength(1));
+          expect(downloads.single, contains('[$status]'));
+          expect(
+            requestLogs.join('\n'),
+            isNot(
+              anyOf(contains(key), contains(Uri.encodeQueryComponent(key))),
+            ),
+          );
+        },
+      );
+    }
+
     test(
       'saving, reading, searching and deleting notes keeps their text out of server logs',
       () async {
@@ -980,12 +1021,16 @@ mutation UploadAvatar($userId: String, $phantomId: String, $file: Upload) {
     expect(reply['personPrivateAvatarUpload'], isTrue);
   }
 
-  Future<Response> downloadAvatar(String person, String key) async => _handler(
+  Future<Response> downloadAvatar(
+    String person,
+    String key, {
+    String queryName = 'objectKey',
+  }) async => _handler(
     Request(
       'GET',
       Uri.parse(
         '$_origin/api/v2/private-avatars',
-      ).replace(queryParameters: {'objectKey': key}),
+      ).replace(query: '$queryName=${Uri.encodeQueryComponent(key)}'),
       headers: {'authorization': _authorization(person)},
     ),
   );
