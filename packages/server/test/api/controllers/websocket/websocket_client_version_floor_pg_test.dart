@@ -42,7 +42,7 @@ Future<void> main() async {
         pong,
         allOf(
           containsPair('type', 'pong'),
-          containsPair('min_client_version', '7.69.1'),
+          containsPair('min_client_version', '7.70.0'),
         ),
       );
     },
@@ -59,10 +59,10 @@ Future<void> main() async {
       final floor = pong['min_client_version'] as String;
       expect(
         {
-          for (final version in ['7.69.0', '7.69.1'])
+          for (final version in ['7.69.1', '7.70.0'])
             version: _meetsFloor(version, floor),
         },
-        {'7.69.0': false, '7.69.1': true},
+        {'7.69.1': false, '7.70.0': true},
         reason: 'The authenticated server announced min_client_version $floor.',
       );
     },

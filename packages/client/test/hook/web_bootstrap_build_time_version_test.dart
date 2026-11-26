@@ -28,9 +28,11 @@ void main() {
         final packageVersion = Pubspec.parse(
           _sourcePubspec.readAsStringSync(),
         ).version.toString();
+        final sourceIndex = _sourceIndex.readAsStringSync();
+        expect(_bootstrapVersion(sourceIndex), _sourceVersion);
         expect(
-          _bootstrapVersion(_sourceIndex.readAsStringSync()),
-          _sourceVersion,
+          'flutter_bootstrap.js?v=$_sourceVersion'.allMatches(sourceIndex),
+          hasLength(1),
         );
         final sourceManifest =
             jsonDecode(
@@ -74,7 +76,7 @@ void main() {
             bootstrap: bootstrapVersion,
             manifest: manifest['version'],
           ),
-          (bootstrap: '7.69.1', manifest: '7.69.1'),
+          (bootstrap: '7.70.0', manifest: '7.70.0'),
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),

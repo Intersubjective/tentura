@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _releaseVersion = '7.69.1';
+const _releaseVersion = '7.70.0';
 
 void main() {
   test(

@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.69.1';
+const _release = '7.70.0';
 
 void main() {
   test('the shipped client declares one release version', () {
@@ -31,6 +31,7 @@ void main() {
   });
 
   test('without an override the server requires the coordinated client', () {
+    expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
     expect(
       (compiled: kDefaultMinClientVersion, effective: Env().minClientVersion),
       (compiled: _release, effective: _release),
@@ -39,17 +40,18 @@ void main() {
 
   test('the sample environment documents the coordinated client floor', () {
     final sample = File('../../.env.example').readAsLinesSync();
-    final floorComment = sample.singleWhere(
-      (line) => line.contains('kDefaultMinClientVersion, currently '),
-    );
-    final override = sample.singleWhere(
-      (line) => line.startsWith('# MIN_CLIENT_VERSION='),
-    );
     expect(
-      {'comment': floorComment, 'override': override},
       {
-        'comment': contains('kDefaultMinClientVersion, currently $_release)'),
-        'override': '# MIN_CLIENT_VERSION=$_release',
+        'comment': sample.where(
+          (line) => line.contains('kDefaultMinClientVersion, currently '),
+        ),
+        'override': sample.where(
+          (line) => line.startsWith('# MIN_CLIENT_VERSION='),
+        ),
+      },
+      {
+        'comment': [contains('kDefaultMinClientVersion, currently $_release)')],
+        'override': ['# MIN_CLIENT_VERSION=$_release'],
       },
     );
   });
