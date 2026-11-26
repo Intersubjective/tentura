@@ -1,3 +1,5 @@
+// RSS is process-wide, so run this suite separately from other test files.
+@Tags(['rss-isolated'])
 @Timeout(Duration(minutes: 3))
 library;
 

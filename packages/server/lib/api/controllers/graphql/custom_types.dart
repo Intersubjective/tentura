@@ -76,6 +76,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReach,
   gqlTypeForwardReachVoucher,
   gqlTypeUserContact,
+  gqlTypePersonNoteSection,
+  gqlTypePersonNoteSubject,
   gqlTypeBlockIntent,
   gqlTypeBlockPreview,
   gqlTypeBeaconCancelResult,
@@ -1154,6 +1156,8 @@ final gqlTypeConstellationPeer =
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
         field('mergedPhantomId', graphQLString),
+        field('hasPrivateAvatar', graphQLBoolean),
+        field('privateAvatarObjectKey', graphQLString),
         field('displayName', graphQLString),
         field('handle', graphQLString),
         field('image', gqlTypeImagePublic),
@@ -1475,6 +1479,7 @@ final gqlTypeConstellationPhantom =
         field('displayName', graphQLString.nonNullable()),
         field('emoji', graphQLString),
         field('hasPrivateAvatar', graphQLBoolean.nonNullable()),
+        field('privateAvatarObjectKey', graphQLString),
         field(
           'ownTagIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
@@ -1708,6 +1713,19 @@ final gqlTypeInviteGenealogyChildCount =
 
 /// Per-viewer private contact name (subjective profiles). Viewer-scoped:
 /// only ever returned for the authenticated caller as viewer.
+final gqlTypePersonNoteSection = GraphQLObjectType('PersonNoteSection', null)
+  ..fields.addAll([
+    field('body', graphQLString.nonNullable()),
+    field('subjectPhantomId', graphQLString),
+    field('phantomName', graphQLString),
+  ]);
+
+final gqlTypePersonNoteSubject = GraphQLObjectType('PersonNoteSubject', null)
+  ..fields.addAll([
+    field('subjectUserId', graphQLString),
+    field('subjectPhantomId', graphQLString),
+  ]);
+
 final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
   ..fields.addAll([
     field('subjectId', graphQLString.nonNullable()),

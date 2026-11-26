@@ -5,10 +5,14 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
 
+import '../../domain/entity/person_note.dart';
 import '../../domain/entity/phantom.dart';
 import '../../domain/exception.dart';
 import '../../domain/port/phantom_repository_port.dart';
 import 'phantom_invite_presentation.dart';
+import 'person_notes_block.dart';
+import 'private_avatar_actions.dart';
+import 'private_person_avatar.dart';
 
 class PhantomContextPanel extends StatefulWidget {
   const PhantomContextPanel({
@@ -113,11 +117,29 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
           children: [
             Row(
               children: [
+                PrivatePersonAvatar(
+                  objectKey: person.privateAvatarObjectKey,
+                  size: tt.avatarSize,
+                  fallback: CircleAvatar(
+                    radius: tt.avatarSize / 2,
+                    backgroundColor: theme.colorScheme.surfaceContainer,
+                    child: switch (person.emoji) {
+                      final emoji? when emoji.isNotEmpty => Text(emoji),
+                      _ => const Icon(Icons.person_outline),
+                    },
+                  ),
+                ),
+                SizedBox(width: tt.avatarTextGap),
                 Expanded(
                   child: Text(
                     person.displayName,
                     style: theme.textTheme.titleMedium,
                   ),
+                ),
+                PrivateAvatarActions(
+                  subject: PhantomNoteSubject(person.id),
+                  hasPhoto: person.hasPrivateAvatar,
+                  onChanged: widget.onChanged,
                 ),
                 IconButton(
                   tooltip: l10n.buttonClose,
@@ -142,6 +164,7 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
                 ],
               ),
             ],
+            PersonNotesBlock(subject: PhantomNoteSubject(person.id)),
             SizedBox(height: tt.sectionGap),
             OutlinedButton(
               onPressed: _busy ? null : () => _run(() => _copy(rotate: false)),

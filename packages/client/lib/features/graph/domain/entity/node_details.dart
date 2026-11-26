@@ -315,6 +315,7 @@ final class FieldPersonNode extends NodeDetails {
     required this.person,
     required this.ring,
     required this.isKept,
+    this.privateAvatarObjectKey,
     super.pinned,
     super.size,
   });
@@ -322,6 +323,7 @@ final class FieldPersonNode extends NodeDetails {
   final Profile person;
   final int ring;
   final bool isKept;
+  final String? privateAvatarObjectKey;
 
   @override
   String get userId => person.id;
@@ -346,6 +348,7 @@ final class FieldPersonNode extends NodeDetails {
     person: person,
     ring: ring,
     isKept: isKept,
+    privateAvatarObjectKey: privateAvatarObjectKey,
     pinned: isPinned,
     size: size,
   );
@@ -355,6 +358,7 @@ final class FieldPersonNode extends NodeDetails {
       super.hashCode ^
       ring.hashCode ^
       isKept.hashCode ^
+      privateAvatarObjectKey.hashCode ^
       person.hashCode;
 
   @override
@@ -363,6 +367,7 @@ final class FieldPersonNode extends NodeDetails {
       other is FieldPersonNode &&
       other.ring == ring &&
       other.isKept == isKept &&
+      other.privateAvatarObjectKey == privateAvatarObjectKey &&
       other.person == person;
 }
 

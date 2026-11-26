@@ -11,6 +11,9 @@ const kContextJwtKey = 'contextJwt';
 /// `kMaxRoomMessageAttachmentBytes` so no single upload field is unbounded.
 const kMaxImageUploadBytes = 10 * 1024 * 1024;
 
+/// Bound decoder and BlurHash work while allowing a 1024×1024 private avatar.
+const kMaxPrivateAvatarPixels = 1024 * 1024;
+
 const kSentryRequestContextKey = 'sentryRequestContext';
 
 final kInvitationTTL = Duration(

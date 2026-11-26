@@ -37,6 +37,16 @@
 		}
 	}
 
+	# Private avatar download (authenticated) — must hit Tentura, not the Hasura catch-all below.
+	handle /api/v2/private-avatars {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	handle /api/v2/room-attachments/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
 			transport http {

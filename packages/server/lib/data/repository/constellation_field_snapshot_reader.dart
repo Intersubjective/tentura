@@ -264,7 +264,7 @@ final class ConstellationFieldSnapshotReader {
       population,
       loadedAt,
     );
-    final taggedPeers = await _withPeopleTags(
+    final fieldPeers = await _withFieldDetails(
       viewerId,
       peers,
       shownPeerIds,
@@ -275,7 +275,7 @@ final class ConstellationFieldSnapshotReader {
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
       context: context,
-      peers: taggedPeers,
+      peers: fieldPeers,
       edges: edges,
       requests: requests,
       peersCapped: kept.capped,
@@ -309,7 +309,8 @@ final class ConstellationFieldSnapshotReader {
           r'''
 SELECT vu.object AS id, false AS is_phantom, NULL::text AS display_name,
        NULL::text AS emoji, NULL::text AS created_at,
-       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at
+       NULL::text[] AS own_tag_ids, NULL::text AS invite_created_at,
+       NULL::text AS private_avatar_object_key
 FROM public.vote_user vu
 INNER JOIN public."user" u ON u.id = vu.object
 WHERE vu.subject = $1
@@ -331,6 +332,10 @@ SELECT p.id, true, p.display_name, p.emoji, p.created_at::text,
          SELECT i.created_at::text FROM public.invitation i
          WHERE i.phantom_id = p.id AND i.user_id = p.owner_id
            AND i.invited_id IS NULL
+       ),
+       (
+         SELECT a.object_key FROM public.person_private_avatar a
+         WHERE a.owner_id = p.owner_id AND a.subject_phantom_id = p.id
        )
 FROM public.phantom p
 WHERE p.owner_id = $1 AND p.merged_at IS NULL AND p.merged_user_id IS NULL
@@ -358,6 +363,9 @@ ORDER BY id
                 ? null
                 : DateTime.parse(inviteCreatedAt).toUtc(),
             createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
+            privateAvatarObjectKey: row.readNullable<String>(
+              'private_avatar_object_key',
+            ),
           ),
         );
       } else {
@@ -790,8 +798,8 @@ ORDER BY person_id, tag_id
     return result;
   }
 
-  /// [peers] with the viewer's own tags, automatic tags and first-seen times.
-  Future<List<ConstellationPeerRecord>> _withPeopleTags(
+  /// [peers] with the viewer's tags, first-seen times and private photos.
+  Future<List<ConstellationPeerRecord>> _withFieldDetails(
     String viewerId,
     List<ConstellationPeerRecord> peers,
     List<String> ids,
@@ -803,10 +811,11 @@ ORDER BY person_id, tag_id
     final rows = await _database
         .customSelect(
           r'''
-SELECT peer_id, kind::int AS kind, NULL::text AS merged_phantom_id
+SELECT peer_id, kind::int AS kind, NULL::text AS merged_phantom_id,
+       NULL::text AS private_avatar_object_key
 FROM public.person_auto_tags($1, $2::text[])
 UNION ALL
-SELECT merged_user_id, NULL::int, id
+SELECT merged_user_id, NULL::int, id, NULL::text
 FROM (
   SELECT DISTINCT ON (p.merged_user_id) p.merged_user_id, p.id
   FROM public.phantom p
@@ -817,6 +826,10 @@ FROM (
     AND p.merged_at IS NOT NULL AND m.undone_at IS NULL
   ORDER BY p.merged_user_id, p.merged_at DESC, p.id
 ) current_merges
+UNION ALL
+SELECT subject_user_id, NULL::int, NULL::text, object_key
+FROM public.person_private_avatar
+WHERE owner_id = $1 AND subject_user_id = ANY($2::text[])
 ORDER BY peer_id, kind
 ''',
           variables: [
@@ -827,10 +840,14 @@ ORDER BY peer_id, kind
         .get();
     final auto = <String, Set<int>>{};
     final mergedIds = <String, String>{};
+    final avatarKeys = <String, String>{};
     for (final row in rows) {
       final peerId = row.read<String>('peer_id');
       if (row.readNullable<String>('merged_phantom_id') case final phantomId?) {
         mergedIds[peerId] = phantomId;
+      } else if (row.readNullable<String>('private_avatar_object_key')
+          case final key?) {
+        avatarKeys[peerId] = key;
       } else {
         (auto[peerId] ??= {}).add(row.read<int>('kind'));
       }
@@ -849,11 +866,12 @@ ORDER BY peer_id, kind
         if (peer.id == viewerId)
           peer
         else
-          peer.withPeopleTags(
+          peer.withFieldDetails(
             ownTagIds: own[peer.id] ?? const [],
             autoTagKinds: (auto[peer.id] ?? const <int>{}).toList(),
             firstSeenAt: seen[peer.id],
             mergedPhantomId: mergedIds[peer.id],
+            privateAvatarObjectKey: avatarKeys[peer.id],
           ),
     ];
   }

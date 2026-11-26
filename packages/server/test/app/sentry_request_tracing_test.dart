@@ -38,6 +38,21 @@ void main() {
     });
   });
 
+  group('sentryRequestUri', () {
+    test('redacts private avatar object keys and QA tokens', () {
+      final uri = sentryRequestUri(
+        Uri.parse(
+          'http://localhost/api/v2/private-avatars'
+          '?objectKey=private%2Fowner%2Fphoto.jpg&_qa_token=secret&x=1',
+        ),
+      );
+      expect(uri.toString(), isNot(contains('owner')));
+      expect(uri.toString(), isNot(contains('secret')));
+      expect(uri.queryParameters['x'], '1');
+      expect(uri.path, '/api/v2/private-avatars');
+    });
+  });
+
   group('sentryRequestTracing', () {
     late List<SentryEvent> capturedEvents;
     SentryTransaction? capturedTransaction;
@@ -68,20 +83,23 @@ void main() {
       await Sentry.close();
     });
 
-    test('HijackException on traced path does not capture and finishes ok', () async {
-      final env = Env(sentryDsn: 'https://public@o123.ingest.sentry.io/1');
-      final middleware = sentryRequestTracing(env: env);
-      final handler = middleware((request) async {
-        throw const HijackException();
-      });
+    test(
+      'HijackException on traced path does not capture and finishes ok',
+      () async {
+        final env = Env(sentryDsn: 'https://public@o123.ingest.sentry.io/1');
+        final middleware = sentryRequestTracing(env: env);
+        final handler = middleware((request) async {
+          throw const HijackException();
+        });
 
-      await expectLater(
-        handler(Request('GET', Uri.parse('http://localhost/api/v2/session'))),
-        throwsA(isA<HijackException>()),
-      );
+        await expectLater(
+          handler(Request('GET', Uri.parse('http://localhost/api/v2/session'))),
+          throwsA(isA<HijackException>()),
+        );
 
-      expect(capturedEvents, isEmpty);
-      expect(capturedTransaction?.contexts.trace?.status, SpanStatus.ok());
-    });
+        expect(capturedEvents, isEmpty);
+        expect(capturedTransaction?.contexts.trace?.status, SpanStatus.ok());
+      },
+    );
   });
 }

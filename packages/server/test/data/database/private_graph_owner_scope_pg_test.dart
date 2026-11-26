@@ -36,6 +36,8 @@ const _privateGraphTables = {
   'person_auto_tag_pref',
   'constellation_tag_magnet',
   'person_field_first_seen',
+  'person_note',
+  'person_private_avatar',
   'phantom',
   'phantom_merge',
   'phantom_tag_member',

@@ -5,7 +5,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/phantoms/domain/entity/person_note.dart';
 import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_person_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
@@ -279,6 +281,9 @@ class _ConstellationPersonSearchButtonState
       yield _PersonSuggestion(
         person: person,
         profile: cubit.profileForPersonId(person.id),
+        privateAvatarObjectKey: cubit.privateAvatarObjectKeyForPerson(
+          person.id,
+        ),
         onTap: () {
           controller.closeView(null);
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -300,12 +305,28 @@ class _ConstellationPersonSearchButtonState
     final raw = controller.text;
     final query = raw.trim();
     final viewerId = cubit.viewerId;
+    final results = _viewState.resolvedResults;
+    final noteSubjects = _viewState.resolvedQuery == query
+        ? results.noteSubjects
+        : const <PersonNoteSubject>[];
+    final notePhantomIds = {
+      for (final subject in noteSubjects)
+        if (subject case PhantomNoteSubject(:final id)) id,
+    };
 
     final phantomSuggestions = [
       for (final phantom in cubit.shownField?.phantoms ?? const <Phantom>[])
-        if (constellationNameMatches(phantom.displayName, query))
+        if (constellationNameMatches(phantom.displayName, query) ||
+            notePhantomIds.contains(phantom.id))
           ListTile(
             key: Key('constellation.field_search.phantom.${phantom.id}'),
+            leading: phantom.privateAvatarObjectKey == null
+                ? null
+                : PrivatePersonAvatar(
+                    objectKey: phantom.privateAvatarObjectKey,
+                    size: tt.metadataAvatarSize,
+                    fallback: const Icon(Icons.person_outline),
+                  ),
             title: Text(phantom.displayName, overflow: TextOverflow.ellipsis),
             subtitle: Text(l10n.constellationPhantomStatus),
             onTap: () {
@@ -363,10 +384,18 @@ class _ConstellationPersonSearchButtonState
 
     final useOfflinePeople =
         _viewState.searchError != null || cubit.fieldSearchCase == null;
-    final serverPeople = _viewState.resolvedResults.people;
+    final serverPeople = results.people;
+    final noteUserIds = {
+      for (final subject in noteSubjects)
+        if (subject case UserNoteSubject(:final id)) id,
+    };
+    final seen = {viewerId};
     final serverPeopleFiltered = [
       for (final hit in serverPeople)
-        if (hit.id != viewerId) hit,
+        if (seen.add(hit.id)) hit,
+      for (final person in cubit.fieldPeople)
+        if (noteUserIds.contains(person.id) && seen.add(person.id))
+          ConstellationFieldSearchPersonHit(id: person.id),
     ];
     final localPeople = useOfflinePeople
         ? _localPeopleMatches(cubit, raw, viewerId: viewerId)
@@ -412,7 +441,11 @@ class _ConstellationPersonSearchButtonState
         widgets.add(
           ListTile(
             key: Key('constellation.field_search.person.${hit.id}'),
-            leading: Icon(Icons.person_outline, size: tt.iconSize),
+            leading: PrivatePersonAvatar(
+              objectKey: cubit.privateAvatarObjectKeyForPerson(hit.id),
+              size: tt.metadataAvatarSize,
+              fallback: Icon(Icons.person_outline, size: tt.iconSize),
+            ),
             title: Text(
               _personLabel(
                 cubit,
@@ -608,11 +641,13 @@ class _PersonSuggestion extends StatelessWidget {
   const _PersonSuggestion({
     required this.person,
     required this.profile,
+    required this.privateAvatarObjectKey,
     required this.onTap,
   });
 
   final ConstellationFieldPerson person;
   final Profile? profile;
+  final String? privateAvatarObjectKey;
   final VoidCallback onTap;
 
   @override
@@ -620,7 +655,13 @@ class _PersonSuggestion extends StatelessWidget {
     final profile = this.profile;
     return ListTile(
       key: Key('constellation.search.person.${person.id}'),
-      leading: profile == null ? null : TenturaAvatar.small(profile: profile),
+      leading: profile == null
+          ? null
+          : PrivatePersonAvatar(
+              objectKey: privateAvatarObjectKey,
+              size: context.tt.metadataAvatarSize,
+              fallback: TenturaAvatar.small(profile: profile),
+            ),
       title: Text(
         profile?.shownName ?? person.name,
         overflow: TextOverflow.ellipsis,

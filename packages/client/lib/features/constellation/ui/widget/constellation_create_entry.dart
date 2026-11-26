@@ -91,7 +91,11 @@ Future<void> showConstellationAddPerson(
     showSnackBar(context, text: L10n.of(context)!.personCreateOutsideField);
     return;
   }
-  await showPhantomCreateSheet(context, position: position);
+  await showPhantomCreateSheet(
+    context,
+    position: position,
+    onPhotoSaved: cubit.refreshAfterPhantomWrite,
+  );
 }
 
 /// Opens the create menu at the pointer or beside its app-bar trigger.

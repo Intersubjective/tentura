@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:tentura/features/phantoms/domain/entity/person_note.dart';
 
 @immutable
 final class ConstellationFieldSearchPersonHit {
@@ -59,14 +60,19 @@ final class ConstellationFieldSearchResult {
     this.people = const [],
     this.requests = const [],
     this.posts = const [],
+    this.noteSubjects = const [],
   });
 
   final List<ConstellationFieldSearchPersonHit> people;
   final List<ConstellationFieldSearchRequestHit> requests;
   final List<ConstellationFieldSearchPostHit> posts;
+  final List<PersonNoteSubject> noteSubjects;
 
   bool get isEmpty =>
-      people.isEmpty && requests.isEmpty && posts.isEmpty;
+      people.isEmpty &&
+      requests.isEmpty &&
+      posts.isEmpty &&
+      noteSubjects.isEmpty;
 }
 
 const emptyConstellationFieldSearchResult = ConstellationFieldSearchResult();

@@ -990,6 +990,7 @@ class ConstellationSceneController {
           person: profileFromPeer(peer),
           ring: ring,
           isKept: paths.keep.contains(peerId),
+          privateAvatarObjectKey: peer.privateAvatarObjectKey,
         ),
       );
     }

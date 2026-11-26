@@ -8,24 +8,25 @@ const _scrubbedHeaderKeys = {
   'set-cookie',
 };
 
-final _phantomMutation = RegExp(
-  r'\bphantom(?:Create|Update|Delete|InviteEnsure|InviteRotate|Link|Unmerge|HintDismiss)\b',
+final _privatePersonOperation = RegExp(
+  r'\b(?:phantom(?:Create|Update|Delete|InviteEnsure|InviteRotate|Link|Unmerge|HintDismiss)'
+  r'|personNote(?:Search|Upsert|Delete)?)\b',
   caseSensitive: false,
 );
 
-Breadcrumb? scrubPhantomBreadcrumb(Breadcrumb? breadcrumb, Hint _) {
+Breadcrumb? scrubPrivatePersonBreadcrumb(Breadcrumb? breadcrumb, Hint _) {
   if (breadcrumb == null) return null;
 
   final operationName = breadcrumb.data?['operationName'];
   final operation =
       (operationName is String
-          ? _phantomMutation.firstMatch(operationName)
+          ? _privatePersonOperation.firstMatch(operationName)
           : null) ??
-      _phantomMutation.firstMatch(breadcrumb.message ?? '');
+      _privatePersonOperation.firstMatch(breadcrumb.message ?? '');
   if (operation == null) return breadcrumb;
 
   // Either payload field can contain variables, so retain only the known
-  // mutation name and the breadcrumb's metadata.
+  // operation name and the breadcrumb's metadata.
   return Breadcrumb(
     message: operation.group(0),
     timestamp: breadcrumb.timestamp,

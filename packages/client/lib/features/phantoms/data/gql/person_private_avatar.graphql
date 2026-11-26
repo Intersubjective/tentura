@@ -1,0 +1,18 @@
+mutation PersonPrivateAvatarUpload(
+  $subjectUserId: String
+  $subjectPhantomId: String
+  $file: v2_Upload!
+) {
+  personPrivateAvatarUpload(
+    subjectUserId: $subjectUserId
+    subjectPhantomId: $subjectPhantomId
+    file: $file
+  )
+}
+
+mutation PersonPrivateAvatarDelete($subjectUserId: String, $subjectPhantomId: String) {
+  personPrivateAvatarDelete(
+    subjectUserId: $subjectUserId
+    subjectPhantomId: $subjectPhantomId
+  )
+}

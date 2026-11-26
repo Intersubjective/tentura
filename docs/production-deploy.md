@@ -157,6 +157,10 @@ EOF
 chmod 600 .env
 ```
 
+With `S3_OBJECT_ACL=omit`, any bucket policy granting anonymous `s3:GetObject`
+must limit that grant to `images/*`. Keep `private/*` unreadable without
+credentials and outside every public-read policy.
+
 ---
 
 ## 5. (Optional) Create `compose.override.yaml`

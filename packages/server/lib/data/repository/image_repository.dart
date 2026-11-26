@@ -63,16 +63,11 @@ class ImageRepository implements ImageRepositoryPort {
     // Enforce the upload cap before creating the image row, so an oversized
     // upload fails fast and never leaves an orphan row or partial object.
     final buffered = await readUint8StreamCapped(bytes, kMaxImageUploadBytes);
-    final withinDailyCap = await _uploadQuota.tryReserveDailyBytes(
+    await _uploadQuota.reserveUploadBytes(
       userId: authorId,
       bytes: buffered.length,
       dailyCapBytes: _env.uploadDailyCapBytes,
     );
-    if (!withinDailyCap) {
-      throw const RateLimitedException(
-        description: 'Daily upload limit reached, try again tomorrow',
-      );
-    }
     final imageModel = await _database.managers.images.createReturning(
       (o) => o(authorId: authorId),
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/features/emoji/ui/widget/emoji_picker_button.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -10,31 +12,43 @@ import 'package:tentura/ui/util/share_link.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../data/repository/private_avatar_repository.dart';
 import '../../domain/port/phantom_repository_port.dart';
 import '../../domain/use_case/phantom_creation_case.dart';
 
 Future<void> showPhantomCreateSheet(
   BuildContext context, {
   required ConstellationAnchorPosition position,
+  required Future<void> Function() onPhotoSaved,
 }) {
   final create = PhantomCreationCase(
     GetIt.I<PhantomRepositoryPort>(),
     GetIt.I<PeopleTagsCase>(),
+    const PrivateAvatarRepository().upload,
   );
   return showTenturaAdaptiveSheet<void>(
     context: context,
     showSnackBars: true,
-    builder: (_) => _PhantomCreateSheet(create: create, position: position),
+    builder: (_) => _PhantomCreateSheet(
+      create: create,
+      position: position,
+      onPhotoSaved: onPhotoSaved,
+    ),
   );
 }
 
 enum _CreateAction { save, copy, share }
 
 class _PhantomCreateSheet extends StatefulWidget {
-  const _PhantomCreateSheet({required this.create, required this.position});
+  const _PhantomCreateSheet({
+    required this.create,
+    required this.position,
+    required this.onPhotoSaved,
+  });
 
   final PhantomCreationCase create;
   final ConstellationAnchorPosition position;
+  final Future<void> Function() onPhotoSaved;
 
   @override
   State<_PhantomCreateSheet> createState() => _PhantomCreateSheetState();
@@ -46,6 +60,7 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
   late final _tagsLoaded = widget.create.loadTags();
   String _name = '';
   String? _emoji;
+  ImagePicked? _photo;
   bool _inviteEdited = false;
   bool _busy = false;
 
@@ -71,6 +86,27 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
     if (mounted && emoji != null) setState(() => _emoji = emoji);
   }
 
+  Future<void> _pickPhoto() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final photo = await GetIt.I<ImageRepository>().pickImage();
+      if (mounted && photo != null) setState(() => _photo = photo);
+    } on Exception catch (error, trace) {
+      if (mounted) {
+        showSnackBar(
+          context,
+          text: L10n.of(context)!.errorGenericAction,
+          isError: true,
+          error: error,
+          stackTrace: trace,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _submit(BuildContext actionContext, _CreateAction action) async {
     final name = _validName;
     if (_busy || name == null) return;
@@ -78,19 +114,24 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
     final l10n = L10n.of(context)!;
     setState(() => _busy = true);
     try {
-      final id = await widget.create.save(
+      final create = widget.create;
+      final onPhotoSaved = widget.onPhotoSaved;
+      final hadPhoto = create.hasUploadedPhoto;
+      final id = await create.save(
         name: name,
         position: widget.position,
         tagIds: Set.of(_tagIds),
         emoji: _emoji,
+        photo: _photo,
       );
+      if (!hadPhoto && create.hasUploadedPhoto) await onPhotoSaved();
       if (!actionContext.mounted) return;
       if (action == _CreateAction.save) {
         Navigator.of(actionContext).pop();
         return;
       }
       final link = inviteShareUri(
-        await widget.create.ensureInvite(id),
+        await create.ensureInvite(id),
       ).toString();
       if (!actionContext.mounted) return;
       final text = message.isEmpty ? link : '$message\n$link';
@@ -170,6 +211,39 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
                   },
                   label: Text(l10n.composerEmojiButtonTooltip),
                 ),
+              ),
+              SizedBox(height: tt.rowGap),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: tt.tightGap,
+                children: [
+                  if (_photo case final photo?)
+                    ClipOval(
+                      child: Image.memory(
+                        photo.bytes,
+                        width: tt.avatarSize,
+                        height: tt.avatarSize,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: canEditPerson ? _pickPhoto : null,
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: Text(
+                      _photo == null
+                          ? l10n.personPhotoAdd
+                          : l10n.personPhotoChange,
+                    ),
+                  ),
+                  if (_photo != null)
+                    IconButton(
+                      tooltip: l10n.personPhotoRemove,
+                      onPressed: canEditPerson
+                          ? () => setState(() => _photo = null)
+                          : null,
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                ],
               ),
               SizedBox(height: tt.rowGap),
               Text(

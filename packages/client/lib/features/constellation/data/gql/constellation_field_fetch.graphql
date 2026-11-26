@@ -18,6 +18,8 @@ query ConstellationFieldFetch(
     peers {
       id
       mergedPhantomId
+      hasPrivateAvatar
+      privateAvatarObjectKey
       pinState
       contactOnly
       presence
@@ -93,6 +95,7 @@ query ConstellationFieldFetch(
       displayName
       emoji
       hasPrivateAvatar
+      privateAvatarObjectKey
       ownTagIds
       pinState
       inviteState

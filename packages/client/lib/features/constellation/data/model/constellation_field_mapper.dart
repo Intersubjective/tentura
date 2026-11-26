@@ -103,6 +103,9 @@ Phantom _mapPhantom(
     displayName: row.displayName,
     emoji: row.emoji,
     hasPrivateAvatar: row.hasPrivateAvatar,
+    privateAvatarObjectKey: row.hasPrivateAvatar
+        ? row.privateAvatarObjectKey
+        : null,
     ownTagIds: row.ownTagIds.toList(growable: false),
     pinState: pinState == null ? null : PhantomPinState.values.byName(pinState),
     inviteState: inviteState,
@@ -167,6 +170,7 @@ ConstellationPerson _mapPersonFields({
   Iterable<({String beaconId, String title})> bondContexts = const [],
   bool isNew = false,
   String? mergedPhantomId,
+  String? privateAvatarObjectKey,
 }) => ConstellationPerson(
   id: id,
   pinState: pinState,
@@ -186,6 +190,7 @@ ConstellationPerson _mapPersonFields({
   image: image?.asEntity,
   isNew: isNew,
   mergedPhantomId: mergedPhantomId,
+  privateAvatarObjectKey: privateAvatarObjectKey,
 );
 
 ConstellationFieldMembership _membershipFromWire(String? presence) =>
@@ -201,6 +206,9 @@ ConstellationPerson _mapFieldFetchPerson(
   pinState: peer.pinState,
   contactOnly: peer.contactOnly,
   mergedPhantomId: peer.mergedPhantomId,
+  privateAvatarObjectKey: peer.hasPrivateAvatar == true
+      ? peer.privateAvatarObjectKey
+      : null,
   visible: !peer.contactOnly,
   presence: peer.presence,
   temporaryBeaconId: peer.temporaryBeaconId,

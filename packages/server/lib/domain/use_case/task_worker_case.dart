@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:get_it/get_it.dart';
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
-import 'package:blurhash_dart/blurhash_dart.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -13,6 +12,7 @@ import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
+import 'package:tentura_server/domain/port/private_object_gc_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
@@ -38,6 +38,7 @@ import 'package:tentura_server/domain/use_case/trust_publisher_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/utils/image_metadata.dart';
 
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
@@ -75,6 +76,7 @@ final class TaskWorkerCase extends UseCaseBase {
     PostExpiryWarningSweepCase postExpiryWarningSweep,
     AttentionCaptureSettlementCase attentionCaptureSettlement, {
     PhantomMergeCase? phantomMerge,
+    PrivateObjectGcPort? privateObjectGc,
   }) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -108,6 +110,7 @@ final class TaskWorkerCase extends UseCaseBase {
       postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
       phantomMerge: phantomMerge,
+      privateObjectGc: privateObjectGc,
       env: env,
       logger: logger,
     ),
@@ -121,6 +124,7 @@ final class TaskWorkerCase extends UseCaseBase {
     required super.env,
     required super.logger,
     this._imageObjectGc,
+    this._privateObjectGc,
     this._beaconCase,
     this._attentionChannelDelivery,
     this._beaconHierarchyDelivery,
@@ -156,6 +160,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final NotificationOutboxRepositoryPort _notificationOutbox;
 
   final ImageObjectGcPort? _imageObjectGc;
+  final PrivateObjectGcPort? _privateObjectGc;
   final BeaconCase? _beaconCase;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
   final BeaconHierarchyDeliveryCase? _beaconHierarchyDelivery;
@@ -291,6 +296,7 @@ final class TaskWorkerCase extends UseCaseBase {
     // deleted from the database, only after their owning transaction
     // committed.
     _Job(const Duration(seconds: 30), _collectImageObjects),
+    _Job(const Duration(seconds: 30), _collectPrivateObjects),
     // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
     _Job(
       const Duration(minutes: 5),
@@ -369,6 +375,24 @@ final class TaskWorkerCase extends UseCaseBase {
     }
   }
 
+  Future<void> _collectPrivateObjects(DateTime now) async {
+    final gc = _privateObjectGc;
+    if (gc == null) return;
+    final leases = await gc.claim(leaseOwner: _leaseOwner, now: now);
+    for (final lease in leases) {
+      try {
+        await gc.collect(objectKey: lease.objectKey, leaseOwner: _leaseOwner);
+      } catch (error) {
+        await gc.fail(
+          objectKey: lease.objectKey,
+          leaseOwner: _leaseOwner,
+          retryAt: now.add(leasedJobRetryBackoff(lease.attempts)),
+          error: error.toString(),
+        );
+      }
+    }
+  }
+
   bool _canRun = true;
 
   Future<void> dispose() {
@@ -405,20 +429,7 @@ final class TaskWorkerCase extends UseCaseBase {
     final image =
         img.decodeImage(imageBytes) ??
         (throw const FormatException('Cant decode image'));
-    final numComp = image.height == image.width
-        ? (x: kMaxNumCompX, y: kMaxNumCompX)
-        : image.height > image.width
-        ? (x: kMinNumCompX, y: kMaxNumCompX)
-        : (x: kMaxNumCompX, y: kMinNumCompX);
-    return (
-      hash: BlurHash.encode(
-        image,
-        numCompX: numComp.x,
-        numCompY: numComp.y,
-      ).hash,
-      height: image.height,
-      width: image.width,
-    );
+    return describeImage(image, kMaxNumCompX, kMinNumCompX);
   }
 }
 

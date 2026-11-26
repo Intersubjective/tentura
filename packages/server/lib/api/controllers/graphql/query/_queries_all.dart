@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import '../person_note_fields.dart';
 import 'query_beacon_display.dart';
 import 'query_beacon_hierarchy.dart';
 import 'query_attention.dart';
@@ -66,6 +67,8 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryInviteSeedPrompt().all,
   ...QueryClosure().all,
   ...QueryContact().all,
+  const PersonNoteFields().read,
+  const PersonNoteFields().search,
   ...QueryHelpOffererForwardPath().all,
   ...QueryCoordination().all,
   ...QueryFactCard().all,

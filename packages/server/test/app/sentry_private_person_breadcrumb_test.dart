@@ -29,6 +29,7 @@ void main() {
         ),
         appRunner: () {},
       );
+      expect(Sentry.isEnabled, isTrue);
     });
 
     for (final operation in operations) {
@@ -60,6 +61,44 @@ void main() {
             {'message': crumb.message, 'data': crumb.data},
         ]);
         expect(wire, allOf(isNot(contains(name)), isNot(contains(id))));
+      });
+    }
+    for (final operation in [
+      'personNote',
+      'personNoteSearch',
+      'personNoteUpsert',
+      'personNoteDelete',
+    ]) {
+      test('$operation keeps note text out of breadcrumbs', () async {
+        const body = 'PrivateNoteBreadcrumbBody731';
+        const query = 'PrivateNoteBreadcrumbQuery846';
+        final control = Breadcrumb(
+          category: 'graphql',
+          message: 'ordinaryGraphqlOperation',
+          data: {'operationName': 'ordinaryGraphqlOperation', 'count': 2},
+        );
+        await Sentry.configureScope((scope) => scope.clearBreadcrumbs());
+        await Sentry.addBreadcrumb(control);
+
+        final variables = {'body': body, 'q': query};
+        await Sentry.addBreadcrumb(
+          Breadcrumb(
+            category: 'graphql',
+            message: '$operation variables=${jsonEncode(variables)}',
+            data: {'operationName': operation, 'variables': variables},
+          ),
+        );
+
+        late List<Breadcrumb> breadcrumbs;
+        await Sentry.configureScope((scope) {
+          breadcrumbs = scope.breadcrumbs;
+        });
+        final payloads = breadcrumbs.map((crumb) => crumb.toJson()).toList();
+        expect(payloads, contains(equals(control.toJson())));
+        expect(
+          jsonEncode(payloads),
+          isNot(anyOf(contains(body), contains(query))),
+        );
       });
     }
   });

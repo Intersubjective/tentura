@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/constellation/domain/constellation_request_identity.dart';
+import 'package:tentura/features/phantoms/ui/widget/private_person_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -259,9 +260,19 @@ class GraphNodeWidget extends StatelessWidget {
     };
     final useSquareFocus =
         nodeDetails is BeaconNode || nodeDetails is FieldBeaconNode;
-    var decorated = isOrigin && !isSelf
-        ? _OriginRing(size: nodeDetails.size, child: node)
-        : node;
+    final avatar = PrivatePersonAvatar(
+      objectKey: switch (nodeDetails) {
+        FieldPersonNode(:final privateAvatarObjectKey) =>
+          privateAvatarObjectKey,
+        FieldPhantomNode(:final phantom) => phantom.privateAvatarObjectKey,
+        _ => null,
+      },
+      size: nodeDetails.size,
+      fallback: node,
+    );
+    Widget decorated = isOrigin && !isSelf
+        ? _OriginRing(size: nodeDetails.size, child: avatar)
+        : avatar;
     // Focus is outermost so selection stays visible; painter is inset so it
     // does not coincide with self / origin / help-offerer rings.
     if (isFocused) {
