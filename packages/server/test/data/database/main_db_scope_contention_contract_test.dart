@@ -1,10 +1,10 @@
-// RSS is process-wide, so run this suite separately from other test files.
-@Tags(['rss-isolated'])
 @Timeout(Duration(minutes: 3))
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
@@ -34,10 +34,38 @@ const _viewer = 'Udbcontract1';
 const _context = 'main-db-contention';
 const _slots = 4;
 const _maxWaiting = 32;
+const _burstOffered = 512;
+const _burstPayloadBytes = 256 * 1024;
+const _burstRssBudget = _burstOffered * _burstPayloadBytes;
 const _interactiveObservation = Duration(milliseconds: 500);
 const _fullObservation = Duration(milliseconds: 1300);
 
+const _burstDatabaseEnv = 'TENTURA_CONTENTION_BURST_SUBPROCESS_DB';
+const _burstWorkerTest = 'measured database burst';
+
 Future<void> main() async {
+  final burstDatabase = Platform.environment[_burstDatabaseEnv];
+  if (burstDatabase != null) {
+    test(_burstWorkerTest, () async {
+      final env = _contentionTarget(databaseName: burstDatabase).databaseEnv;
+      final writer = await Connection.open(
+        env.pgEndpoint,
+        settings: env.pgEndpointSettings,
+      );
+      final harness = _Harness(env, writer);
+      try {
+        await _checkMixedBurst(harness);
+      } finally {
+        try {
+          await harness.close();
+        } finally {
+          await writer.close();
+        }
+      }
+    });
+    return;
+  }
+
   group('Main database scope ownership', () {
     test('configured concurrency does not require a transaction spike', () {
       final env = Env(
@@ -98,10 +126,7 @@ Future<void> main() async {
     });
   });
 
-  final target = DisposablePgTarget.fromNamedEnvironment(
-    envVarName: 'TENTURA_MAIN_DB_CONTENTION_CONTRACT_TEST_DB',
-    defaultNamePrefix: 'tentura_test_main_db_contract',
-  );
+  final target = _contentionTarget();
   final unavailable = await pgSkipReason(target);
   late DisposablePgWriterSession session;
   late _Harness harness;
@@ -212,83 +237,65 @@ Future<void> main() async {
       test(
         'a mixed FULL and mutation burst has bounded waiting and RSS, '
         'fast retry refusals, and stable auth latency',
+        () => _runIsolatedBurst(target),
+      );
+
+      test(
+        'a database burst stays within its memory budget alongside five '
+        'PostgreSQL workers',
         () async {
-          final warmup = Stopwatch()..start();
-          expect(await harness.auth.findActiveByTokenHash('warmup'), isNull);
-          warmup.stop();
-          final held = await harness.holdSlots();
-          const offered = 512;
-          const payloadBytes = 256 * 1024;
-          final outcomes = <_Outcome>[];
-          final baselineRss = ProcessInfo.currentRss;
-          var peakRss = baselineRss;
-          var peakQueued = 0;
-          var refused = 0;
-          var waiting = offered;
-          var connections = 0;
-          var worstAuth = Duration.zero;
-          final payloads = <WeakReference<Uint8List>>[];
+          const peerCount = 5;
+          final ready = ReceivePort();
+          final exited = ReceivePort();
+          final peers = <Isolate>[];
+          final stopPorts = <SendPort>[];
           try {
-            for (var index = 0; index < offered; index++) {
-              outcomes.add(
-                _observe(
-                  index % 16 == 0
-                      ? harness.full((_) async {})
-                      : harness.payloadMutation(
-                          index,
-                          _trackedPayload(payloads, payloadBytes, index),
-                        ),
+            final baselineRss = ProcessInfo.currentRss;
+            for (var index = 0; index < peerCount; index++) {
+              peers.add(
+                await Isolate.spawn(
+                  _runPeerPostgresWorkload,
+                  (
+                    endpoint: target.databaseEnv.pgEndpoint,
+                    ready: ready.sendPort,
+                  ),
+                  onExit: exited.sendPort,
                 ),
               );
-              final queued = harness.pool.admission.queued;
-              if (queued > peakQueued) peakQueued = queued;
-              if (index % 8 == 7) {
-                await Future<void>.delayed(Duration.zero);
-                final rss = ProcessInfo.currentRss;
-                if (rss > peakRss) peakRss = rss;
-              }
             }
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-            refused = outcomes.where(_isRefused).length;
-            waiting = outcomes.where((outcome) => !outcome.completed).length;
-            connections = harness.mainEnv.liveConnections.length;
-            for (var index = 0; index < 16; index++) {
-              final watch = Stopwatch()..start();
-              expect(
-                await harness.auth.findActiveByTokenHash('burst-$index'),
-                isNull,
-              );
-              watch.stop();
-              if (watch.elapsed > worstAuth) worstAuth = watch.elapsed;
-            }
+            await ready
+                .cast<SendPort>()
+                .take(peerCount)
+                .forEach(stopPorts.add)
+                .timeout(kStableStateWait);
+            expect(
+              ProcessInfo.currentRss - baselineRss,
+              greaterThan(_burstRssBudget),
+              reason: 'The peer workloads must reproduce shared RSS pressure.',
+            );
+            // The five peer transactions and their buffers stay live until
+            // the measured burst reports its own process's budget result.
+            await _runIsolatedBurst(target);
           } finally {
-            held.releaseAll();
-            await _drain([...held.outcomes, ...outcomes]);
-          }
-          expect(peakQueued, lessThanOrEqualTo(_maxWaiting));
-          expect(waiting, lessThanOrEqualTo(_maxWaiting));
-          expect(refused, greaterThanOrEqualTo(offered - _maxWaiting));
-          expect(connections, _slots);
-          expect(harness.executedMutations, lessThanOrEqualTo(_maxWaiting));
-          // Retention is checked on the payloads themselves: RSS cannot tell
-          // a kept payload from garbage the GC has not reached yet, and the
-          // peak below swung from ~30 MiB locally to 68 MiB on a CI runner.
-          expect(
-            await _stillReachable(payloads),
-            0,
-            reason: 'Refused work must release the burst of request payloads.',
-          );
-          // Peak RSS includes uncollected garbage, so it is only bounded by
-          // the burst itself: a burst whose payloads were all kept alive at
-          // once would reach it.
-          expect(
-            peakRss - baselineRss,
-            lessThan(offered * payloadBytes),
-            reason: 'The burst must never be resident all at once.',
-          );
-          expect(worstAuth, lessThan(warmup.elapsed + _interactiveObservation));
-          for (final outcome in outcomes.where((item) => item.error != null)) {
-            expect(_isRefused(outcome), isTrue, reason: '${outcome.error}');
+            try {
+              if (stopPorts.length == peers.length) {
+                for (final stop in stopPorts) {
+                  stop.send(null);
+                }
+                if (peers.isNotEmpty) {
+                  await exited
+                      .take(peers.length)
+                      .drain<void>()
+                      .timeout(kStableStateWait);
+                }
+              }
+            } finally {
+              for (final peer in peers) {
+                peer.kill(priority: Isolate.immediate);
+              }
+              ready.close();
+              exited.close();
+            }
           }
         },
       );
@@ -479,6 +486,147 @@ Future<void> main() async {
     tags: ['pg', 'multi-connection'],
     skip: unavailable ?? false,
   );
+}
+
+DisposablePgTarget _contentionTarget({String? databaseName}) =>
+    DisposablePgTarget.fromNamedEnvironment(
+      envVarName: 'TENTURA_MAIN_DB_CONTENTION_CONTRACT_TEST_DB',
+      defaultNamePrefix: 'tentura_test_main_db_contract',
+      databaseNameOverride: databaseName,
+    );
+
+Future<void> _runIsolatedBurst(DisposablePgTarget target) async {
+  // RSS includes all isolates in a VM. Run the measured workload in its own
+  // process, connected to the disposable database prepared by this suite.
+  final process = await Process.start(
+    Platform.resolvedExecutable,
+    [
+      'test',
+      '--reporter=expanded',
+      '--plain-name=$_burstWorkerTest',
+      'test/data/database/main_db_scope_contention_contract_test.dart',
+    ],
+    environment: {_burstDatabaseEnv: target.databaseName},
+  );
+  try {
+    final (status, output, errors) = await (
+      process.exitCode,
+      utf8.decoder.bind(process.stdout).join(),
+      utf8.decoder.bind(process.stderr).join(),
+    ).wait.timeout(const Duration(minutes: 1));
+    expect(status, 0, reason: '$output\n$errors');
+  } finally {
+    process.kill(ProcessSignal.sigkill);
+  }
+}
+
+Future<void> _checkMixedBurst(_Harness harness) async {
+  final warmup = Stopwatch()..start();
+  expect(await harness.auth.findActiveByTokenHash('warmup'), isNull);
+  warmup.stop();
+  final held = await harness.holdSlots();
+  final outcomes = <_Outcome>[];
+  final baselineRss = ProcessInfo.currentRss;
+  var peakRss = baselineRss;
+  var peakQueued = 0;
+  var refused = 0;
+  var waiting = _burstOffered;
+  var connections = 0;
+  var worstAuth = Duration.zero;
+  final payloads = <WeakReference<Uint8List>>[];
+  try {
+    for (var index = 0; index < _burstOffered; index++) {
+      outcomes.add(
+        _observe(
+          index % 16 == 0
+              ? harness.full((_) async {})
+              : harness.payloadMutation(
+                  index,
+                  _trackedPayload(payloads, _burstPayloadBytes, index),
+                ),
+        ),
+      );
+      final queued = harness.pool.admission.queued;
+      if (queued > peakQueued) peakQueued = queued;
+      if (index % 8 == 7) {
+        await Future<void>.delayed(Duration.zero);
+        final rss = ProcessInfo.currentRss;
+        if (rss > peakRss) peakRss = rss;
+      }
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    refused = outcomes.where(_isRefused).length;
+    waiting = outcomes.where((outcome) => !outcome.completed).length;
+    connections = harness.mainEnv.liveConnections.length;
+    for (var index = 0; index < 16; index++) {
+      final watch = Stopwatch()..start();
+      expect(
+        await harness.auth.findActiveByTokenHash('burst-$index'),
+        isNull,
+      );
+      watch.stop();
+      if (watch.elapsed > worstAuth) worstAuth = watch.elapsed;
+    }
+  } finally {
+    held.releaseAll();
+    await _drain([...held.outcomes, ...outcomes]);
+  }
+  expect(peakQueued, lessThanOrEqualTo(_maxWaiting));
+  expect(waiting, lessThanOrEqualTo(_maxWaiting));
+  expect(refused, greaterThanOrEqualTo(_burstOffered - _maxWaiting));
+  expect(connections, _slots);
+  expect(harness.executedMutations, lessThanOrEqualTo(_maxWaiting));
+  // Retention is checked on the payloads themselves: RSS cannot tell
+  // a kept payload from garbage the GC has not reached yet, and the
+  // peak below swung from ~30 MiB locally to 68 MiB on a CI runner.
+  expect(
+    await _stillReachable(payloads),
+    0,
+    reason: 'Refused work must release the burst of request payloads.',
+  );
+  // Peak RSS includes uncollected garbage, so it is only bounded by
+  // the burst itself: a burst whose payloads were all kept alive at
+  // once would reach it.
+  expect(
+    peakRss - baselineRss,
+    lessThan(_burstRssBudget),
+    reason: 'The burst must never be resident all at once.',
+  );
+  expect(worstAuth, lessThan(warmup.elapsed + _interactiveObservation));
+  for (final outcome in outcomes.where((item) => item.error != null)) {
+    expect(_isRefused(outcome), isTrue, reason: '${outcome.error}');
+  }
+}
+
+Future<void> _runPeerPostgresWorkload(
+  ({Endpoint endpoint, SendPort ready}) peer,
+) async {
+  final connection = await Connection.open(
+    peer.endpoint,
+    settings: const ConnectionSettings(
+      sslMode: SslMode.disable,
+      connectTimeout: Duration(seconds: 5),
+      queryTimeout: Duration(seconds: 5),
+    ),
+  );
+  final stop = ReceivePort();
+  try {
+    await connection.runTx((session) async {
+      await session.execute('SELECT pg_backend_pid()');
+      const bytes = 48 * 1024 * 1024;
+      final resident = Uint8List(bytes)..fillRange(0, bytes, 1);
+      peer.ready.send(stop.sendPort);
+      await stop.first.timeout(kStableStateWait);
+      // Use the buffer again so it stays reachable until sampling ends.
+      await session.execute(
+        r'SELECT $1::integer',
+        parameters: [resident.last],
+      );
+    });
+  } finally {
+    stop.close();
+    await connection.close();
+  }
 }
 
 typedef _Probe = ({int pid, String transactionStart});
