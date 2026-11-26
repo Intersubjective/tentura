@@ -105,7 +105,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// `AttentionReceipt`).
 /// Raised to 7.63.0 for the released baton-together partner role and mutations.
 /// Raised for the coordinated #781 release.
-const kDefaultMinClientVersion = '7.70.0';
+const kDefaultMinClientVersion = '7.72.0';
 
 class Env {
   Env({

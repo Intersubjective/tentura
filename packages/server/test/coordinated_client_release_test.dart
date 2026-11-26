@@ -7,8 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.71.0';
-const _coordinatedFloor = '7.70.0';
+const _release = '7.72.0';
 
 void main() {
   test('the shipped client declares one release version', () {
@@ -35,7 +34,7 @@ void main() {
     expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
     expect(
       (compiled: kDefaultMinClientVersion, effective: Env().minClientVersion),
-      (compiled: _coordinatedFloor, effective: _coordinatedFloor),
+      (compiled: _release, effective: _release),
     );
   });
 
@@ -52,9 +51,9 @@ void main() {
       },
       {
         'comment': [
-          contains('kDefaultMinClientVersion, currently $_coordinatedFloor)'),
+          contains('kDefaultMinClientVersion, currently $_release)'),
         ],
-        'override': ['# MIN_CLIENT_VERSION=$_coordinatedFloor'],
+        'override': ['# MIN_CLIENT_VERSION=$_release'],
       },
     );
   });

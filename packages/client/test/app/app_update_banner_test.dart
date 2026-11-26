@@ -30,6 +30,8 @@ import '../support/phone_surface.dart';
 import '../support/test_realtime_sync.dart';
 
 const _installedVersion = '7.64.7';
+const _previousRelease = '7.71.0';
+const _currentRelease = '7.72.0';
 const _accountId = 'Uviewer000001';
 
 void main() {
@@ -57,18 +59,36 @@ void main() {
       final floor = _defaultServerFloor();
       final current = await _updateBannerCount(
         tester,
-        installedVersion: '7.70.0',
+        installedVersion: _currentRelease,
         floor: floor,
       );
       final previous = await _updateBannerCount(
         tester,
-        installedVersion: '7.69.1',
+        installedVersion: _previousRelease,
         floor: floor,
       );
       expect(
         (previous: previous, current: current),
         (previous: 1, current: 0),
         reason: 'Update banners after receiving min_client_version $floor.',
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
+
+  testWidgets(
+    'successive pongs leave one update banner for the previous release',
+    (tester) async {
+      final floor = _defaultServerFloor();
+      expect(
+        await _updateBannerCount(
+          tester,
+          installedVersion: _previousRelease,
+          floor: floor,
+          repeatPong: true,
+        ),
+        1,
+        reason: 'Client $_previousRelease received min_client_version $floor.',
       );
     },
     timeout: const Timeout(Duration(seconds: 30)),
@@ -88,6 +108,7 @@ Future<int> _updateBannerCount(
   WidgetTester tester, {
   required String installedVersion,
   required String floor,
+  bool repeatPong = false,
 }) async {
   final socket = _PongSocket();
   final remote = RemoteApiService(const Env(), socket);
@@ -140,8 +161,15 @@ Future<int> _updateBannerCount(
 
     socket.pong(floor);
     await tester.pumpAndSettle();
+    if (repeatPong) {
+      socket.pong(floor);
+      await tester.pumpAndSettle();
+    }
     return find
-        .text('A new version is available. Please update the app.')
+        .ancestor(
+          of: find.text('A new version is available. Please update the app.'),
+          matching: find.byType(MaterialBanner),
+        )
         .evaluate()
         .length;
   } finally {

@@ -7,8 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _releaseVersion = '7.71.0';
-const _coordinatedFloor = '7.70.0';
+const _releaseVersion = '7.72.0';
 
 void main() {
   test(
@@ -35,11 +34,11 @@ void main() {
     },
   );
 
-  test('the server keeps the coordinated minimum for a client patch', () {
+  test('the default server floor requires the current client release', () {
     expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
     expect(
       (compiled: kDefaultMinClientVersion, effective: Env().minClientVersion),
-      (compiled: _coordinatedFloor, effective: _coordinatedFloor),
+      (compiled: _releaseVersion, effective: _releaseVersion),
     );
   });
 }

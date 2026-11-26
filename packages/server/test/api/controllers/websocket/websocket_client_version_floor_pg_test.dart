@@ -22,6 +22,9 @@ import 'package:tentura_server/env.dart';
 import '../../../support/disposable_pg_target.dart';
 import 'websocket_realtime_protocol_test.mocks.dart';
 
+const _previousRelease = '7.71.0';
+const _currentRelease = '7.72.0';
+
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_WS_CLIENT_FLOOR_PG_TEST_DB',
@@ -42,7 +45,7 @@ Future<void> main() async {
         pong,
         allOf(
           containsPair('type', 'pong'),
-          containsPair('min_client_version', '7.70.0'),
+          containsPair('min_client_version', _currentRelease),
         ),
       );
     },
@@ -59,10 +62,10 @@ Future<void> main() async {
       final floor = pong['min_client_version'] as String;
       expect(
         {
-          for (final version in ['7.69.1', '7.70.0'])
+          for (final version in [_previousRelease, _currentRelease])
             version: _meetsFloor(version, floor),
         },
-        {'7.69.1': false, '7.70.0': true},
+        {_previousRelease: false, _currentRelease: true},
         reason: 'The authenticated server announced min_client_version $floor.',
       );
     },
