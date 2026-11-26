@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/phantoms/domain/entity/person_note.dart';
 import 'package:tentura/features/phantoms/domain/entity/phantom.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -300,10 +301,19 @@ class _ConstellationPersonSearchButtonState
     final raw = controller.text;
     final query = raw.trim();
     final viewerId = cubit.viewerId;
+    final results = _viewState.resolvedResults;
+    final noteSubjects = _viewState.resolvedQuery == query
+        ? results.noteSubjects
+        : const <PersonNoteSubject>[];
+    final notePhantomIds = {
+      for (final subject in noteSubjects)
+        if (subject case PhantomNoteSubject(:final id)) id,
+    };
 
     final phantomSuggestions = [
       for (final phantom in cubit.shownField?.phantoms ?? const <Phantom>[])
-        if (constellationNameMatches(phantom.displayName, query))
+        if (constellationNameMatches(phantom.displayName, query) ||
+            notePhantomIds.contains(phantom.id))
           ListTile(
             key: Key('constellation.field_search.phantom.${phantom.id}'),
             title: Text(phantom.displayName, overflow: TextOverflow.ellipsis),
@@ -363,10 +373,18 @@ class _ConstellationPersonSearchButtonState
 
     final useOfflinePeople =
         _viewState.searchError != null || cubit.fieldSearchCase == null;
-    final serverPeople = _viewState.resolvedResults.people;
+    final serverPeople = results.people;
+    final noteUserIds = {
+      for (final subject in noteSubjects)
+        if (subject case UserNoteSubject(:final id)) id,
+    };
+    final seen = {viewerId};
     final serverPeopleFiltered = [
       for (final hit in serverPeople)
-        if (hit.id != viewerId) hit,
+        if (seen.add(hit.id)) hit,
+      for (final person in cubit.fieldPeople)
+        if (noteUserIds.contains(person.id) && seen.add(person.id))
+          ConstellationFieldSearchPersonHit(id: person.id),
     ];
     final localPeople = useOfflinePeople
         ? _localPeopleMatches(cubit, raw, viewerId: viewerId)

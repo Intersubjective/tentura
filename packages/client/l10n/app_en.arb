@@ -10922,6 +10922,10 @@
       }
     }
   },
+  "personNoteLabel": "Private note",
+  "personNoteAddHint": "Add a note",
+  "personNoteTooLong": "Use 4,000 characters or fewer.",
+  "personNoteRetry": "Try again",
   "personPanelNewLink": "New link",
   "personPanelLinkExisting": "This is someone already on Tentura…",
   "personLinkMerged": "{name} was linked to a Tentura account",

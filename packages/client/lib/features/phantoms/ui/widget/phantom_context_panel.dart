@@ -5,10 +5,12 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
 
+import '../../domain/entity/person_note.dart';
 import '../../domain/entity/phantom.dart';
 import '../../domain/exception.dart';
 import '../../domain/port/phantom_repository_port.dart';
 import 'phantom_invite_presentation.dart';
+import 'person_notes_block.dart';
 
 class PhantomContextPanel extends StatefulWidget {
   const PhantomContextPanel({
@@ -142,6 +144,7 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
                 ],
               ),
             ],
+            PersonNotesBlock(subject: PhantomNoteSubject(person.id)),
             SizedBox(height: tt.sectionGap),
             OutlinedButton(
               onPressed: _busy ? null : () => _run(() => _copy(rotate: false)),

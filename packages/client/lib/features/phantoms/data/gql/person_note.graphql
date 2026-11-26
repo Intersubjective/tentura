@@ -1,0 +1,33 @@
+query PersonNote($subjectUserId: String, $subjectPhantomId: String) {
+  personNote(subjectUserId: $subjectUserId, subjectPhantomId: $subjectPhantomId) {
+    body
+    subjectPhantomId
+    phantomName
+  }
+}
+
+mutation PersonNoteUpsert(
+  $subjectUserId: String
+  $subjectPhantomId: String
+  $body: String!
+) {
+  personNoteUpsert(
+    subjectUserId: $subjectUserId
+    subjectPhantomId: $subjectPhantomId
+    body: $body
+  )
+}
+
+mutation PersonNoteDelete($subjectUserId: String, $subjectPhantomId: String) {
+  personNoteDelete(
+    subjectUserId: $subjectUserId
+    subjectPhantomId: $subjectPhantomId
+  )
+}
+
+query PersonNoteSearch($q: String!) {
+  personNoteSearch(q: $q) {
+    subjectUserId
+    subjectPhantomId
+  }
+}

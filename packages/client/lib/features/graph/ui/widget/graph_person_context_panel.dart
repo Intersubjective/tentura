@@ -18,6 +18,8 @@ import 'package:tentura/features/constellation/ui/widget/constellation_request_l
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
+import 'package:tentura/features/phantoms/domain/entity/person_note.dart';
+import 'package:tentura/features/phantoms/ui/widget/person_notes_block.dart';
 
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_person_context_cubit.dart';
@@ -170,6 +172,7 @@ class GraphPersonContextPanel extends StatelessWidget {
                 : null,
           ),
         ],
+        PersonNotesBlock(subject: UserNoteSubject(profile.id)),
         if (personFieldItemsSection != null) ...[
           SizedBox(height: tt.sectionGap),
           personFieldItemsSection!,

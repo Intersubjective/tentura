@@ -4114,6 +4114,8 @@ type mutation_root {
   inviteSeedPromptSkip(subjectId: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
+  personNoteUpsert(subjectUserId: String, subjectPhantomId: String, body: String!): Boolean!
+  personNoteDelete(subjectUserId: String, subjectPhantomId: String): Boolean!
   phantomCreate(name: String!, emoji: String, position: v2_ConstellationAnchorPositionInput): String!
   phantomUpdate(id: String!, name: String!, emoji: String): Boolean!
   phantomDelete(id: String!): Boolean!
@@ -4796,6 +4798,8 @@ input polling_variant_stream_cursor_value_input {
 
 type query_root {
   personFieldItems(personId: String!, bucket: String!, query: String, cursor: String): v2_PersonFieldItemsPage!
+  personNote(subjectUserId: String, subjectPhantomId: String): [v2_PersonNoteSection!]
+  personNoteSearch(q: String!): [v2_PersonNoteSubject!]!
   fieldSearch(query: String!, context: String!): v2_FieldSearchResult!
   fieldHiddenItems(cursor: String): [v2_FieldHiddenItem!]
   BeaconLobby(beaconId: String!): v2_BeaconLobby!
@@ -8390,6 +8394,17 @@ type v2_ConstellationField {
 type v2_ConstellationLinkHint {
   phantomId: String!
   userId: String!
+}
+
+type v2_PersonNoteSection {
+  body: String!
+  subjectPhantomId: String
+  phantomName: String
+}
+
+type v2_PersonNoteSubject {
+  subjectUserId: String
+  subjectPhantomId: String
 }
 
 type v2_ConstellationPhantom {
