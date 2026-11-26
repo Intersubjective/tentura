@@ -32,7 +32,7 @@ INSERT INTO public.phantom_pending_forward
 SELECT $1, id, owner_id, $4, $5, $6
 FROM public.phantom
 WHERE id = $2 AND owner_id = $3
-ON CONFLICT (id) DO NOTHING
+ON CONFLICT DO NOTHING
 ''',
       variables: [
         Variable.withString(id),

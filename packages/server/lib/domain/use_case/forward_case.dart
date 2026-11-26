@@ -481,6 +481,29 @@ final class ForwardCase extends UseCaseBase {
     rejectBlocked: true,
   );
 
+  /// Checks an outgoing Request under the caller's transaction locks. The
+  /// content guard also checks blocks between the sender and the author.
+  Future<String?> checkPhantomForward({
+    required String beaconId,
+    required String senderId,
+  }) async {
+    // Lock inbound grants before reading access so a concurrent cancellation
+    // cannot invalidate the edge used to admit this forward.
+    final inbound = await _forwardEdgeRepository.lockActiveInboundEdges(
+      beaconId: beaconId,
+      recipientId: senderId,
+    );
+    final beacon = await _requireForwardableBeacon(beaconId, senderId);
+    BeaconKindPolicy.requireRequest(beacon);
+    if (senderId == beacon.author.id) return null;
+    return resolveForwardParentEdgeId(
+      clientParentEdgeId: null,
+      activeInboundEdges: inbound,
+      senderId: senderId,
+      authorId: beacon.author.id,
+    );
+  }
+
   List<String> _nonSelfRecipients(String senderId, List<String> recipientIds) {
     final nonSelf = recipientIds.where((id) => id != senderId).toList();
     if (nonSelf.isEmpty) {
@@ -525,31 +548,7 @@ final class ForwardCase extends UseCaseBase {
         if (hidden.contains(id)) id,
     }.toList();
 
-    if (!await _guard.canReadContent(
-      beaconId: beaconId,
-      viewerId: senderId,
-    )) {
-      throw const UnauthorizedException(
-        description: 'Sender cannot read request content',
-      );
-    }
-
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.allowsForward ||
-        await isExpiredPost(_beaconRepository, beacon)) {
-      if (beacon.kind == BeaconKind.post) {
-        throw const PostNotOpenException();
-      }
-      throw const UnauthorizedException(
-        description: 'Request does not allow forwarding',
-      );
-    }
-    if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: senderId)) {
-      throw const UnauthorizedException(
-        description: 'Forwarding is off for this post',
-      );
-    }
-
+    final beacon = await _requireForwardableBeacon(beaconId, senderId);
     final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
       beaconId: beaconId,
       recipientId: senderId,
@@ -590,6 +589,37 @@ final class ForwardCase extends UseCaseBase {
       parentEdgeId: resolvedParentEdgeId,
       beacon: beacon,
     );
+  }
+
+  Future<BeaconEntity> _requireForwardableBeacon(
+    String beaconId,
+    String senderId,
+  ) async {
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: senderId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Sender cannot read request content',
+      );
+    }
+
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (!beacon.allowsForward ||
+        await isExpiredPost(_beaconRepository, beacon)) {
+      if (beacon.kind == BeaconKind.post) {
+        throw const PostNotOpenException();
+      }
+      throw const UnauthorizedException(
+        description: 'Request does not allow forwarding',
+      );
+    }
+    if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: senderId)) {
+      throw const UnauthorizedException(
+        description: 'Forwarding is off for this post',
+      );
+    }
+    return beacon;
   }
 
   /// §21 telemetry: forwards initiated from a band row vs the main list,

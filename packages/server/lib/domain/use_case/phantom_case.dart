@@ -4,18 +4,31 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
+import 'package:tentura_server/domain/port/phantom_pending_forward_repository_port.dart';
 import 'package:tentura_server/domain/port/phantom_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import 'contact_case.dart';
+import 'forward_case.dart';
 
 @lazySingleton
 final class PhantomCase {
-  const PhantomCase(this._ownerGraph, this._repository, this._anchors);
+  const PhantomCase(
+    this._ownerGraph,
+    this._repository,
+    this._anchors,
+    this._postLock,
+    this._forwardCase,
+    this._pendingForwards,
+  );
 
   final OwnerGraphTransactionPort _ownerGraph;
   final PhantomRepositoryPort _repository;
   final ScopedConstellationAnchorRepositoryPort _anchors;
+  final PostLockPort _postLock;
+  final ForwardCase _forwardCase;
+  final PhantomPendingForwardRepositoryPort _pendingForwards;
 
   Future<String> create({
     required String ownerId,
@@ -73,7 +86,18 @@ final class PhantomCase {
     required String ownerId,
     required String id,
     required bool rotate,
-  }) => _withInviteLocks(ownerId, id, (scope) async {
+  }) => _withInviteLocks(
+    ownerId,
+    id,
+    (scope) => _saveInvite(scope, ownerId: ownerId, id: id, rotate: rotate),
+  );
+
+  Future<String> _saveInvite(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+    required bool rotate,
+  }) async {
     final inviteId = await _repository.saveInvite(
       scope,
       ownerId: ownerId,
@@ -82,7 +106,44 @@ final class PhantomCase {
     );
     if (inviteId == null) throw IdNotFoundException(id: id);
     return inviteId;
-  });
+  }
+
+  /// Records a pending Request forward and returns the person's invite code.
+  Future<String> forwardRequest({
+    required String ownerId,
+    required String phantomId,
+    required String beaconId,
+    required String note,
+  }) {
+    final id = generateId('PF');
+    return _withInviteLocks(
+      ownerId,
+      phantomId,
+      (scope) async {
+        final parentEdgeId = await _forwardCase.checkPhantomForward(
+          beaconId: beaconId,
+          senderId: ownerId,
+        );
+        final code = await _saveInvite(
+          scope,
+          ownerId: ownerId,
+          id: phantomId,
+          rotate: false,
+        );
+        await _pendingForwards.record(
+          scope,
+          id: id,
+          phantomId: phantomId,
+          senderId: ownerId,
+          beaconId: beaconId,
+          parentForwardEdgeId: parentEdgeId,
+          note: note,
+        );
+        return code;
+      },
+      forwardBeaconId: beaconId,
+    );
+  }
 
   Future<bool> delete({required String ownerId, required String id}) =>
       _withInviteLocks(ownerId, id, (scope) async {
@@ -95,8 +156,9 @@ final class PhantomCase {
   Future<T> _withInviteLocks<T>(
     String ownerId,
     String id,
-    Future<T> Function(OwnerGraphScope scope) action,
-  ) async {
+    Future<T> Function(OwnerGraphScope scope) action, {
+    String? forwardBeaconId,
+  }) async {
     // A worker can still be linking this entry while its last committed
     // state is queued. Reject the action before waiting on that worker.
     final joining = await _repository.findJoiningName(
@@ -106,6 +168,9 @@ final class PhantomCase {
     if (joining != null) throw PhantomJoiningException(joining);
 
     return _ownerGraph.run({ownerId}, ownerId, (scope) async {
+      if (forwardBeaconId != null) {
+        await _postLock.lockForPostMutation(forwardBeaconId);
+      }
       final name = await _repository.lockInvitesAndFindJoiningName(
         scope,
         ownerId: ownerId,
