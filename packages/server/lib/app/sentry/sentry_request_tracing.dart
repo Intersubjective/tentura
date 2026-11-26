@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 import 'package:sentry/sentry.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
+import 'package:tentura_server/api/http/request_log_sanitizer.dart';
 import 'package:tentura_server/env.dart';
 
 import 'sentry_benign_filter.dart';
@@ -18,6 +19,12 @@ const _excludedPathPrefixes = {
   kPathWebSocketEndpoint,
 };
 
+/// The request URI as Sentry may see it: private query values (avatar object
+/// keys, QA tokens) are redacted the same way as in the request log.
+@visibleForTesting
+Uri sentryRequestUri(Uri uri) =>
+    Uri.parse(sanitizeRequestLogMessage(uri.toString()));
+
 Middleware sentryRequestTracing({required Env env}) {
   return (Handler innerHandler) {
     return (Request request) async {
@@ -26,7 +33,9 @@ Middleware sentryRequestTracing({required Env env}) {
       }
 
       final requestHub = Sentry.clone();
-      final traceHeader = parseSentryTraceHeader(request.headers['sentry-trace']);
+      final traceHeader = parseSentryTraceHeader(
+        request.headers['sentry-trace'],
+      );
       final baggage = parseSentryBaggageHeader(request.headers['baggage']);
       applyIncomingTraceToHub(requestHub, traceHeader, baggage);
 
@@ -44,7 +53,7 @@ Middleware sentryRequestTracing({required Env env}) {
       );
 
       final sentryRequest = SentryRequest.fromUri(
-        uri: request.requestedUri,
+        uri: sentryRequestUri(request.requestedUri),
         method: request.method,
         headers: sanitizeHttpHeaders(Map<String, String>.from(request.headers)),
       );
@@ -63,9 +72,11 @@ Middleware sentryRequestTracing({required Env env}) {
         sentryRequest: sentryRequest,
       );
 
-      final enrichedRequest = request.change(context: {
-        kSentryRequestContextKey: sentryContext,
-      });
+      final enrichedRequest = request.change(
+        context: {
+          kSentryRequestContextKey: sentryContext,
+        },
+      );
 
       try {
         // The request hub is a clone, so `Sentry.getSpan()` cannot see this
