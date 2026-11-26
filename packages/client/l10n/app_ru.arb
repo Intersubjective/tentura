@@ -5324,6 +5324,7 @@
       }
     }
   },
+  "updatesRequestForwardLapsed": "{name} отправил(а) вам запрос, который уже закрыт. Вы и {name} на связи.",
   "updatesQuestionsMessageFrom": "{name} написал(а) в вопросах",
   "@updatesQuestionsMessageFrom": {
     "description": "Updates row headline: someone wrote in a Request's Questions (#736)",

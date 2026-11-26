@@ -1,6 +1,7 @@
 @Tags(['pg', 'multi-connection'])
 library;
 
+import 'dart:async';
 // The VM runner supports mirrors, which the Flutter workspace analyzer hides.
 // ignore: uri_does_not_exist
 import 'dart:mirrors' as vm;
@@ -10,12 +11,15 @@ import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/app/di.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/invite_acceptance.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/phantom_pending_forward.dart';
 import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/domain/notification/notification_identity.dart';
+import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/phantom_merge_repository_port.dart';
@@ -33,11 +37,13 @@ import 'package:tentura_server/domain/use_case/phantom_forward_delivery_case.dar
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
+import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/owner_graph_contention.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/pg_wait.dart';
 import '../../support/session_database_di_harness.dart';
 
 const _sender = 'UrecoverySndr';
@@ -45,6 +51,7 @@ const _joiner = 'UrecoveryJoin';
 const _oldRecipient = 'UrecoveryPrev';
 const _senderName = 'Vadim';
 const _note = 'Can you help on Saturday?';
+const _forwardWriteGate = 78127001;
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -79,6 +86,146 @@ Future<void> main() async {
     });
 
     setUp(() => fixture.reset());
+
+    group('Overlapping delivery and Request changes', () {
+      for (final undoFirst in [true, false]) {
+        test(
+          undoFirst
+              ? 'undo restores the pending forward before delivery can send it'
+              : 'undo preserves a forward and receipt delivered first',
+          () async {
+            final request = await fixture.prepareForward();
+            final claim = (await fixture.acceptInviteWithoutDelivery()).single;
+            Future<void> undo() async {
+              expect(
+                await getIt<PhantomMergeCase>().unmerge(
+                  ownerId: _sender,
+                  phantomId: fixture.person,
+                  mergeId: claim.mergeId,
+                ),
+                isTrue,
+              );
+            }
+
+            Future<void> deliver() =>
+                getIt<PhantomForwardDeliveryCase>().deliver([claim]);
+
+            await fixture.overlapWrites(
+              target.databaseEnv,
+              pauseOn: 'UPDATE OF state ON public.phantom_pending_forward',
+              when: undoFirst
+                  ? "OLD.state = 'claimed' AND NEW.state = 'pending'"
+                  : "OLD.state = 'claimed' AND NEW.state = 'delivered'",
+              first: undoFirst ? undo : deliver,
+              second: undoFirst ? deliver : undo,
+            );
+
+            expect(await fixture.currentMerge(), isNull);
+            if (undoFirst) {
+              final row = await fixture.readForward(claim.id);
+              expect(row.state, PhantomPendingForwardState.pending);
+              expect(row.mergeId, isNull);
+              expect(row.recipientId, isNull);
+              expect(row.forwardEdgeId, isNull);
+              expect(row.lapseReason, isNull);
+              expect(await fixture.forwardEdges(request), isEmpty);
+              expect(await fixture.joinerReceipts(claim), isEmpty);
+            } else {
+              await fixture.expectDelivered(claim);
+              expect(await fixture.joinerReceipts(claim), ['relayReceived']);
+            }
+          },
+        );
+      }
+
+      for (final closeFirst in [true, false]) {
+        test(
+          closeFirst
+              ? 'closing first replaces delivery with one lapsed joiner card'
+              : 'closing after delivery preserves the forward without a lapsed card',
+          () async {
+            final request = await fixture.prepareForward();
+            final claim = (await fixture.acceptInviteWithoutDelivery()).single;
+            Future<void> close() => getIt<ClosureCase>().close(
+              authorId: _sender,
+              beaconId: request,
+            );
+
+            Future<void> deliver() =>
+                getIt<PhantomForwardDeliveryCase>().deliver([claim]);
+
+            await fixture.overlapWrites(
+              target.databaseEnv,
+              pauseOn: closeFirst
+                  ? 'UPDATE OF status ON public.beacon'
+                  : 'UPDATE OF state ON public.phantom_pending_forward',
+              when: closeFirst
+                  ? 'NEW.status = ${BeaconStatus.closed.smallintValue}'
+                  : "OLD.state = 'claimed' AND NEW.state = 'delivered'",
+              first: closeFirst ? close : deliver,
+              second: closeFirst ? deliver : close,
+            );
+
+            expect(await fixture.requestStatus(request), BeaconStatus.closed);
+            if (closeFirst) {
+              final row = await fixture.readForward(claim.id);
+              expect(row.state, PhantomPendingForwardState.lapsed);
+              expect(row.lapseReason, 'forward_no_longer_allowed');
+              expect(row.forwardEdgeId, isNull);
+              expect(row.resolvedAt, isNotNull);
+              expect(await fixture.forwardEdges(request), isEmpty);
+              expect(await fixture.joinerReceipts(claim), [
+                'requestForwardLapsed',
+              ]);
+              final cards = await fixture.lapsedJoinerCards();
+              expect(cards, hasLength(1));
+              expect(cards.single.actorUserId, _sender);
+              expect(
+                cards.single.destinationKind,
+                AttentionDestinationKind.safeTerminal,
+              );
+              expect(
+                cards.single.presentationPayload['eventType'],
+                'requestForwardLapsed',
+              );
+            } else {
+              await fixture.expectDelivered(claim);
+              expect(await fixture.joinerReceipts(claim), ['relayReceived']);
+              expect(await fixture.lapsedJoinerCards(), isEmpty);
+            }
+          },
+        );
+      }
+
+      test('overlapping sweeps send a claimed forward only once', () async {
+        await fixture.prepareForward();
+        final claim = (await fixture.acceptInviteWithoutDelivery()).single;
+        final delivery = getIt<PhantomForwardDeliveryCase>();
+
+        await fixture.overlapWrites(
+          target.databaseEnv,
+          pauseOn: 'UPDATE OF state ON public.phantom_pending_forward',
+          when: "OLD.state = 'claimed' AND NEW.state = 'delivered'",
+          first: delivery.sweep,
+          second: delivery.sweep,
+        );
+
+        final delivered = await fixture.expectDelivered(claim);
+        final resolvedAt = await fixture.storedResolutionTime(claim.id);
+        expect(resolvedAt, isNotNull);
+        final receipts = await fixture.joinerReceipts(claim);
+        expect(receipts, ['relayReceived']);
+
+        await _expectNoDeliveryErrors(
+          () =>
+              expectLater(delivery.sweep().timeout(kCompletionWait), completes),
+        );
+
+        expect(await fixture.expectDelivered(claim), delivered);
+        expect(await fixture.storedResolutionTime(claim.id), resolvedAt);
+        expect(await fixture.joinerReceipts(claim), receipts);
+      });
+    });
 
     test(
       'a missed delivery gives the joiner access through the saved forward',
@@ -298,6 +445,31 @@ Future<void> _sweep() async {
 }
 
 typedef _AttentionEvent = ({String id, String? actor, String? account});
+
+Future<void> _expectNoDeliveryErrors(Future<void> Function() run) async {
+  final failures = <LogRecord>[];
+  final rootLogger = Logger.root;
+  final previousLevel = rootLogger.level;
+  rootLogger.level = Level.SEVERE;
+  final subscription = rootLogger.onRecord
+      .where(
+        (record) =>
+            record.level == Level.SEVERE &&
+            record.message.startsWith('Could not deliver pending forward'),
+      )
+      .listen(failures.add);
+  try {
+    await run();
+  } finally {
+    await subscription.cancel();
+    rootLogger.level = previousLevel;
+  }
+  expect(
+    failures.map((record) => '${record.message}: ${record.error}'),
+    isEmpty,
+    reason: 'Delivery must finish without logging a swallowed error.',
+  );
+}
 
 final class _Fixture {
   _Fixture(this.writer);
@@ -544,6 +716,139 @@ FROM public.beacon_forward_edge WHERE beacon_id = @request ORDER BY id
     ))
       row.toColumnMap(),
   ];
+
+  Future<BeaconStatus> requestStatus(String request) async {
+    final rows = await _sql(
+      'SELECT status FROM public.beacon WHERE id = @request',
+      {'request': request},
+    );
+    return BeaconStatus.fromSmallint(rows.single.single! as int);
+  }
+
+  Future<DateTime?> storedResolutionTime(String id) async {
+    final rows = await _sql(
+      'SELECT resolved_at FROM public.phantom_pending_forward WHERE id = @id',
+      {'id': id},
+    );
+    return rows.single.single as DateTime?;
+  }
+
+  Future<List<String>> joinerReceipts(PhantomForwardClaim claim) async => [
+    for (final row in await _sql(
+      '''
+SELECT event.event_type
+FROM public.notification_outbox receipt
+JOIN public.attention_occurrence event ON event.id = receipt.occurrence_id
+WHERE receipt.account_id = @joiner
+  AND ((receipt.beacon_id = @request AND event.event_type = 'relayReceived')
+    OR receipt.presentation_key = 'request_forward_lapsed')
+ORDER BY receipt.id
+''',
+      {'joiner': _joiner, 'request': claim.beaconId},
+    ))
+      row.single! as String,
+  ];
+
+  Future<Iterable<AttentionReceipt>> lapsedJoinerCards() async {
+    final activity = await getIt<AttentionQueryPort>().attentionFeed(
+      accountId: _joiner,
+      view: AttentionFeedView.unread,
+      surface: AttentionSurface.activity,
+    );
+    return activity.page.items.where(
+      (item) => item.presentationKey == kRequestForwardLapsedPresentationKey,
+    );
+  }
+
+  Future<void> overlapWrites(
+    Env env, {
+    required String pauseOn,
+    required String when,
+    required Future<void> Function() first,
+    required Future<void> Function() second,
+  }) async {
+    // Stop the first real write after it has acquired its business locks.
+    // Release it only once Postgres confirms the second caller is waiting.
+    await writer.execute('''
+CREATE FUNCTION public.test_pause_forward_write() RETURNS trigger
+LANGUAGE plpgsql AS \$\$
+BEGIN
+  PERFORM pg_advisory_xact_lock($_forwardWriteGate);
+  RETURN NEW;
+END;
+\$\$;
+CREATE TRIGGER test_pause_forward_write BEFORE $pauseOn FOR EACH ROW
+WHEN ($when) EXECUTE FUNCTION public.test_pause_forward_write();
+''', queryMode: QueryMode.simple);
+    addTearDown(
+      () => writer.execute(
+        'DROP FUNCTION public.test_pause_forward_write() CASCADE',
+      ),
+    );
+    final gate = await Connection.open(
+      env.pgEndpoint,
+      settings: env.pgEndpointSettings,
+    );
+    addTearDown(gate.close);
+
+    await _expectNoDeliveryErrors(() async {
+      final calls = <Future<void>>[];
+      try {
+        await gate.runTx((tx) async {
+          final holder =
+              (await tx.execute(
+                    'SELECT pg_backend_pid(), pg_advisory_xact_lock($_forwardWriteGate)',
+                  )).single.first!
+                  as int;
+          // Handle early errors while we observe the locks. The original
+          // futures are checked once the gate transaction releases its lock.
+          final firstCall = first()..ignore();
+          calls.add(firstCall);
+          final firstBackend = await _waitForBlockedWriter(holder, firstCall);
+          final secondCall = second()..ignore();
+          calls.add(secondCall);
+          await _waitForBlockedWriter(firstBackend, secondCall);
+        });
+      } on Object {
+        await Future.wait(calls).timeout(kCompletionWait);
+        rethrow;
+      }
+      expect(calls, hasLength(2));
+      await expectLater(
+        Future.wait(calls).timeout(kCompletionWait),
+        completes,
+        reason:
+            'Both callers must finish successfully after releasing the lock.',
+      );
+    });
+    final states = await _sql(
+      'SELECT state FROM public.phantom_pending_forward',
+    );
+    expect(states, hasLength(1));
+    expect(states.single.single, isIn(['pending', 'delivered', 'lapsed']));
+  }
+
+  Future<int> _waitForBlockedWriter(int blocker, Future<void> operation) async {
+    var finished = false;
+    operation.whenComplete(() => finished = true).ignore();
+    final clock = Stopwatch()..start();
+    while (!finished && clock.elapsed < kStableStateWait) {
+      final rows = await _sql(
+        '''
+SELECT pid FROM pg_stat_activity
+WHERE datname = current_database() AND @blocker = ANY(pg_blocking_pids(pid))
+''',
+        {'blocker': blocker},
+      );
+      if (rows.isNotEmpty) return rows.single.single! as int;
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+    }
+    if (finished) {
+      await operation;
+      fail('The caller returned while the competing transaction was paused.');
+    }
+    fail('The caller did not reach the lock held by backend $blocker.');
+  }
 
   Future<bool> canRead(String request) =>
       getIt<BeaconAccessGuard>().canReadContent(

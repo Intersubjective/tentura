@@ -6179,6 +6179,13 @@
       }
     }
   },
+  "updatesRequestForwardLapsed": "{name} sent you a request, but it has since closed. You're connected with {name}.",
+  "@updatesRequestForwardLapsed": {
+    "description": "Feed notice for a Request that closed before its invite forward could be delivered",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "updatesQuestionsMessageFrom": "{name} wrote in Questions",
   "@updatesQuestionsMessageFrom": {
     "description": "Updates row headline: someone wrote in a Request's Questions (#736)",
