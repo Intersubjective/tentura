@@ -437,10 +437,13 @@ WHERE user_id = @userId
         );
         expect(
           repeat,
-          const ForwardBatchCreateResult(
-            createdEdges: [],
-            availabilitySkippedRecipientIds: [],
-            alreadyForwardedRecipientIds: [openRecipient],
+          ForwardBatchCreateResult(
+            createdEdges: const [],
+            availabilitySkippedRecipientIds: const [],
+            alreadyForwardedRecipientIds: const [openRecipient],
+            alreadyForwardedEdgeIds: {
+              openRecipient: result.createdEdges.single.edgeId,
+            },
           ),
         );
       },

@@ -155,10 +155,11 @@ WHERE beacon_id = 'Bfwdedup01'
       );
       expect(
         secondInserted,
-        const ForwardBatchCreateResult(
-          createdEdges: [],
-          availabilitySkippedRecipientIds: [],
-          alreadyForwardedRecipientIds: [recipient],
+        ForwardBatchCreateResult(
+          createdEdges: const [],
+          availabilitySkippedRecipientIds: const [],
+          alreadyForwardedRecipientIds: const [recipient],
+          alreadyForwardedEdgeIds: {recipient: firstEdgeId},
         ),
       );
       expect(

@@ -4,9 +4,11 @@ import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.d
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
+import 'package:tentura_server/domain/entity/phantom_pending_forward.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/forward/forward_constants.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
@@ -29,6 +31,13 @@ import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
 import '_use_case_base.dart';
+
+typedef _CheckedForward = ({
+  List<String> recipients,
+  List<String> blocked,
+  String? parentEdgeId,
+  BeaconEntity beacon,
+});
 
 @Singleton(order: 2)
 final class ForwardCase extends UseCaseBase {
@@ -338,13 +347,7 @@ final class ForwardCase extends UseCaseBase {
 
     // Requests: checks run before the transaction. Posts: every mutable check
     // runs after the post lock, inside the transaction.
-    ({
-      List<String> recipients,
-      List<String> blocked,
-      String? parentEdgeId,
-      BeaconEntity beacon,
-    })?
-    preChecked;
+    _CheckedForward? preChecked;
     if (!isPost) {
       preChecked = await _checkForward(
         senderId: senderId,
@@ -375,85 +378,23 @@ final class ForwardCase extends UseCaseBase {
           );
         }
         final checked = preChecked!;
-        final beacon = checked.beacon;
-        final recipients = checked.recipients;
-        final resolvedParentEdgeId = checked.parentEdgeId;
-        final batchResult = await _forwardEdgeRepository.createBatch(
-          beaconId: beaconId,
+        final batchResult = await _writeForward(
+          transaction,
+          checked,
           senderId: senderId,
-          recipientIds: recipients,
+          beaconId: beaconId,
           batchId: batchId,
           noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
           context: context,
-          parentEdgeId: resolvedParentEdgeId,
-          onAfterEdgesInserted: () async {
-            final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
-              beaconId: beaconId,
-              userId: senderId,
-            );
-            if (hasOffer) return;
-            await _inboxRepository.upsertWatchingForSender(
-              senderId: senderId,
-              beaconId: beaconId,
-              context: context,
-            );
-          },
+          clientParentEdgeId: parentEdgeId,
+          attributionParentEdgeIds: explicitAttributionParents,
+          reasonSlugsFor: reasonSlugsFor,
+          perRecipientBandProvenance: perRecipientBandProvenance,
         );
-        final createdEdges = batchResult.createdEdges;
-
-        for (final created in createdEdges) {
-          final slugs = reasonSlugsFor(created.recipientId);
-          if (slugs == null) continue;
-          if (slugs.isNotEmpty) {
-            _validateReasonSlugs(slugs);
-          }
-          await _capabilityEvidence.reconcileForwardReasons(
-            forwardEdgeId: created.edgeId,
-            observerId: senderId,
-            subjectId: created.recipientId,
-            slugs: slugs,
-          );
-        }
-
-        if (perRecipientBandProvenance != null) {
-          _logBandConversion(
-            beaconId: beaconId,
-            createdEdges: createdEdges,
-            perRecipientBandProvenance: perRecipientBandProvenance,
-          );
-        }
-
-        if (createdEdges.isNotEmpty) {
-          final insertedRecipientIds = createdEdges
-              .map((edge) => edge.recipientId)
-              .toList();
-          await _recordAttributionIfEligible(
-            beaconId: beaconId,
-            senderId: senderId,
-            batchId: batchId,
-            clientParentEdgeId: parentEdgeId,
-            attributionParentEdgeIds: explicitAttributionParents,
-          );
-
-          final intents = _attentionIntents;
-          if (intents != null) {
-            await transaction.record(
-              await intents.relayReceived(
-                beaconId: beaconId,
-                senderId: senderId,
-                beaconAuthorId: beacon.author.id,
-                recipientIds: insertedRecipientIds,
-                sourceEventKey: 'forward_batch:$batchId',
-                beaconKind: isPost ? BeaconKind.post : BeaconKind.request,
-                noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
-              ),
-            );
-          }
-        }
         return ForwardDeliveryResult(
           batchId: batchId,
           deliveredRecipientIds: [
-            for (final edge in createdEdges) edge.recipientId,
+            for (final edge in batchResult.createdEdges) edge.recipientId,
           ],
           availabilitySkippedRecipientIds:
               batchResult.availabilitySkippedRecipientIds,
@@ -463,6 +404,139 @@ final class ForwardCase extends UseCaseBase {
         );
       },
     );
+  }
+
+  /// Delivers a pending Request within the caller's locked claim transaction.
+  Future<PhantomForwardResolution> deliverPending({
+    required AttentionTransaction transaction,
+    required PhantomForwardClaim claim,
+    required PhantomForwardDelivery delivery,
+  }) async {
+    final _CheckedForward checked;
+    try {
+      checked = await _checkForward(
+        senderId: claim.senderId,
+        beaconId: claim.beaconId,
+        nonSelfRecipients: [delivery.recipientId],
+        visibilityContext: '',
+        parentEdgeId: claim.parentForwardEdgeId,
+        rejectBlocked: true,
+        inferParentEdge: false,
+      );
+      BeaconKindPolicy.requireRequest(checked.beacon);
+    } on ExceptionBase {
+      return PhantomForwardLapsed.forwardNoLongerAllowed;
+    }
+
+    final batch = await _writeForward(
+      transaction,
+      checked,
+      senderId: claim.senderId,
+      beaconId: claim.beaconId,
+      batchId: generateId('X'),
+      noteForRecipient: (_) => delivery.note,
+      clientParentEdgeId: claim.parentForwardEdgeId,
+    );
+    final edgeId =
+        batch.createdEdges.singleOrNull?.edgeId ??
+        batch.alreadyForwardedEdgeIds[delivery.recipientId];
+    if (edgeId != null) return PhantomForwardDelivered(edgeId);
+    if (batch.availabilitySkippedRecipientIds.contains(delivery.recipientId)) {
+      return PhantomForwardLapsed.recipientPaused;
+    }
+    throw StateError(
+      'Missing delivery outcome for pending forward ${claim.id}',
+    );
+  }
+
+  Future<ForwardBatchCreateResult> _writeForward(
+    AttentionTransaction transaction,
+    _CheckedForward checked, {
+    required String senderId,
+    required String beaconId,
+    required String batchId,
+    required String Function(String recipientId) noteForRecipient,
+    String? context,
+    String? clientParentEdgeId,
+    List<String>? attributionParentEdgeIds,
+    List<String>? Function(String recipientId)? reasonSlugsFor,
+    Map<String, ({String? tier, bool isExploration})>?
+    perRecipientBandProvenance,
+  }) async {
+    final beacon = checked.beacon;
+    final batchResult = await _forwardEdgeRepository.createBatch(
+      beaconId: beaconId,
+      senderId: senderId,
+      recipientIds: checked.recipients,
+      batchId: batchId,
+      noteForRecipient: noteForRecipient,
+      context: context,
+      parentEdgeId: checked.parentEdgeId,
+      onAfterEdgesInserted: () async {
+        final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
+          beaconId: beaconId,
+          userId: senderId,
+        );
+        if (hasOffer) return;
+        await _inboxRepository.upsertWatchingForSender(
+          senderId: senderId,
+          beaconId: beaconId,
+          context: context,
+        );
+      },
+    );
+    final createdEdges = batchResult.createdEdges;
+
+    for (final created in createdEdges) {
+      final slugs = reasonSlugsFor?.call(created.recipientId);
+      if (slugs == null) continue;
+      if (slugs.isNotEmpty) {
+        _validateReasonSlugs(slugs);
+      }
+      await _capabilityEvidence.reconcileForwardReasons(
+        forwardEdgeId: created.edgeId,
+        observerId: senderId,
+        subjectId: created.recipientId,
+        slugs: slugs,
+      );
+    }
+
+    if (perRecipientBandProvenance != null) {
+      _logBandConversion(
+        beaconId: beaconId,
+        createdEdges: createdEdges,
+        perRecipientBandProvenance: perRecipientBandProvenance,
+      );
+    }
+
+    if (createdEdges.isNotEmpty) {
+      final insertedRecipientIds = createdEdges
+          .map((edge) => edge.recipientId)
+          .toList();
+      await _recordAttributionIfEligible(
+        beaconId: beaconId,
+        senderId: senderId,
+        batchId: batchId,
+        clientParentEdgeId: clientParentEdgeId,
+        attributionParentEdgeIds: attributionParentEdgeIds,
+      );
+
+      final intents = _attentionIntents;
+      if (intents != null) {
+        await transaction.record(
+          await intents.relayReceived(
+            beaconId: beaconId,
+            senderId: senderId,
+            beaconAuthorId: beacon.author.id,
+            recipientIds: insertedRecipientIds,
+            sourceEventKey: 'forward_batch:$batchId',
+            beaconKind: beacon.kind,
+            noteForRecipient: noteForRecipient,
+          ),
+        );
+      }
+    }
+    return batchResult;
   }
 
   /// Runs the refusals of a Post [forward] without writing, so a publish can
@@ -515,21 +589,14 @@ final class ForwardCase extends UseCaseBase {
   /// Block filter, read gate, forward policy, mutual visibility and parent
   /// edge. A hidden recipient is dropped and returned in `blocked`; with
   /// [rejectBlocked] it fails the forward instead.
-  Future<
-    ({
-      List<String> recipients,
-      List<String> blocked,
-      String? parentEdgeId,
-      BeaconEntity beacon,
-    })
-  >
-  _checkForward({
+  Future<_CheckedForward> _checkForward({
     required String senderId,
     required String beaconId,
     required List<String> nonSelfRecipients,
     required String visibilityContext,
     required String? parentEdgeId,
     required bool rejectBlocked,
+    bool inferParentEdge = true,
   }) async {
     final hidden = await _userBlockRepository.hiddenPeerIds(
       viewerId: senderId,
@@ -549,16 +616,18 @@ final class ForwardCase extends UseCaseBase {
     }.toList();
 
     final beacon = await _requireForwardableBeacon(beaconId, senderId);
-    final inbound = await _forwardEdgeRepository.fetchActiveInboundEdges(
-      beaconId: beaconId,
-      recipientId: senderId,
-    );
-    final resolvedParentEdgeId = resolveForwardParentEdgeId(
-      clientParentEdgeId: parentEdgeId,
-      activeInboundEdges: inbound,
-      senderId: senderId,
-      authorId: beacon.author.id,
-    );
+    final resolvedParentEdgeId = !inferParentEdge && parentEdgeId == null
+        ? null
+        : resolveForwardParentEdgeId(
+            clientParentEdgeId: parentEdgeId,
+            activeInboundEdges: await _forwardEdgeRepository
+                .fetchActiveInboundEdges(
+                  beaconId: beaconId,
+                  recipientId: senderId,
+                ),
+            senderId: senderId,
+            authorId: beacon.author.id,
+          );
 
     if (recipients.isNotEmpty) {
       final visible = await _personVisibilityRepository.personVisiblePeerIds(

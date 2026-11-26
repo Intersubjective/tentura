@@ -171,15 +171,15 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         if (!insertedRecipientIds.contains(recipientId)) recipientId,
     ];
     final alreadyActive = notInserted.isEmpty
-        ? const <String>{}
-        : await _recipientIdsWithActiveEdge(
+        ? const <String, String>{}
+        : await _lockActiveEdgeIdsByRecipient(
             beaconId: beaconId,
             senderId: senderId,
             recipientIds: notInserted,
           );
     final availabilitySkipped = [
       for (final recipientId in notInserted)
-        if (!alreadyActive.contains(recipientId)) recipientId,
+        if (!alreadyActive.containsKey(recipientId)) recipientId,
     ];
 
     if (inserted.isNotEmpty) {
@@ -190,8 +190,9 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
       availabilitySkippedRecipientIds: availabilitySkipped,
       alreadyForwardedRecipientIds: [
         for (final recipientId in notInserted)
-          if (alreadyActive.contains(recipientId)) recipientId,
+          if (alreadyActive.containsKey(recipientId)) recipientId,
       ],
+      alreadyForwardedEdgeIds: alreadyActive,
     );
   });
 
@@ -658,7 +659,7 @@ RETURNING recipient_id
     return {for (final row in rows) row.read<String>('recipient_id')};
   }
 
-  Future<Set<String>> _recipientIdsWithActiveEdge({
+  Future<Map<String, String>> _lockActiveEdgeIdsByRecipient({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
@@ -666,12 +667,13 @@ RETURNING recipient_id
     final rows = await _database
         .customSelect(
           r'''
-SELECT recipient_id
+SELECT recipient_id, id
 FROM public.beacon_forward_edge
 WHERE beacon_id = $1
   AND sender_id = $2
   AND cancelled_at IS NULL
   AND recipient_id = ANY($3::text[])
+ORDER BY id FOR SHARE
 ''',
           variables: [
             Variable.withString(beaconId),
@@ -680,7 +682,10 @@ WHERE beacon_id = $1
           ],
         )
         .get();
-    return {for (final row in rows) row.read<String>('recipient_id')};
+    return {
+      for (final row in rows)
+        row.read<String>('recipient_id'): row.read<String>('id'),
+    };
   }
 
   /// Takes every recipient's availability advisory lock in one statement,

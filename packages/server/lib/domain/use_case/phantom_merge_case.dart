@@ -2,18 +2,22 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import '../entity/leased_job_retry.dart';
+import '../entity/phantom_pending_forward.dart';
 import '../exception.dart';
 import '../port/owner_graph_transaction_port.dart';
 import '../port/phantom_merge_repository_port.dart';
+import '../port/phantom_pending_forward_repository_port.dart';
 import '../port/phantom_repository_port.dart';
 import '../port/user_block_repository_port.dart';
+import 'phantom_forward_delivery_case.dart';
 
 sealed class PhantomMergeResult {}
 
 final class PhantomMerged implements PhantomMergeResult {
-  const PhantomMerged(this.mergeId);
+  const PhantomMerged(this.mergeId, [this._claimedForwards = const []]);
 
   final String mergeId;
+  final List<PhantomForwardClaim> _claimedForwards;
 }
 
 enum PhantomMergeGuardFailure implements PhantomMergeResult {
@@ -32,6 +36,8 @@ final class PhantomMergeCase {
     this._phantoms,
     this._merges,
     this._blocks,
+    this._pendingForwards,
+    this._forwardDelivery,
     this._logger,
   );
 
@@ -39,6 +45,8 @@ final class PhantomMergeCase {
   final PhantomRepositoryPort _phantoms;
   final PhantomMergeRepositoryPort _merges;
   final UserBlockRepositoryPort _blocks;
+  final PhantomPendingForwardRepositoryPort _pendingForwards;
+  final PhantomForwardDeliveryCase _forwardDelivery;
   final Logger _logger;
 
   Future<bool> link({
@@ -83,17 +91,19 @@ final class PhantomMergeCase {
     required String phantomId,
     required String userId,
     int? origin,
-  }) {
+  }) async {
     final authorizedOrigin = origin == null
         ? null
         : PhantomMergeOrigin.fromCode(origin);
     final target = (ownerId: ownerId, phantomId: phantomId, userId: userId);
-    return _ownerGraph.run({ownerId}, ownerId, (scope) async {
+    final result = await _ownerGraph.run({ownerId}, ownerId, (scope) async {
       final result = await _mergeInScope(scope, target, authorizedOrigin);
       return result == PhantomMergeGuardFailure.deleted
           ? PhantomMergeGuardFailure.inactive
           : result;
     });
+    await _deliverMergedForwards(result);
+    return result;
   }
 
   Future<PhantomMergeResult> _mergeInScope(
@@ -130,7 +140,16 @@ final class PhantomMergeCase {
       origin: origin,
       displayName: entry.displayName,
     );
-    return PhantomMerged(mergeId);
+    final claimedForwards = origin == PhantomMergeOrigin.manualLink
+        ? const <PhantomForwardClaim>[]
+        : await _pendingForwards.claimForMerge(
+            scope,
+            phantomId: phantomId,
+            senderId: ownerId,
+            mergeId: mergeId,
+            recipientId: userId,
+          );
+    return PhantomMerged(mergeId, claimedForwards);
   }
 
   Future<void> runDue({
@@ -144,18 +163,27 @@ final class PhantomMergeCase {
         await _recordError(job, 'Final attempt lease expired', null, clock);
         continue;
       }
+      final PhantomMergeResult? result;
       try {
-        await _runJob(job);
+        result = await _runJob(job);
       } on Object catch (error, stackTrace) {
         await _recordError(job, error, stackTrace, clock);
+        continue;
       }
+      await _deliverMergedForwards(result);
     }
   }
 
-  Future<void> _runJob(PhantomMergeJobLease job) {
+  Future<void> _deliverMergedForwards(PhantomMergeResult? result) async {
+    if (result is PhantomMerged) {
+      await _forwardDelivery.deliver(result._claimedForwards);
+    }
+  }
+
+  Future<PhantomMergeResult?> _runJob(PhantomMergeJobLease job) {
     final owner = job.target.ownerId;
     return _ownerGraph.run({owner}, owner, (scope) async {
-      if (!await _merges.lockClaim(scope, job)) return;
+      if (!await _merges.lockClaim(scope, job)) return null;
       final result = await _mergeInScope(scope, job.target, job.origin);
       final finished = await _merges.finishJob(
         scope,
@@ -172,6 +200,7 @@ final class PhantomMergeCase {
           result == PhantomMergeGuardFailure.blocked) {
         await _merges.recordLinkCard(scope, job);
       }
+      return result;
     });
   }
 

@@ -24,4 +24,29 @@ abstract interface class PhantomPendingForwardRepositoryPort {
     required String senderId,
     required String beaconId,
   });
+
+  Future<List<PhantomForwardClaim>> claimForMerge(
+    OwnerGraphScope scope, {
+    required String phantomId,
+    required String senderId,
+    required String mergeId,
+    required String recipientId,
+  });
+
+  Future<bool> lockParentChain(
+    OwnerGraphScope scope,
+    PhantomForwardClaim claim,
+  );
+
+  /// Locks and reads a claim only if it belongs to the person's current merge.
+  Future<PhantomForwardDelivery?> lockClaim(
+    OwnerGraphScope scope,
+    PhantomForwardClaim claim,
+  );
+
+  Future<void> resolve(
+    OwnerGraphScope scope,
+    PhantomForwardClaim claim,
+    PhantomForwardResolution resolution,
+  );
 }
