@@ -29,7 +29,7 @@
       {
         "hooks": [
           {
-            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager snapshot --repo \"$CLAUDE_PROJECT_DIR\"",
+            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager snapshot --hook --repo \"$CLAUDE_PROJECT_DIR\"",
             "type": "command"
           }
         ]
@@ -39,7 +39,7 @@
       {
         "hooks": [
           {
-            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager brief --repo \"$CLAUDE_PROJECT_DIR\"",
+            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager brief --hook --repo \"$CLAUDE_PROJECT_DIR\"",
             "type": "command"
           }
         ],
