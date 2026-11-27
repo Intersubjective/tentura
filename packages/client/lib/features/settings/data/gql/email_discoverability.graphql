@@ -1,0 +1,7 @@
+query EmailDiscoverability {
+  emailDiscoverability
+}
+
+mutation EmailDiscoverabilitySet($enabled: Boolean!) {
+  emailDiscoverabilitySet(enabled: $enabled)
+}

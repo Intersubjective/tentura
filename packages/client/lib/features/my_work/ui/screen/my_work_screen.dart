@@ -7,6 +7,7 @@ import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/features/home/ui/widget/own_paused_chip.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/settings/ui/widget/email_discoverability_control.dart';
 import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -497,6 +498,9 @@ class _MyWorkListBody extends StatelessWidget {
       );
     }
     final cards = state.visibleCards;
+    final explainer = SliverToBoxAdapter(
+      child: EmailDiscoverabilityControl.explainer(l10n: l10n),
+    );
     if (cards.isEmpty) {
       return BlocSelector<
         HomeActivationCubit,
@@ -519,6 +523,7 @@ class _MyWorkListBody extends StatelessWidget {
                   controller: scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
+                    explainer,
                     switch (decision) {
                       OrientationDecision.show => SliverToBoxAdapter(
                         child: OrientationInviterBuilder(
@@ -550,8 +555,7 @@ class _MyWorkListBody extends StatelessWidget {
                           ),
                         ),
                       ),
-                      OrientationDecision.ordinaryEmpty => SliverFillRemaining(
-                        hasScrollBody: false,
+                      OrientationDecision.ordinaryEmpty => SliverToBoxAdapter(
                         child: MyWorkEmptyBody(
                           filter: state.filter,
                           draftCount: state.draftCount,
@@ -595,14 +599,17 @@ class _MyWorkListBody extends StatelessWidget {
       child: CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        slivers: _myWorkRedesignSlivers(
-          context: context,
-          l10n: l10n,
-          tt: tt,
-          state: state,
-          cards: cards,
-          cardKey: cardKey,
-        ),
+        slivers: [
+          explainer,
+          ..._myWorkRedesignSlivers(
+            context: context,
+            l10n: l10n,
+            tt: tt,
+            state: state,
+            cards: cards,
+            cardKey: cardKey,
+          ),
+        ],
       ),
     );
   }

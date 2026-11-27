@@ -10,6 +10,7 @@ import 'package:tentura/features/home/ui/sheet/how_tentura_works_sheet.dart';
 import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
+import '../widget/email_discoverability_control.dart';
 import '../widget/language_switch_button.dart';
 import '../widget/noisy_wall_tile.dart';
 import '../widget/reset_counters_button.dart';
@@ -199,6 +200,7 @@ class _SettingsCommandList extends StatelessWidget {
                     onTap: () => context.router.push(const PeopleTagsRoute()),
                   ),
                 const NoisyWallTile(),
+                EmailDiscoverabilityControl(l10n: l10n),
               ],
             ),
             TenturaMenuGroup(

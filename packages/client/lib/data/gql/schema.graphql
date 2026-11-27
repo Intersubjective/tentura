@@ -3966,6 +3966,7 @@ type mutation_root {
   """
   delete_user_context_by_pk(context_name: String!, user_id: String!): user_context
   emailSendTest: v2_EmailTestSendResult!
+  emailDiscoverabilitySet(enabled: Boolean!): Boolean!
   evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
   evaluationDraftSave(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   evaluationFinalize(id: String!): Boolean!
@@ -5206,6 +5207,7 @@ type query_root {
     """filter the rows returned"""
     where: edge_bool_exp
   ): [edge!]!
+  emailDiscoverability: Boolean!
   evaluationDraftParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]

@@ -527,6 +527,8 @@ class _V2RoutingLink extends Link {
     'SetRoutingMute',
     'NoisyWallEnabled',
     'SetNoisyWallEnabled',
+    'EmailDiscoverability',
+    'EmailDiscoverabilitySet',
     'InviteSeedPromptState',
     'InvitePromptStates',
     'InviteSeedPromptAnswer',

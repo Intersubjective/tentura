@@ -2507,6 +2507,9 @@
   "@settingsNoisyWallHint": {
     "description": "Supporting line under the noisy-wall settings switch."
   },
+  "settingsEmailDiscoverability": "People who have my email can see I'm on Tentura",
+  "emailDiscoverabilityExplainerTitle": "Find me by email",
+  "emailDiscoverabilityExplainerBody": "People who already have your email address can check whether you're on Tentura. You can change this anytime in Settings.",
   "notificationSettings": "Notification settings",
   "notificationSettingsPush": "Push notifications",
   "notificationSettingsEmail": "Email notifications",
