@@ -750,13 +750,10 @@ class UserRepository implements UserRepositoryPort {
           .getSingleOrNull();
       if (owner == null) {
         try {
-          await _database.managers.accountVerifiedContacts.create(
-            (o) => o(
-              accountId: accountId,
-              kind: contact.kind.wire,
-              value: contact.value,
-              lastSource: source.wire,
-            ),
+          await _createVerifiedContact(
+            accountId: accountId,
+            source: source,
+            contact: contact,
           );
         } on UniqueViolationException catch (_) {
           // Concurrent insert won the race — skip without blocking login.
@@ -794,13 +791,10 @@ class UserRepository implements UserRepositoryPort {
         continue;
       }
       try {
-        await _database.managers.accountVerifiedContacts.create(
-          (o) => o(
-            accountId: accountId,
-            kind: contact.kind.wire,
-            value: contact.value,
-            lastSource: source.wire,
-          ),
+        await _createVerifiedContact(
+          accountId: accountId,
+          source: source,
+          contact: contact,
         );
       } on UniqueViolationException catch (_) {
         final owner = await _database.managers.accountVerifiedContacts
@@ -813,6 +807,29 @@ class UserRepository implements UserRepositoryPort {
         }
       }
     }
+  }
+
+  Future<void> _createVerifiedContact({
+    required String accountId,
+    required CredentialType source,
+    required AssertedContact contact,
+  }) async {
+    final keys = _env.contactMatchKeyRing;
+    final hash = keys.newestVersion == null
+        ? null
+        : keys.hashForWrite(contact.kind, contact.value);
+    await _database.managers.accountVerifiedContacts.create(
+      (o) => o(
+        accountId: accountId,
+        kind: contact.kind.wire,
+        value: contact.value,
+        lastSource: source.wire,
+        matchHmac: Value(
+          hash == null ? null : Uint8List.fromList(hash.digest.bytes),
+        ),
+        hmacKeyVersion: Value(hash?.version),
+      ),
+    );
   }
 
   Future<String?> _findCredentialOwner({

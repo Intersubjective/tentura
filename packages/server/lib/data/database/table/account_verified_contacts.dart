@@ -18,13 +18,17 @@ class AccountVerifiedContacts extends Table {
 
   late final lastSource = text().named('last_source')();
 
+  late final matchHmac = blob().named('match_hmac').nullable()();
+
+  late final hmacKeyVersion = integer().named('hmac_key_version').nullable()();
+
   late final verifiedAt = customType(PgTypes.timestampWithTimezone)
       .named('verified_at')
       .clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
-  late final createdAt = customType(PgTypes.timestampWithTimezone)
-      .named('created_at')
-      .clientDefault(() => PgDateTime(DateTime.timestamp()))();
+  late final createdAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).named('created_at').clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/private_object_gc_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/port/verified_contact_rekey_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_forward_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
@@ -79,6 +80,8 @@ final class TaskWorkerCase extends UseCaseBase {
     PhantomMergeCase? phantomMerge,
     PhantomForwardDeliveryCase? phantomForwardDelivery,
     PrivateObjectGcPort? privateObjectGc,
+    VerifiedContactRekeyPort verifiedContactRekey =
+        const VerifiedContactRekeyPort.disabled(),
   }) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -114,6 +117,7 @@ final class TaskWorkerCase extends UseCaseBase {
       phantomMerge: phantomMerge,
       phantomForwardDelivery: phantomForwardDelivery,
       privateObjectGc: privateObjectGc,
+      verifiedContactRekey: verifiedContactRekey,
       env: env,
       logger: logger,
     ),
@@ -152,6 +156,7 @@ final class TaskWorkerCase extends UseCaseBase {
     this._attentionCaptureSettlement,
     this._phantomMerge,
     this._phantomForwardDelivery,
+    this._verifiedContactRekey = const VerifiedContactRekeyPort.disabled(),
     this._clock = DateTime.timestamp,
   });
 
@@ -189,6 +194,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
   final PhantomMergeCase? _phantomMerge;
   final PhantomForwardDeliveryCase? _phantomForwardDelivery;
+  final VerifiedContactRekeyPort _verifiedContactRekey;
 
   /// Reads "now" for every cadence check; tests drive it by hand.
   final DateTime Function() _clock;
@@ -216,6 +222,7 @@ final class TaskWorkerCase extends UseCaseBase {
       nudged: _consumePhantomMergeNudge,
     ),
     _Job(const Duration(seconds: 30), (_) => _phantomForwardDelivery?.sweep()),
+    _Job(const Duration(minutes: 15), (_) => _verifiedContactRekey.rekey()),
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
     _Job(
       const Duration(seconds: 10),

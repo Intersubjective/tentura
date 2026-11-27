@@ -1,10 +1,11 @@
-// One-off helper: apply pending schema migrations to the local dev/test DB.
+// Apply pending schema migrations and backfill verified email match hashes.
 // Usage: dart run bin/utils/run_migrations_once.dart
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 
+import 'package:tentura_server/data/database/contact_match_storage.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/env.dart';
 
@@ -21,7 +22,11 @@ Future<void> main() async {
     env.pgEndpoint,
     settings: env.pgEndpointSettings,
   );
-  await migrateDbSchema(connection);
-  await connection.close();
+  try {
+    await migrateDbSchema(connection);
+    await backfillVerifiedContactHashes(connection, env.contactMatchKeyRing);
+  } finally {
+    await connection.close();
+  }
   stdout.writeln('Migrations applied.');
 }

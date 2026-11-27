@@ -1,10 +1,110 @@
+import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart';
 
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
+import 'package:tentura_server/domain/port/verified_contact_rekey_port.dart';
 import 'package:tentura_server/domain/util/contact_match_key_ring.dart';
+import 'package:tentura_server/domain/util/email_auth_util.dart';
+import 'package:tentura_server/env.dart';
+
+import 'main_db_pool.dart';
+import 'main_db_scope_admission.dart';
 
 const _verifiedContacts = 'account_verified_contact';
 const _contactTables = [_verifiedContacts, 'phantom_contact_point'];
+
+@LazySingleton(as: VerifiedContactRekeyPort)
+final class VerifiedContactRekey implements VerifiedContactRekeyPort {
+  VerifiedContactRekey(this._database, Env env)
+    : _keyRing = env.contactMatchKeyRing;
+
+  final MainDbPool _database;
+  final ContactMatchKeyRing _keyRing;
+
+  @override
+  Future<void> rekey() => _updateVerifiedEmailHashes(
+    _database.pool,
+    _keyRing,
+    backfill: false,
+    admission: _database.admission,
+  );
+}
+
+/// Fill missing email hashes after migrating, preserving all existing hashes.
+Future<void> backfillVerifiedContactHashes(
+  Connection connection,
+  ContactMatchKeyRing keyRing,
+) => _updateVerifiedEmailHashes(connection, keyRing, backfill: true);
+
+Future<void> _updateVerifiedEmailHashes(
+  SessionExecutor database,
+  ContactMatchKeyRing keyRing, {
+  required bool backfill,
+  MainDbScopeAdmission? admission,
+}) async {
+  final version = keyRing.newestVersion;
+  if (version == null) return;
+
+  String? after;
+  while (true) {
+    // Lock each page through the update so concurrent runs cannot overwrite
+    // a newer digest or hash a value that has changed since it was read.
+    Future<String?> updateBatch() => database.runTx((transaction) async {
+      final rows = await transaction.execute(
+        Sql.named('''
+SELECT id, value
+FROM public.$_verifiedContacts
+WHERE kind = 'email'
+  AND (@after::text IS NULL OR id > @after)
+  AND CASE WHEN @backfill::boolean THEN match_hmac IS NULL
+           ELSE hmac_key_version < @version::smallint END
+ORDER BY id
+LIMIT 256
+FOR UPDATE
+'''),
+        parameters: {'after': after, 'backfill': backfill, 'version': version},
+      );
+      if (rows.isEmpty) return null;
+
+      final ids = <String>[];
+      final digests = <List<int>>[];
+      for (final row in rows) {
+        final (id, email) = switch (row) {
+          [final String id, final String value] => (id, value),
+          _ => throw StateError('Expected a verified email contact.'),
+        };
+        ids.add(id);
+        digests.add(
+          keyRing
+              .hashNormalizedEmailForWrite(normalizeAuthEmail(email))
+              .digest
+              .bytes,
+        );
+      }
+
+      await transaction.execute(
+        Sql.named('''
+UPDATE public.$_verifiedContacts AS contact
+SET match_hmac = candidate.digest, hmac_key_version = @version::smallint
+FROM unnest(@ids::text[], @digests::bytea[]) AS candidate(id, digest)
+WHERE contact.id = candidate.id
+'''),
+        parameters: {
+          'version': version,
+          'ids': TypedValue(Type.textArray, ids),
+          'digests': TypedValue(Type.byteArrayArray, digests),
+        },
+      );
+      return ids.last;
+    });
+
+    final next = await (admission == null
+        ? updateBatch()
+        : admission.run(updateBatch, kind: MainDbWorkKind.full));
+    if (next == null) return;
+    after = next;
+  }
+}
 
 /// Checks whether retiring a key would strand any stored contact hash.
 Future<void> checkStoredContactMatchKeys(
