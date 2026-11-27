@@ -1,10 +1,18 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../entity/phantom_import.dart';
+
 abstract interface class PhantomRepositoryPort {
   Future<String> create({
     required String name,
     String? emoji,
     ConstellationAnchorPosition? position,
+  });
+
+  Future<List<PhantomImportOutcome>> createBatch({
+    required List<PhantomImportContact> rows,
+    required bool keepContacts,
+    required String clientOpId,
   });
 
   Future<void> update({

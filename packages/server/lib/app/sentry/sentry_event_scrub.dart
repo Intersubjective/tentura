@@ -9,7 +9,7 @@ const _scrubbedHeaderKeys = {
 };
 
 final _privatePersonOperation = RegExp(
-  r'\b(?:phantom(?:Create|Update|Delete|InviteEnsure|InviteRotate|Link|Unmerge|HintDismiss)'
+  r'\b(?:phantom(?:CreateBatch|Create|Update|Delete|InviteEnsure|InviteRotate|Link|Unmerge|HintDismiss)'
   r'|personNote(?:Search|Upsert|Delete)?)\b',
   caseSensitive: false,
 );

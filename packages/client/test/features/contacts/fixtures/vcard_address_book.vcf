@@ -1,0 +1,17 @@
+BEGIN:VCARD
+version:4.0
+N:Petrova;Anna;;;
+email;type=home:Anna.Home@example.test
+item1.EMAIL:Anna.Other@example.test
+item1.TEL;value=uri;type=cell:tel:+15551112222
+PHOTO:https://example.test/contact.jpg
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+FN:Rosa\, Jr.\; R\\D
+TEL;TYPE=CELL:+15553334444
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+EMAIL:nameless@example.test
+END:VCARD

@@ -7,11 +7,11 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _releaseVersion = '7.72.0';
+const _releaseVersion = '7.73.0';
 
 void main() {
   test(
-    'the client declares one release version and uses public terminology',
+    'the client uses public terminology and declares the server floor as its release version',
     () {
       final internalTerm = RegExp('phantom|фантом', caseSensitive: false);
       for (final locale in ['en', 'ru']) {
@@ -31,6 +31,7 @@ void main() {
       expect(pubspec.where((line) => line.startsWith('version:')), [
         'version: $_releaseVersion',
       ]);
+      expect(kDefaultMinClientVersion, _releaseVersion);
     },
   );
 

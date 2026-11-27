@@ -1,0 +1,5 @@
+﻿First Name,Middle Name,Last Name,E-mail 1 - Value,E-mail 2 - Value,Phone 1 - Value,Photo
+ Anna , , Petrova ,Anna.Home@example.test ::: anna.other@example.test,anna.work@example.test,+1 (555) 123-4567 ::: +15557654321,https://example.test/contact.jpg
+Elena,Maria,Ivanova,,elena.work@example.test,,
+Ben, ,Jones,,, +15551112222 ,
+,,,nameless@example.test,,,

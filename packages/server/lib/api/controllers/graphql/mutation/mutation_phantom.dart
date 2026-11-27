@@ -1,3 +1,4 @@
+import 'package:tentura_root/consts.dart' show kTitleMinLength;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -17,6 +18,8 @@ final class MutationPhantom extends GqlNodeBase {
 
   static final _id = InputFieldString(fieldName: 'id');
   static final _name = InputFieldString(fieldName: 'name');
+  static final _keepContacts = InputFieldBool(fieldName: 'keepContacts');
+  static final _clientOpId = InputFieldString(fieldName: 'clientOpId');
   static final _emoji = InputFieldString(fieldName: 'emoji');
   static final _phantomId = InputFieldString(fieldName: 'phantomId');
   static final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -27,6 +30,35 @@ final class MutationPhantom extends GqlNodeBase {
     'position',
     gqlInputConstellationAnchorPosition,
   );
+  static final _importRows = GraphQLFieldInput(
+    'rows',
+    _ImportRowsType().nonNullable(),
+  );
+  static final _importResult = GraphQLObjectType('PhantomImportResult', null)
+    ..fields.addAll([
+      field(
+        'created',
+        GraphQLListType(
+          (GraphQLObjectType('PhantomImportCreated', null)
+                ..fields.addAll([
+                  field('rowIndex', graphQLInt.nonNullable()),
+                  field('id', graphQLString.nonNullable()),
+                ]))
+              .nonNullable(),
+        ).nonNullable(),
+      ),
+      field(
+        'refused',
+        GraphQLListType(
+          (GraphQLObjectType('PhantomImportRefused', null)
+                ..fields.addAll([
+                  field('rowIndex', graphQLInt.nonNullable()),
+                  field('message', graphQLString.nonNullable()),
+                ]))
+              .nonNullable(),
+        ).nonNullable(),
+      ),
+    ]);
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     GraphQLObjectField(
@@ -39,6 +71,54 @@ final class MutationPhantom extends GqlNodeBase {
         emoji: _emoji.fromArgs(args),
         position: _readPosition(args),
       ),
+    ),
+    GraphQLObjectField(
+      'phantomCreateBatch',
+      _importResult.nonNullable(),
+      description:
+          'Import selected contacts. Reuse clientOpId with the same request '
+          'to resume after a failure.',
+      arguments: [
+        _importRows,
+        _keepContacts.fieldNullable,
+        _clientOpId.fieldNullable,
+      ],
+      resolve: (_, args) async {
+        final ownerId = getCredentials(args).sub;
+        final clientOpId = _clientOpId.fromArgs(args)?.trim();
+        if (clientOpId != null &&
+            (clientOpId.isEmpty ||
+                clientOpId.length > 128 ||
+                clientOpId.contains('\u0000'))) {
+          throw const IdWrongException(
+            description: 'Invalid import operation ID',
+          );
+        }
+        final result = await _case.createBatch(
+          ownerId: ownerId,
+          contacts: _readContacts(args[_importRows.name]),
+          keepContacts: _keepContacts.fromArgsNonNullable(args),
+          clientOpId: clientOpId,
+        );
+        return {
+          'created': [
+            for (final row in result.created)
+              {'rowIndex': row.rowIndex, 'id': row.id},
+          ],
+          'refused': [
+            for (final row in result.refused)
+              {
+                'rowIndex': row.rowIndex,
+                'message': switch (row.reason) {
+                  PhantomImportRefusal.shortName =>
+                    'Contact name must be at least $kTitleMinLength characters long',
+                  PhantomImportRefusal.capReached =>
+                    const PhantomCapReachedException().description,
+                },
+              },
+          ],
+        };
+      },
     ),
     GraphQLObjectField(
       'phantomUpdate',
@@ -158,4 +238,34 @@ final class MutationPhantom extends GqlNodeBase {
       constellationCode: ConstellationExceptionCode.invalidCoordinates,
     ),
   };
+
+  static List<PhantomImportContact> _readContacts(Object? value) {
+    if (value is! List<Object?>) {
+      throw const IdWrongException(description: 'Expected a list of contacts');
+    }
+    return [
+      for (final row in value) _readContact(row),
+    ];
+  }
+
+  static PhantomImportContact _readContact(Object? row) {
+    if (row is Map<String, Object?>) {
+      switch ((row['name'], row['email'], row['phone'])) {
+        case (final String name, final String? email, final String? phone):
+          return (name: name, email: email, phone: phone);
+      }
+    }
+    throw const IdWrongException(description: 'Invalid contact row');
+  }
+}
+
+/// The executor accepts a decoded `List<dynamic>` for object input variables.
+final class _ImportRowsType extends GraphQLListType<dynamic, dynamic> {
+  _ImportRowsType()
+    : super(
+        gqlInputPhantomImportContact.nonNullable(),
+      );
+
+  @override
+  GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
 }

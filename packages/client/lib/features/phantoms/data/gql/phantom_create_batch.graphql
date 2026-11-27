@@ -1,0 +1,16 @@
+mutation PhantomCreateBatch(
+  $rows: [v2_PhantomImportContactInput!]!
+  $keepContacts: Boolean!
+  $clientOpId: String!
+) {
+  phantomCreateBatch(rows: $rows, keepContacts: $keepContacts, clientOpId: $clientOpId) {
+    created {
+      rowIndex
+      id
+    }
+    refused {
+      rowIndex
+      message
+    }
+  }
+}

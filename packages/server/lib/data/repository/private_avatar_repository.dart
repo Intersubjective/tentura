@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/private_avatar_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/image_metadata.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
@@ -47,9 +48,16 @@ final class PrivateAvatarRepository implements PrivateAvatarRepositoryPort {
     final buffered = await readUint8StreamCapped(bytes, kMaxImageUploadBytes);
     final (:hash, :height, :width) = describeImage(_decodeAvatar(buffered));
     final key = 'private/$ownerId/${const Uuid().v4()}.jpg';
+    final request = RequestContext.current;
+    final avatarIdentity = [
+      Variable.withString(ownerId),
+      Variable<String>(subject.userId),
+      Variable<String>(subject.phantomId),
+      Variable.withString(key),
+    ];
 
-    // Publish the reference before attempting storage, so a later replacement
-    // or deletion can retire this key even if the process stops mid-upload.
+    // Record the candidate before PUT so a crash leaves a collectible key.
+    // The grace period keeps normal uploads out of the collector's way.
     await _ownerGraph.run({ownerId}, ownerId, (_) async {
       await _quota.reserveUploadBytes(
         userId: ownerId,
@@ -58,63 +66,95 @@ final class PrivateAvatarRepository implements PrivateAvatarRepositoryPort {
       );
       final count = await _database.customUpdate(
         r'''
-INSERT INTO public.person_private_avatar
-  (owner_id, subject_user_id, subject_phantom_id, object_key, blurhash, width, height)
-SELECT $1, $2, $3, $4, $5, $6, $7
-WHERE EXISTS (SELECT 1 FROM public."user" WHERE id = $2)
-   OR EXISTS (SELECT 1 FROM public.phantom WHERE id = $3 AND owner_id = $1)
-ON CONFLICT (owner_id, subject_user_id, subject_phantom_id) DO UPDATE
-SET object_key = EXCLUDED.object_key, blurhash = EXCLUDED.blurhash,
-    width = EXCLUDED.width, height = EXCLUDED.height, created_at = now()
-''',
-        variables: [
-          Variable.withString(ownerId),
-          Variable<String>(subject.userId),
-          Variable<String>(subject.phantomId),
-          Variable.withString(key),
-          Variable.withString(hash),
-          Variable.withInt(width),
-          Variable.withInt(height),
-        ],
+INSERT INTO public.private_object_gc (object_key, next_attempt_at)
+SELECT $4, clock_timestamp() + interval '10 minutes'
+'''
+        '$_eligibleSubject',
+        variables: avatarIdentity,
       );
       if (count == 0) throw IdNotFoundException(id: subject.id);
     });
 
     try {
-      await _database.withTransaction(() async {
-        // Coordinate only this key with retirement and GC. If another write
-        // retired it before we got the lock, never put the object.
-        await _database.customStatement(
-          r'SELECT public.lock_private_object_gc_key($1)',
-          [key],
+      request?.check();
+      await _storage.putObject(
+        key,
+        Stream.value(buffered),
+        metadata: {
+          kHeaderContentType: kContentTypeJpeg,
+          if (_env.kS3PutObjectAclValue != null) 'x-amz-acl': 'private',
+        },
+      );
+      request?.check();
+
+      await _ownerGraph.run({ownerId}, ownerId, (_) async {
+        // Claim and publication compete for the queue row. Once a collector
+        // has claimed it, this upload must never publish the key.
+        final pending = await _database.customUpdate(
+          r'''
+DELETE FROM public.private_object_gc
+WHERE object_key = $1 AND attempts = 0 AND lease_owner IS NULL
+''',
+          variables: [Variable.withString(key)],
+          updateKind: UpdateKind.delete,
         );
-        if (!await _hasReference(ownerId, key)) {
+        if (pending == 0) {
           throw const IdNotFoundException(
-            description: 'The private avatar is no longer current',
+            description: 'The private avatar upload is no longer pending',
           );
         }
-        await _storage.putObject(
-          key,
-          Stream.value(buffered),
-          metadata: {
-            kHeaderContentType: kContentTypeJpeg,
-            if (_env.kS3PutObjectAclValue != null) 'x-amz-acl': 'private',
-          },
+        final count = await _database.customUpdate(
+          r'''
+INSERT INTO public.person_private_avatar
+  (owner_id, subject_user_id, subject_phantom_id, object_key, blurhash, width, height)
+SELECT $1, $2, $3, $4, $5, $6, $7
+'''
+          '$_eligibleSubject'
+          '''
+ON CONFLICT (owner_id, subject_user_id, subject_phantom_id) DO UPDATE
+SET object_key = EXCLUDED.object_key, blurhash = EXCLUDED.blurhash,
+    width = EXCLUDED.width, height = EXCLUDED.height, created_at = now()
+''',
+          variables: [
+            ...avatarIdentity,
+            Variable.withString(hash),
+            Variable.withInt(width),
+            Variable.withInt(height),
+          ],
         );
-      }, actorUserId: ownerId);
+        if (count == 0) throw IdNotFoundException(id: subject.id);
+      });
     } catch (_) {
-      // A concurrent replacement has a different key. Deleting this reference
-      // lets the existing trigger queue the failed write for collection.
-      await _ownerGraph.run(
-        {ownerId},
-        ownerId,
-        (_) => _database.customUpdate(
-          r'DELETE FROM public.person_private_avatar WHERE owner_id = $1 AND object_key = $2',
-          variables: [Variable.withString(ownerId), Variable.withString(key)],
-          updateKind: UpdateKind.delete,
-        ),
-      );
+      await _retireAttempt(key, request);
       rethrow;
+    }
+  }
+
+  static const _eligibleSubject = r'''
+WHERE EXISTS (SELECT 1 FROM public."user" WHERE id = $2)
+   OR EXISTS (SELECT 1 FROM public.phantom WHERE id = $3 AND owner_id = $1)
+''';
+
+  Future<void> _retireAttempt(String key, RequestContext? request) async {
+    // Make even a late PUT collectible again. Invalidate an earlier GC
+    // lease so its acknowledgement cannot discard this cleanup.
+    Future<void> enqueue() => _database.customStatement(
+      r'''
+INSERT INTO public.private_object_gc (object_key) VALUES ($1)
+ON CONFLICT (object_key) DO UPDATE
+SET next_attempt_at = clock_timestamp(), attempts = 0,
+    lease_owner = NULL, lease_until = NULL, last_error = NULL
+''',
+      [key],
+    );
+    if (request == null) return enqueue();
+    // Cleanup gets its own budget even if the uploader disconnected.
+    final cleanup = RequestContext(requestId: request.requestId)
+      ..actor = request.actor;
+    try {
+      await cleanup.run(enqueue);
+    } finally {
+      cleanup.dispose();
     }
   }
 

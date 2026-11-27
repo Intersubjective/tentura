@@ -90,6 +90,7 @@ Optional HMAC env vars (see `.env.example` for full notes):
 |----------|---------|
 | `UNSUBSCRIBE_SIGNING_SECRET` | Email notification one-click unsubscribe tokens |
 | `GENEALOGY_NODE_KEY_SECRET` | Opaque `G…` ids for invite-genealogy graph nodes |
+| `CONTACT_MATCH_HMAC_KEYS` | Versioned HMAC keys (`1:<secret>,2:<secret>`) for matching imported email contacts; required to import contacts with an email, keep every version stored rows reference |
 
 Local dev can omit both (genealogy falls back to a dev default). Staging/production
 should set dedicated values in `.env`; Docker prod passes them via `compose.prod.yaml`.

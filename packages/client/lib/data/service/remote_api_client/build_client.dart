@@ -403,6 +403,7 @@ class _V2RoutingLink extends Link {
     'PersonPrivateAvatarUpload',
     'PersonPrivateAvatarDelete',
     'PhantomCreate',
+    'PhantomCreateBatch',
     'PhantomUpdate',
     'PhantomDelete',
     'PhantomInviteEnsure',

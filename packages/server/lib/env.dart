@@ -7,6 +7,7 @@ import 'package:postgres/postgres.dart'
     show ConnectionSettings, Endpoint, PoolSettings, SslMode;
 
 import 'consts.dart';
+import 'domain/util/contact_match_key_ring.dart';
 
 export 'consts.dart';
 
@@ -105,7 +106,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// `AttentionReceipt`).
 /// Raised to 7.63.0 for the released baton-together partner role and mutations.
 /// Raised for the coordinated #781 release.
-const kDefaultMinClientVersion = '7.72.0';
+const kDefaultMinClientVersion = '7.73.0';
 
 class Env {
   Env({
@@ -140,6 +141,7 @@ class Env {
     bool? suppressTestDomainEmails,
     String? unsubscribeSigningSecret,
     String? genealogyNodeKeySecret,
+    String? contactMatchHmacKeys,
     Duration? emailNotifCooldown,
     int? emailDigestHour,
     Duration? emailAuthTtl,
@@ -282,6 +284,9 @@ class Env {
            unsubscribeSigningSecret ?? _env['UNSUBSCRIBE_SIGNING_SECRET'] ?? '',
        genealogyNodeKeySecret =
            genealogyNodeKeySecret ?? _env['GENEALOGY_NODE_KEY_SECRET'] ?? '',
+       contactMatchKeyRing = ContactMatchKeyRing.parse(
+         contactMatchHmacKeys ?? _env[ContactMatchKeyRing.envName],
+       ),
        emailNotifCooldown =
            emailNotifCooldown ??
            Duration(
@@ -656,6 +661,8 @@ class Env {
   /// HMAC secret for opaque invite-genealogy node keys. Falls back to
   /// [unsubscribeSigningSecret] when unset (see `InviteGenealogyNodeKey`).
   final String genealogyNodeKeySecret;
+
+  final ContactMatchKeyRing contactMatchKeyRing;
 
   /// Minimum gap between immediate notification emails per recipient+category.
   final Duration emailNotifCooldown;

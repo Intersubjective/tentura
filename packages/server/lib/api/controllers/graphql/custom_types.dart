@@ -14,7 +14,19 @@ final gqlTypeConstellationTrustChainPerson =
         field('displayName', graphQLString.nonNullable()),
       ]);
 
+/// One row of `phantomCreateBatch`. Registered so a client document that
+/// declares `$rows: [v2_PhantomImportContactInput!]!` resolves.
+final gqlInputPhantomImportContact = GraphQLInputObjectType(
+  'PhantomImportContactInput',
+  inputFields: [
+    GraphQLInputObjectField('name', graphQLString.nonNullable()),
+    GraphQLInputObjectField('email', graphQLString),
+    GraphQLInputObjectField('phone', graphQLString),
+  ],
+);
+
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
+  gqlInputPhantomImportContact,
   gqlTypePersonListMeta,
   gqlTypeFieldHiddenItem,
   gqlTypePersonFieldItemsPage,

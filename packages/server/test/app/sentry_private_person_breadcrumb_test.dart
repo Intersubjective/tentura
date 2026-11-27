@@ -9,6 +9,8 @@ import 'package:tentura_server/env.dart';
 void main() {
   const operations = [
     'phantomCreate',
+    'phantomCreateBatch',
+    'PhantomCreateBatch',
     'phantomUpdate',
     'phantomDelete',
     'phantomInviteEnsure',

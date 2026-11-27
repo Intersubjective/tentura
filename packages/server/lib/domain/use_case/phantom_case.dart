@@ -1,17 +1,37 @@
+import 'dart:math' show min;
+
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/consts.dart' show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/phantom_pending_forward.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
+import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 import 'package:tentura_server/domain/port/phantom_pending_forward_repository_port.dart';
 import 'package:tentura_server/domain/port/phantom_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
+import 'package:tentura_server/domain/util/email_auth_util.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import 'contact_case.dart';
 import 'forward_case.dart';
+
+typedef PhantomImportContact = ({String name, String? email, String? phone});
+typedef PhantomImportResult = ({
+  List<({int rowIndex, String id})> created,
+  List<({int rowIndex, PhantomImportRefusal reason})> refused,
+});
+
+enum PhantomImportRefusal { shortName, capReached }
+
+typedef _ImportRow = ({
+  int index,
+  String name,
+  ({String normalized, bool keep})? email,
+  String? keptPhone,
+});
 
 @lazySingleton
 final class PhantomCase {
@@ -22,6 +42,7 @@ final class PhantomCase {
     this._postLock,
     this._forwardCase,
     this._pendingForwards,
+    this._peopleTags,
   );
 
   final OwnerGraphTransactionPort _ownerGraph;
@@ -30,6 +51,7 @@ final class PhantomCase {
   final PostLockPort _postLock;
   final ForwardCase _forwardCase;
   final PhantomPendingForwardRepositoryPort _pendingForwards;
+  final ScopedPeopleTagsRepositoryPort _peopleTags;
 
   Future<String> create({
     required String ownerId,
@@ -61,6 +83,125 @@ final class PhantomCase {
       return id;
     });
   }
+
+  /// Reusing a client operation ID with the same rows resumes after the last
+  /// committed chunk. A call without an ID starts a new import.
+  Future<PhantomImportResult> createBatch({
+    required String ownerId,
+    required List<PhantomImportContact> contacts,
+    required bool keepContacts,
+    required String? clientOpId,
+  }) async {
+    const chunkSize = 20;
+    final rows = <_ImportRow>[];
+    final refused = <({int rowIndex, PhantomImportRefusal reason})>[];
+    for (final (index, contact) in contacts.indexed) {
+      final name = String.fromCharCodes(
+        contact.name.trim().runes.take(kTitleMaxLength),
+      );
+      if (name.runes.length < kTitleMinLength) {
+        refused.add((rowIndex: index, reason: PhantomImportRefusal.shortName));
+        continue;
+      }
+      final email = normalizeAuthEmail(contact.email ?? '');
+      final phone = contact.phone;
+      rows.add((
+        index: index,
+        name: name,
+        email: email.isEmpty ? null : (normalized: email, keep: keepContacts),
+        keptPhone: keepContacts && phone != null && phone.trim().isNotEmpty
+            ? phone
+            : null,
+      ));
+    }
+
+    final created = <({int rowIndex, String id})>[];
+    for (var offset = 0; offset < rows.length; offset += chunkSize) {
+      final chunk = rows.sublist(offset, min(offset + chunkSize, rows.length));
+      final ids = await _importChunk(
+        ownerId,
+        chunk,
+        clientOpId: clientOpId,
+        chunkIndex: offset ~/ chunkSize,
+      );
+      created.addAll([
+        for (final (index, id) in ids.indexed)
+          (rowIndex: chunk[index].index, id: id),
+      ]);
+      if (ids.length < chunk.length) {
+        refused.addAll([
+          for (final row in rows.skip(offset + ids.length))
+            (rowIndex: row.index, reason: PhantomImportRefusal.capReached),
+        ]);
+        break;
+      }
+    }
+    refused.sort((a, b) => a.rowIndex.compareTo(b.rowIndex));
+    return (created: created, refused: refused);
+  }
+
+  Future<List<String>> _importChunk(
+    String ownerId,
+    List<_ImportRow> rows, {
+    required String? clientOpId,
+    required int chunkIndex,
+  }) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
+    if (clientOpId != null) {
+      final prior = await _repository.findImportedChunk(
+        scope,
+        ownerId,
+        clientOpId,
+        chunkIndex,
+      );
+      if (prior != null) {
+        if (prior.length > rows.length) {
+          throw const IdWrongException(
+            description:
+                'Reuse the import operation ID only with the same rows.',
+          );
+        }
+        return prior;
+      }
+    }
+
+    final remaining = await _repository.remainingActiveCapacity(scope, ownerId);
+    final ids = <String>[];
+    for (final row in rows.take(remaining)) {
+      final id = generateId('PH');
+      await _repository.insert(
+        scope,
+        ownerId: ownerId,
+        id: id,
+        name: row.name,
+        emoji: null,
+      );
+      await _repository.saveImportedContactPoints(
+        scope,
+        ownerId: ownerId,
+        id: id,
+        email: row.email,
+        keptPhone: row.keptPhone,
+      );
+      ids.add(id);
+    }
+    if (ids.isNotEmpty) {
+      await _peopleTags.addImportedPhantoms(
+        scope,
+        ownerId: ownerId,
+        phantomIds: ids,
+      );
+    }
+    if (clientOpId != null) {
+      await _repository.recordImportedChunk(
+        scope,
+        ownerId,
+        clientOpId,
+        chunkIndex,
+        ids,
+      );
+    }
+    return ids;
+  });
 
   Future<bool> update({
     required String ownerId,

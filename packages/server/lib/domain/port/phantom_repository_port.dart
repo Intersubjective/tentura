@@ -1,3 +1,5 @@
+import 'dart:math' show max;
+
 import '../exception.dart';
 import 'owner_graph_transaction_port.dart';
 
@@ -11,6 +13,29 @@ abstract interface class PhantomRepositoryPort {
     required String name,
     required String? emoji,
   });
+
+  Future<void> saveImportedContactPoints(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+    required ({String normalized, bool keep})? email,
+    required String? keptPhone,
+  });
+
+  Future<List<String>?> findImportedChunk(
+    OwnerGraphScope scope,
+    String ownerId,
+    String clientOpId,
+    int chunkIndex,
+  );
+
+  Future<void> recordImportedChunk(
+    OwnerGraphScope scope,
+    String ownerId,
+    String clientOpId,
+    int chunkIndex,
+    List<String> createdIds,
+  );
 
   /// Returns false when the caller has no matching person.
   Future<bool> update(
@@ -61,12 +86,16 @@ abstract interface class PhantomRepositoryPort {
 }
 
 extension PhantomActivation on PhantomRepositoryPort {
+  Future<int> remainingActiveCapacity(
+    OwnerGraphScope scope,
+    String ownerId,
+  ) async => max(0, 200 - await countActive(scope, ownerId));
+
   Future<void> requireActiveCapacity(
     OwnerGraphScope scope,
     String ownerId,
   ) async {
-    const activeCap = 200;
-    if (await countActive(scope, ownerId) >= activeCap) {
+    if (await remainingActiveCapacity(scope, ownerId) == 0) {
       throw const PhantomCapReachedException();
     }
   }

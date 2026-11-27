@@ -1,6 +1,7 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -15,10 +16,11 @@ import 'package:image/image.dart' as image;
 import 'package:minio/minio.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_plus/shelf_plus.dart' show Request, Response;
+import 'package:shelf_plus/shelf_plus.dart' show Handler, Request, Response;
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:tentura_server/api/http/request_context_io_adapter.dart';
 import 'package:tentura_server/api/root_router.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/person_subject.dart';
@@ -27,12 +29,14 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/private_avatar_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_case.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/pg_wait.dart';
 import '../../support/session_database_di_harness.dart';
 
 const _dailyCap = 11 * 1024 * 1024;
@@ -447,6 +451,267 @@ Future<void> main() async {
     );
   }, skip: skip);
 
+  group('Private avatar upload atomicity', () {
+    late _S3Recorder storage;
+    late _Fixture fixture;
+    late String owner;
+    late _Subject subject;
+    final original = _jpeg();
+    final replacement = _jpeg(red: 120, width: 12, height: 10);
+
+    setUpAll(() async {
+      storage = await _S3Recorder.start();
+      fixture = await _Fixture.startWithDisposableDatabase(
+        target,
+        endpoint: storage.endpoint,
+        bucket: _S3Recorder.bucket,
+        accessKey: 'test-access-key',
+        secretKey: 'test-secret-key',
+        adaptRequestContext: true,
+      );
+    });
+
+    setUp(() async {
+      storage.reset();
+      owner = await fixture.user();
+      subject = (userId: await fixture.user(), phantomId: null);
+    });
+
+    test('only a successful replacement retires the previous photo', () async {
+      // Exercise the successful replacement on a separate owner so its object
+      // and retirement queue are independent of the injected failure.
+      final otherOwner = await fixture.user();
+      await fixture.upload(otherOwner, subject, original);
+      final oldKey = await fixture.avatarKey(otherOwner, subject);
+      await fixture.upload(otherOwner, subject, replacement);
+      final newKey = await fixture.avatarKey(otherOwner, subject);
+      expect(newKey, isNot(oldKey));
+      expect(storage.objects[newKey], replacement);
+      expect(await fixture.retiredKeys(otherOwner), [oldKey]);
+      await _expectOwnerDownload(
+        fixture,
+        key: newKey,
+        owner: otherOwner,
+        jpeg: replacement,
+      );
+
+      await fixture.upload(owner, subject, original);
+      final previousKey = await fixture.avatarKey(owner, subject);
+      final previousRow = (await fixture.avatarRows(
+        owner,
+      )).single.toColumnMap();
+      expect(previousRow['width'], 8);
+      expect(previousRow['height'], 8);
+      expect(previousRow['blurhash'], isNotEmpty);
+      final putCount = storage.puts.length;
+      final failedReply = await fixture.uploadWithFailedPut(
+        owner,
+        subject,
+        replacement,
+        storage,
+      );
+      expect(
+        failedReply['errors'],
+        isNotEmpty,
+        reason: jsonEncode(failedReply),
+      );
+      expect(
+        (failedReply['data'] as Map?)?[_avatarMutation],
+        anyOf(isNull, isFalse),
+      );
+      expect(storage.puts, hasLength(putCount + 1));
+      final attemptedKey = storage.puts.last.key;
+      expect(attemptedKey, allOf(_avatarKeyPattern(owner), isNot(previousKey)));
+      final rows = await fixture.avatarRows(owner);
+      final retired = await fixture.retiredKeys(owner);
+      final download = await fixture.download(previousKey, viewer: owner);
+      expect(
+        {
+          'rows': rows.map((row) => row.toColumnMap()).toList(),
+          'retired': retired,
+          'storedBytes': storage.objects[previousKey],
+          'downloadStatus': download.statusCode,
+          'downloadType': download.headers['content-type'],
+          'downloadBytes': download.bodyBytes,
+        },
+        equals({
+          'rows': [previousRow],
+          'retired': [attemptedKey],
+          'storedBytes': original,
+          'downloadStatus': HttpStatus.ok,
+          'downloadType': 'image/jpeg',
+          'downloadBytes': original,
+        }),
+      );
+    });
+
+    test(
+      'a disconnected replacement preserves the downloadable photo',
+      () async {
+        await fixture.upload(owner, subject, original);
+        final previousKey = await fixture.avatarKey(owner, subject);
+        final previousRow = (await fixture.avatarRows(
+          owner,
+        )).single.toColumnMap();
+
+        final attemptedKey = await fixture.disconnectDuringPut(
+          owner,
+          subject,
+          replacement,
+          storage,
+        );
+
+        expect(
+          attemptedKey,
+          allOf(_avatarKeyPattern(owner), isNot(previousKey)),
+        );
+        final rows = await fixture.avatarRows(owner);
+        final retired = await fixture.retiredKeys(owner);
+        final download = await fixture.download(previousKey, viewer: owner);
+        final currentKeys = rows
+            .map((row) => row.toColumnMap()['object_key'])
+            .toSet();
+        final uncollectedAttempts = storage.puts
+            .map((put) => put.key)
+            .where(
+              (key) => !currentKeys.contains(key) && !retired.contains(key),
+            )
+            .toSet();
+        expect(
+          {
+            'rows': rows.map((row) => row.toColumnMap()).toList(),
+            'oldKeyRetired': retired.contains(previousKey),
+            'missingObjects': currentKeys.difference(
+              storage.objects.keys.toSet(),
+            ),
+            'uncollectedAttempts': uncollectedAttempts,
+            'attemptRetired': retired.contains(attemptedKey),
+            'downloadStatus': download.statusCode,
+            'downloadType': download.headers['content-type'],
+            'downloadBytes': download.bodyBytes,
+          },
+          equals({
+            'rows': [previousRow],
+            'oldKeyRetired': false,
+            'missingObjects': <Object?>{},
+            'uncollectedAttempts': <String>{},
+            'attemptRetired': true,
+            'downloadStatus': HttpStatus.ok,
+            'downloadType': 'image/jpeg',
+            'downloadBytes': original,
+          }),
+        );
+      },
+    );
+
+    test(
+      'a failed or disconnected first upload retires the attempt without linking it',
+      () async {
+        final failedOwner = await fixture.user();
+        final failedReply = await fixture.uploadWithFailedPut(
+          failedOwner,
+          subject,
+          original,
+          storage,
+        );
+        expect(
+          failedReply['errors'],
+          allOf(isA<List<Object?>>(), isNotEmpty),
+          reason: jsonEncode(failedReply),
+        );
+        expect(
+          (failedReply['data'] as Map?)?[_avatarMutation],
+          anyOf(isNull, isFalse),
+        );
+        expect(storage.puts, hasLength(1));
+        final failedKey = storage.puts.single.key;
+        expect(failedKey, _avatarKeyPattern(failedOwner));
+        expect(storage.objects, isNot(contains(failedKey)));
+        expect(await fixture.avatarRows(failedOwner), isEmpty);
+        expect(await fixture.retiredKeys(failedOwner), [failedKey]);
+
+        final attemptedKey = await fixture.disconnectDuringPut(
+          owner,
+          subject,
+          original,
+          storage,
+        );
+
+        expect(attemptedKey, _avatarKeyPattern(owner));
+        expect(storage.puts.map((put) => put.key), [failedKey, attemptedKey]);
+        expect(
+          {
+            'rows': (await fixture.avatarRows(owner)).length,
+            'retired': await fixture.retiredKeys(owner),
+          },
+          equals({
+            'rows': 0,
+            'retired': [attemptedKey],
+          }),
+        );
+      },
+    );
+
+    test(
+      'a pending storage PUT leaves PostgreSQL free for owner writes',
+      () async {
+        final otherSubject = PersonSubject.user(await fixture.user());
+        final other = (userId: otherSubject.userId, phantomId: null);
+        await fixture.upload(owner, other, original);
+        final otherKey = await fixture.avatarKey(owner, other);
+        final held = storage.holdNextPut();
+        final upload = fixture.upload(owner, subject, replacement);
+        var removedBeforeRelease = false;
+        late final List<int> idleBeforeRemoval;
+        late final List<int> idleAfterRemovalStarted;
+        Future<void>? removal;
+        try {
+          await held.started.future.timeout(kStableStateWait);
+          idleBeforeRemoval = await fixture.idleTransactionPids().timeout(
+            kCompletionWait,
+          );
+          removal = getIt<PrivateAvatarRepositoryPort>().remove(
+            ownerId: owner,
+            subject: otherSubject,
+          );
+          final removalCompleted = await removal
+              .then((_) => true)
+              .timeout(
+                kCompletionWait,
+                onTimeout: () => false,
+              );
+          if (removalCompleted) {
+            final retired = await fixture
+                .retiredKeys(owner)
+                .timeout(kCompletionWait);
+            removedBeforeRelease = retired.contains(otherKey);
+          }
+          idleAfterRemovalStarted = await fixture.idleTransactionPids().timeout(
+            kCompletionWait,
+          );
+          expect(held.finished.isCompleted, isFalse);
+        } finally {
+          held.release.complete();
+          await upload.timeout(kCompletionWait);
+          await removal?.timeout(kCompletionWait);
+        }
+        await fixture.avatarKey(owner, subject);
+        expect(
+          {
+            'idleBeforeRemoval': idleBeforeRemoval,
+            'idleAfterRemovalStarted': idleAfterRemovalStarted,
+            'removedBeforeRelease': removedBeforeRelease,
+          },
+          equals({
+            'idleBeforeRemoval': <int>[],
+            'idleAfterRemovalStarted': <int>[],
+            'removedBeforeRelease': true,
+          }),
+        );
+      },
+    );
+  }, skip: skip);
+
   group(
     'Private avatars on MinIO',
     () {
@@ -558,6 +823,7 @@ final class _Fixture {
   final Connection _db;
   final Uri _origin;
   final http.Client _client;
+  Completer<({RequestContext context, Future<void> settled})>? _nextUpload;
 
   static Future<_Fixture> startWithDisposableDatabase(
     DisposablePgTarget target, {
@@ -565,6 +831,7 @@ final class _Fixture {
     required String bucket,
     required String accessKey,
     required String secretKey,
+    bool adaptRequestContext = false,
   }) async {
     final previousWarning = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -606,10 +873,100 @@ final class _Fixture {
     );
     await configureSessionDatabaseTestGraph(env);
     final router = await getIt.getAsync<RootRouter>();
-    shelf_io.serveRequests(server, router.routeHandler());
     final client = http.Client();
     addTearDown(client.close);
-    return _Fixture(session.writer, origin, client);
+    final fixture = _Fixture(session.writer, origin, client);
+    final handler = router.routeHandler();
+    shelf_io.serveRequests(
+      server,
+      adaptRequestContext
+          ? requestContextIoAdapter(
+              (request) => fixture._observeUpload(request, handler),
+            )
+          : handler,
+    );
+    return fixture;
+  }
+
+  Future<Response> _observeUpload(Request request, Handler handler) async {
+    final observer = _nextUpload;
+    if (observer == null || '/${request.url.path}' != kPathGraphQLEndpointV2) {
+      return handler(request);
+    }
+    _nextUpload = null;
+    final settled = Completer<void>();
+    observer.complete((
+      context: RequestContext.current!,
+      settled: settled.future,
+    ));
+    try {
+      return await handler(request);
+    } finally {
+      settled.complete();
+    }
+  }
+
+  Future<String> disconnectDuringPut(
+    String owner,
+    _Subject subject,
+    Uint8List jpeg,
+    _S3Recorder storage,
+  ) async {
+    final held = storage.holdNextPut();
+    final abort = Completer<void>();
+    final observer = _nextUpload =
+        Completer<({RequestContext context, Future<void> settled})>();
+    final request = _uploadRequest(owner, subject, jpeg, abort: abort.future);
+    final disconnected = expectLater(
+      _client.send(request),
+      throwsA(isA<http.RequestAbortedException>()),
+    );
+    late final String key;
+    try {
+      key = await held.started.future.timeout(kStableStateWait);
+      final (:context, :settled) = await observer.future.timeout(
+        kStableStateWait,
+      );
+      expect(context.isCancelled, isFalse);
+      expect(held.finished.isCompleted, isFalse);
+      abort.complete();
+      await disconnected.timeout(kCompletionWait);
+      await context.cancellation.timeout(kCompletionWait);
+      expect(context.clientDisconnectReason, isNotNull);
+      expect(held.finished.isCompleted, isFalse);
+      held.release.complete();
+      await Future.wait([
+        settled,
+        held.finished.future,
+      ]).timeout(kCompletionWait);
+    } finally {
+      if (!abort.isCompleted) abort.complete();
+      if (!held.release.isCompleted) held.release.complete();
+      _nextUpload = null;
+    }
+    return key;
+  }
+
+  Future<Map<String, Object?>> uploadWithFailedPut(
+    String owner,
+    _Subject subject,
+    Uint8List jpeg,
+    _S3Recorder storage,
+  ) async {
+    storage.failPuts = true;
+    try {
+      return await uploadReply(owner, subject, jpeg);
+    } finally {
+      storage.failPuts = false;
+    }
+  }
+
+  Future<List<int>> idleTransactionPids() async {
+    final rows = await _db.execute('''
+SELECT pid FROM pg_stat_activity
+WHERE datname = current_database() AND state LIKE 'idle in transaction%'
+''');
+    return [for (final row in rows) row.single! as int];
   }
 
   Future<String> user() async {
@@ -696,8 +1053,20 @@ VALUES (@owner, @userId, @phantomId, @key, 'LEHV6nWB2yk8pyo0adR*.7kCMdnj', 8, 8)
     _Subject subject,
     Uint8List jpeg,
   ) async {
+    final multipart = _uploadRequest(owner, subject, jpeg);
+    final reply = await http.Response.fromStream(await _client.send(multipart));
+    expect(reply.statusCode, HttpStatus.ok, reason: reply.body);
+    return jsonDecode(reply.body) as Map<String, Object?>;
+  }
+
+  http.MultipartRequest _uploadRequest(
+    String owner,
+    _Subject subject,
+    Uint8List jpeg, {
+    Future<void>? abort,
+  }) {
     final uri = _origin.resolve(kPathGraphQLEndpointV2);
-    final multipart = http.MultipartRequest('POST', uri)
+    return http.AbortableMultipartRequest('POST', uri, abortTrigger: abort)
       ..headers['authorization'] = _bearer(owner)
       ..fields['operations'] = jsonEncode({
         'operationName': 'UploadAvatar',
@@ -723,9 +1092,6 @@ mutation UploadAvatar($userId: String, $phantomId: String, $file: Upload) {
           contentType: MediaType('image', 'jpeg'),
         ),
       );
-    final reply = await http.Response.fromStream(await _client.send(multipart));
-    expect(reply.statusCode, HttpStatus.ok, reason: reply.body);
-    return jsonDecode(reply.body) as Map<String, Object?>;
   }
 
   Future<http.Response> download(String key, {required String? viewer}) =>
@@ -746,6 +1112,7 @@ final class _S3Recorder {
   final puts = <({String key, String? acl, String? contentType})>[];
   final objects = <String, Uint8List>{};
   bool failPuts = false;
+  _HeldPut? _nextPut;
   late final String endpoint;
 
   static Future<_S3Recorder> start() async {
@@ -764,7 +1131,10 @@ final class _S3Recorder {
     puts.clear();
     objects.clear();
     failPuts = false;
+    _nextPut = null;
   }
+
+  _HeldPut holdNextPut() => _nextPut = _HeldPut();
 
   Future<Response> _handle(Request request) async {
     final path = request.url.pathSegments;
@@ -783,14 +1153,24 @@ final class _S3Recorder {
           contentType: request.headers['content-type'],
         ));
         final bytes = await _readBytes(request.read());
-        if (failPuts) {
-          return Response.internalServerError(
-            body:
-                '<Error><Code>InternalError</Code><Message>Put failed</Message></Error>',
-          );
+        final held = _nextPut;
+        if (held != null) {
+          _nextPut = null;
+          held.started.complete(key);
+          await held.release.future;
         }
-        objects[key] = bytes;
-        return Response.ok(null, headers: {'etag': '"test-etag"'});
+        try {
+          if (failPuts) {
+            return Response.internalServerError(
+              body:
+                  '<Error><Code>InternalError</Code><Message>Put failed</Message></Error>',
+            );
+          }
+          objects[key] = bytes;
+          return Response.ok(null, headers: {'etag': '"test-etag"'});
+        } finally {
+          held?.finished.complete();
+        }
       case 'GET':
         final bytes = objects[key];
         return bytes == null
@@ -803,6 +1183,12 @@ final class _S3Recorder {
         return Response.notFound(null);
     }
   }
+}
+
+final class _HeldPut {
+  final started = Completer<String>();
+  final release = Completer<void>();
+  final finished = Completer<void>();
 }
 
 Matcher _avatarKeyPattern(String owner) => matches(
@@ -856,8 +1242,8 @@ Future<Uint8List> _readBytes(Stream<List<int>> stream) async {
   return buffer.takeBytes();
 }
 
-Uint8List _jpeg({int? length, int red = 255}) {
-  final pixels = image.Image(width: 8, height: 8)
+Uint8List _jpeg({int? length, int red = 255, int width = 8, int height = 8}) {
+  final pixels = image.Image(width: width, height: height)
     ..clear(image.ColorRgb8(red, 30, 60));
   final jpeg = image.encodeJpg(pixels);
   if (length == null) return jpeg;

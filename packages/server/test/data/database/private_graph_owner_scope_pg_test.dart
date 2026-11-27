@@ -39,6 +39,7 @@ const _privateGraphTables = {
   'person_note',
   'person_private_avatar',
   'phantom',
+  'phantom_import_chunk',
   'phantom_merge',
   'phantom_pending_forward',
   'phantom_tag_member',

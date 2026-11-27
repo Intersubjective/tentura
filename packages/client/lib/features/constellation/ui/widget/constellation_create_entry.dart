@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/features/contacts/ui/widget/contact_import_sheet.dart';
 import 'package:tentura/features/phantoms/ui/widget/phantom_create_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
@@ -95,6 +96,17 @@ Future<void> showConstellationAddPerson(
     context,
     position: position,
     onPhotoSaved: cubit.refreshAfterPhantomWrite,
+    onImportContacts: (context) => showContactImportSheet(
+      context,
+      accountId: cubit.viewerId,
+      namesOnMap: () => [
+        for (final person in cubit.fieldPeople)
+          if (!person.isViewer)
+            cubit.profileForPersonId(person.id)?.shownName ?? person.name,
+        ...?cubit.state.field?.phantoms.map((person) => person.displayName),
+      ],
+      onImported: cubit.refreshAfterPhantomWrite,
+    ),
   );
 }
 

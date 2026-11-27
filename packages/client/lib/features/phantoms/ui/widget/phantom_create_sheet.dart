@@ -20,6 +20,7 @@ Future<void> showPhantomCreateSheet(
   BuildContext context, {
   required ConstellationAnchorPosition position,
   required Future<void> Function() onPhotoSaved,
+  required Future<void> Function(BuildContext) onImportContacts,
 }) {
   final create = PhantomCreationCase(
     GetIt.I<PhantomRepositoryPort>(),
@@ -33,6 +34,7 @@ Future<void> showPhantomCreateSheet(
       create: create,
       position: position,
       onPhotoSaved: onPhotoSaved,
+      onImportContacts: onImportContacts,
     ),
   );
 }
@@ -44,11 +46,13 @@ class _PhantomCreateSheet extends StatefulWidget {
     required this.create,
     required this.position,
     required this.onPhotoSaved,
+    required this.onImportContacts,
   });
 
   final PhantomCreationCase create;
   final ConstellationAnchorPosition position;
   final Future<void> Function() onPhotoSaved;
+  final Future<void> Function(BuildContext) onImportContacts;
 
   @override
   State<_PhantomCreateSheet> createState() => _PhantomCreateSheetState();
@@ -84,6 +88,20 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
   Future<void> _pickEmoji() async {
     final emoji = await showSingleEmojiPicker(context);
     if (mounted && emoji != null) setState(() => _emoji = emoji);
+  }
+
+  Future<void> _importContacts() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onImportContacts(context);
+    } on Exception {
+      if (mounted) {
+        showSnackBar(context, text: L10n.of(context)!.contactImportReadFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _pickPhoto() async {
@@ -189,6 +207,11 @@ class _PhantomCreateSheetState extends State<_PhantomCreateSheet> {
               Text(
                 l10n.personCreateCanvasAction,
                 style: theme.textTheme.titleLarge,
+              ),
+              SizedBox(height: tt.rowGap),
+              OutlinedButton(
+                onPressed: canEditPerson ? _importContacts : null,
+                child: Text(l10n.contactImportEntry),
               ),
               SizedBox(height: tt.sectionGap),
               TextField(
