@@ -1,16 +1,21 @@
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/port/owner_graph_transaction_port.dart';
 import 'package:tentura_server/domain/port/phantom_repository_port.dart';
+import 'package:tentura_server/domain/util/contact_match_key_ring.dart';
+import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
 import 'owner_graph_unit_of_work.dart';
 
 @LazySingleton(as: PhantomRepositoryPort)
 final class PhantomRepository implements PhantomRepositoryPort {
-  const PhantomRepository(this._database);
+  PhantomRepository(this._database, Env env)
+    : _contactKeys = env.contactMatchKeyRing;
 
   final TenturaDb _database;
+  final ContactMatchKeyRing _contactKeys;
 
   @override
   Future<int> countActive(OwnerGraphScope scope, String ownerId) async {
@@ -49,6 +54,88 @@ INSERT INTO public.person_field_first_seen_init (viewer_id, backfill_pending)
 VALUES ($1, true) ON CONFLICT (viewer_id) DO NOTHING
 ''',
       [ownerId],
+    );
+  }
+
+  @override
+  Future<void> saveImportedContactPoints(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required String id,
+    required ({String normalized, bool keep})? email,
+    required String? keptPhone,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    if (email != null) {
+      final hash = _contactKeys.hashNormalizedEmailForWrite(email.normalized);
+      final keptEmail = email.keep ? email.normalized : null;
+      await _database.customStatement(
+        r'''
+INSERT INTO public.phantom_contact_point
+  (phantom_id, kind, value, match_hmac, hmac_key_version)
+SELECT id, 'email', $3, $4, $5
+FROM public.phantom WHERE id = $1 AND owner_id = $2
+''',
+        [
+          id,
+          ownerId,
+          keptEmail,
+          Uint8List.fromList(hash.digest.bytes),
+          hash.version,
+        ],
+      );
+    }
+    if (keptPhone != null) {
+      await _database.customStatement(
+        r'''
+INSERT INTO public.phantom_contact_point (phantom_id, kind, value)
+SELECT id, 'phone', $3 FROM public.phantom WHERE id = $1 AND owner_id = $2
+''',
+        [id, ownerId, keptPhone],
+      );
+    }
+  }
+
+  @override
+  Future<List<String>?> findImportedChunk(
+    OwnerGraphScope scope,
+    String ownerId,
+    String clientOpId,
+    int chunkIndex,
+  ) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT created_ids FROM public.phantom_import_chunk
+WHERE owner_id = $1 AND client_op_id = $2 AND chunk_index = $3
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(clientOpId),
+            Variable.withInt(chunkIndex),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<List<dynamic>>('created_ids').cast<String>();
+  }
+
+  @override
+  Future<void> recordImportedChunk(
+    OwnerGraphScope scope,
+    String ownerId,
+    String clientOpId,
+    int chunkIndex,
+    List<String> createdIds,
+  ) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    await _database.customStatement(
+      r'''
+INSERT INTO public.phantom_import_chunk
+  (owner_id, client_op_id, chunk_index, created_ids)
+VALUES ($1, $2, $3, $4)
+''',
+      [ownerId, clientOpId, chunkIndex, TypedValue(Type.textArray, createdIds)],
     );
   }
 

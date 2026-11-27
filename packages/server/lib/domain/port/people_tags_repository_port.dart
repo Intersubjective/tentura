@@ -1,5 +1,7 @@
 import 'package:tentura_server/domain/entity/person_tag.dart';
 
+import 'owner_graph_transaction_port.dart';
+
 /// An owner's private people tags (m0261). Every mutation is one transaction
 /// and idempotent by `(ownerId, clientOpId)`: a repeat with the same
 /// the fingerprint returns the stored result, a different one throws
@@ -95,5 +97,16 @@ abstract interface class PeopleTagsRepositoryPort {
     required String clientOpId,
     required String fingerprint,
     required String outcome,
+  });
+}
+
+abstract interface class ScopedPeopleTagsRepositoryPort
+    implements PeopleTagsRepositoryPort {
+  /// Adds newly imported people to the owner's Imported tag in the same
+  /// transaction that created them.
+  Future<void> addImportedPhantoms(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required List<String> phantomIds,
   });
 }

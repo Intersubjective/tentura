@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 
 import '../data/database/tentura_db.dart';
 import '../domain/port/constellation_anchor_repository_port.dart';
+import '../domain/port/people_tags_repository_port.dart';
 import '../env.dart';
 
 /// Closes the dedicated auth database when the DI container is disposed.
@@ -15,6 +16,11 @@ abstract class RegisterModule {
   @lazySingleton
   ConstellationAnchorRepositoryPort anchors(
     ScopedConstellationAnchorRepositoryPort repository,
+  ) => repository;
+
+  @Injectable(env: [Environment.dev, Environment.prod], order: 1)
+  PeopleTagsRepositoryPort peopleTags(
+    ScopedPeopleTagsRepositoryPort repository,
   ) => repository;
 
   @Named('auth')

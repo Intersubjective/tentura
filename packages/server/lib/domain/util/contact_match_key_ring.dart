@@ -46,11 +46,16 @@ final class ContactMatchKeyRing {
 
   ContactMatchHash? hashForWrite(ContactKind kind, String value) {
     if (kind != ContactKind.email) return null;
+    return hashNormalizedEmailForWrite(normalizeAuthEmail(value));
+  }
+
+  ContactMatchHash hashNormalizedEmailForWrite(String email) {
     final version = newestVersion;
-    if (version == null) {
+    final key = _keys[version];
+    if (version == null || key == null) {
       throw StateError('$envName must contain a key to hash email contacts.');
     }
-    return candidateHashes(kind, value, {version}).single;
+    return (version: version, digest: key.convert(utf8.encode(email)));
   }
 
   Iterable<ContactMatchHash> candidateHashes(

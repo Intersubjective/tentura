@@ -80,11 +80,11 @@ UPDATE public.person_tag_suggestion_state
 /// `person_tag_op_log` (m0261). Each mutation is one transaction under a
 /// shared owner-graph scope, so replays and order changes never interleave.
 @Injectable(
-  as: PeopleTagsRepositoryPort,
+  as: ScopedPeopleTagsRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class PeopleTagsRepository implements PeopleTagsRepositoryPort {
+class PeopleTagsRepository implements ScopedPeopleTagsRepositoryPort {
   PeopleTagsRepository(this._database)
     : _ownerGraph = OwnerGraphUnitOfWork(_database);
 
@@ -122,12 +122,11 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
         fromAutoKind: fromAutoKind,
         fromBeaconId: fromBeaconId,
       );
-      final tag = PersonTag(
-        id: generateId('PT'),
+      final tag = _newTag(
+        tags,
         name: name,
         glyph: glyph,
-        color: color ?? tags.length % _colors,
-        ord: tags.length + 1,
+        color: color,
       );
       await _insert(ownerId, tag);
       if (copied != null) {
@@ -384,6 +383,37 @@ WHERE owner_id = $1 AND id = ANY($2::text[]) AND merged_at IS NULL
       run: (scope) => _applyMembers(scope, ownerId, operations, activeAdds),
       encode: (ok) => {'ok': ok},
     );
+  }
+
+  @override
+  Future<void> addImportedPhantoms(
+    OwnerGraphScope scope, {
+    required String ownerId,
+    required List<String> phantomIds,
+  }) async {
+    requireOwnerGraphScope(_database, scope, ownerId);
+    final tags = await _list(ownerId);
+    const name = 'Imported';
+    var tag = tags
+        .where((tag) => tag.name.toLowerCase() == 'imported')
+        .firstOrNull;
+    if (tag == null) {
+      _checkRoom(tags);
+      tag = _newTag(tags, name: name, glyph: '📥');
+      await _insert(ownerId, tag);
+    }
+    await _applyMembers(scope, ownerId, [
+      for (final id in phantomIds)
+        (
+          op: PersonTagMemberOp(
+            tagId: tag.id,
+            personId: id,
+            add: true,
+            source: kPersonTagSourceManual,
+          ),
+          isPhantom: true,
+        ),
+    ], const []);
   }
 
   Future<bool> _applyMembers(
@@ -977,6 +1007,19 @@ SELECT p AS person_id FROM unnest($2::text[]) AS m(p)
       );
     }
   }
+
+  PersonTag _newTag(
+    List<PersonTag> tags, {
+    required String name,
+    required String glyph,
+    int? color,
+  }) => PersonTag(
+    id: generateId('PT'),
+    name: name,
+    glyph: glyph,
+    color: color ?? tags.length % _colors,
+    ord: tags.length + 1,
+  );
 
   Future<void> _checkNameFree(
     String ownerId,
