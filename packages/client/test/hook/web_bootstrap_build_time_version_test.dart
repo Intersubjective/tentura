@@ -9,7 +9,7 @@ import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:test/test.dart';
 
 const _sourceVersion = '0.0.0-dev';
-const _releaseVersion = '7.73.0';
+const _releaseVersion = '7.74.0';
 final _clientRoot = Directory.current.absolute;
 final _sourcePubspec = File('${_clientRoot.path}/pubspec.yaml');
 final _sourceIndex = File('${_clientRoot.path}/web/index.html');

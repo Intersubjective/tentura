@@ -5,7 +5,9 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/email_discoverability_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
@@ -24,11 +26,15 @@ final class UserCase extends UseCaseBase {
     UserRepositoryPort userRepository,
     TaskRepositoryPort tasksRepository,
     AccountErasureCase accountErasure,
+    EmailDiscoverabilityPort emailDiscoverability,
+    MutatingUnitOfWorkPort unitOfWork,
   ) async => UserCase(
     imageRepository,
     userRepository,
     tasksRepository,
     accountErasure,
+    emailDiscoverability: emailDiscoverability,
+    unitOfWork: unitOfWork,
     env: env,
     logger: logger,
   );
@@ -40,6 +46,8 @@ final class UserCase extends UseCaseBase {
     this._accountErasure, {
     required super.env,
     required super.logger,
+    this._emailDiscoverability,
+    this._unitOfWork,
   });
 
   final ImageRepositoryPort _imageRepository;
@@ -49,6 +57,8 @@ final class UserCase extends UseCaseBase {
   final TaskRepositoryPort _tasksRepository;
 
   final AccountErasureCase _accountErasure;
+  final EmailDiscoverabilityPort? _emailDiscoverability;
+  final MutatingUnitOfWorkPort? _unitOfWork;
 
   Future<UserEntity> getProfile({required String id}) =>
       _userRepository.getById(id);
@@ -61,6 +71,7 @@ final class UserCase extends UseCaseBase {
     bool? dropImage,
     bool setHandle = false,
     String? handle,
+    bool? discoverability,
   }) async {
     if (setHandle && handle != null && handle.trim().isNotEmpty) {
       final h = handle.trim().toLowerCase();
@@ -92,7 +103,7 @@ final class UserCase extends UseCaseBase {
       );
     }
 
-    await _userRepository.update(
+    Future<void> updateUser() => _userRepository.update(
       id: id,
       displayName: displayName,
       description: description,
@@ -101,8 +112,25 @@ final class UserCase extends UseCaseBase {
       setHandle: setHandle,
       handle: handle,
     );
+    if (discoverability == null) {
+      await updateUser();
+      return _userRepository.getById(id);
+    }
 
-    return _userRepository.getById(id);
+    final unitOfWork =
+        _unitOfWork ??
+        (throw StateError('Profile discoverability requires a unit of work'));
+    final settings =
+        _emailDiscoverability ??
+        (throw StateError('Profile discoverability storage is unavailable'));
+    return unitOfWork.run(
+      actorUserId: id,
+      action: () async {
+        await updateUser();
+        await settings.setForAccount(userId: id, enabled: discoverability);
+        return _userRepository.getById(id);
+      },
+    );
   }
 
   /// Account erasure with structural tombstone retention (§4.5).

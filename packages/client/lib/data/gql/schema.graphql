@@ -4151,7 +4151,7 @@ type mutation_root {
   setRoutingMute(muted: Boolean!, slug: String!): Boolean!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
-  signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
+  signUp(authRequestToken: String!, displayName: String!, handle: String, discoverability: Boolean): v2_AuthResponse!
   trustForceRefreshAll: Boolean!
   trustForceRefreshStar(sourceUserId: String!): Boolean!
 

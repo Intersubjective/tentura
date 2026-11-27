@@ -25,8 +25,8 @@ final _log = Logger('AccountProfileController');
 /// cannot produce.
 ///
 /// - `GET`   — `{id, displayName}` of the calling account.
-/// - `PATCH` — body `{displayName}`; trimmed,
-///             [kTitleMinLength]–[kTitleMaxLength] chars.
+/// - `PATCH` — trimmed `displayName` of [kTitleMinLength]–[kTitleMaxLength]
+///   chars, a boolean `discoverability` choice, or both.
 @Injectable(order: 3)
 final class AccountProfileController {
   // UserCase is an async-preResolved singleton; constructor injection would
@@ -63,13 +63,25 @@ final class AccountProfileController {
       return invalidJsonBodyResponse();
     }
 
+    final bool? discoverability;
+    switch (body) {
+      case {'discoverability': final bool choice}:
+        discoverability = choice;
+      case {'discoverability': _}:
+        return _json({
+          'error': 'discoverability must be a boolean',
+        }, status: 400);
+      default:
+        discoverability = null;
+    }
     final displayName = switch (body['displayName']) {
       final String s => s.trim(),
       _ => null,
     };
-    if (displayName == null ||
-        displayName.length < kTitleMinLength ||
-        displayName.length > kTitleMaxLength) {
+    if ((discoverability == null || body.containsKey('displayName')) &&
+        (displayName == null ||
+            displayName.length < kTitleMinLength ||
+            displayName.length > kTitleMaxLength)) {
       return _json(
         {
           'error':
@@ -84,6 +96,7 @@ final class AccountProfileController {
       final user = await _userCase.updateProfile(
         id: accountId,
         displayName: displayName,
+        discoverability: discoverability,
       );
       return _json(_profileToMap(user));
     } on ExceptionBase catch (e) {

@@ -94,6 +94,7 @@ final class AuthCase extends UseCaseBase {
   Future<SignupResult> signUp({
     required String displayName,
     required String invitationCode,
+    required bool discoverability,
     String? handle,
   }) => _runAuthTransition(() async {
     final seed = base64UrlEncode(
@@ -109,6 +110,7 @@ final class AuthCase extends UseCaseBase {
       seed: seed,
       displayName: displayName,
       invitationCode: invitationCode,
+      discoverability: discoverability,
       handle: handle,
     );
     await _authLocalRepository.addAccount(

@@ -236,6 +236,7 @@ class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {
     required String seed,
     required String displayName,
     required String invitationCode,
+    required bool discoverability,
     String? handle,
   }) async => (accountId: userId, requestLapsed: false);
 }

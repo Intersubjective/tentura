@@ -22,8 +22,8 @@ import 'package:tentura_server/env.dart';
 import '../../../support/disposable_pg_target.dart';
 import 'websocket_realtime_protocol_test.mocks.dart';
 
-const _previousRelease = '7.72.0';
-const _currentRelease = '7.73.0';
+const _previousRelease = '7.73.0';
+const _currentRelease = '7.74.0';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(

@@ -291,6 +291,14 @@ function installDomFake() {
   return FakeNode;
 }
 
+function chooseNo(card) {
+  const option = card.querySelectorAll('INPUT').find(
+    (input) => input.getAttribute('type') === 'radio' && input.value === 'no',
+  );
+  assert.ok(option, 'the name step offers a No choice');
+  option.checked = true;
+}
+
 test('U085: save name, then the pager starts with no Back; Back on step 2 returns to step 1', async () => {
   installDomFake();
   const events = [];
@@ -327,6 +335,7 @@ test('U085: save name, then the pager starts with no Back; Back on step 2 return
   // #422: the email-derived placeholder name is not put in the field.
   assert.equal(input.value, '');
   input.value = 'Ada Lovelace';
+  chooseNo(card);
   const form = card.querySelector('FORM');
   form.submit();
   // Allow the async PATCH + onDone to settle.
@@ -402,6 +411,7 @@ test('#522 review: reload after the name step resumes at the pager', async () =>
   const first = document.createElement('div');
   render(first);
   first.querySelector('#display-name').value = 'Ada';
+  chooseNo(first);
   first.querySelector('FORM').submit(); // #660: no Skip; the name is saved
   await new Promise((r) => setTimeout(r, 0));
   await new Promise((r) => setTimeout(r, 0));
@@ -452,7 +462,8 @@ test('pager hides Skip on the last page, where Continue is the exit', async () =
     storage: fakeStorage(),
     nameOnly: false,
   });
-  // Unchanged name: straight to the pager.
+  // An unchanged name still needs an email discoverability choice.
+  chooseNo(card);
   card.querySelector('FORM').submit();
   await new Promise((r) => setTimeout(r, 0));
 
@@ -830,6 +841,7 @@ async function failNameSave(failure) {
     return failure();
   };
   card.querySelector('#display-name').value = 'Anna K.';
+  chooseNo(card);
   card.querySelector('FORM').submit();
   await new Promise((r) => setTimeout(r, 0));
   return { card, events, patches: () => patches };

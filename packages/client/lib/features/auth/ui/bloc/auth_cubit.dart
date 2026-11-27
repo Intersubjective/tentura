@@ -498,6 +498,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signUp({
     required String displayName,
     required String invitationCode,
+    required bool discoverability,
     String? handle,
   }) => _duringAuthTransition(() async {
     if (_env.needInviteCode && invitationCode.length < kIdLength) {
@@ -514,6 +515,7 @@ class AuthCubit extends Cubit<AuthState> {
       final result = await _authCase.signUp(
         invitationCode: invitationCode,
         displayName: displayName,
+        discoverability: discoverability,
         handle: handle,
       );
       final newProfile = AccountEntity(

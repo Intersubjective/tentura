@@ -30,8 +30,8 @@ import '../support/phone_surface.dart';
 import '../support/test_realtime_sync.dart';
 
 const _installedVersion = '7.64.7';
-const _previousRelease = '7.72.0';
-const _currentRelease = '7.73.0';
+const _previousRelease = '7.73.0';
+const _currentRelease = '7.74.0';
 const _accountId = 'Uviewer000001';
 
 void main() {

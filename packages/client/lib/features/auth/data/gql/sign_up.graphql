@@ -1,5 +1,5 @@
-mutation SignUp($authRequestToken: String!, $displayName: String!, $handle: String) {
-  signUp(authRequestToken: $authRequestToken, displayName: $displayName, handle: $handle) {
+mutation SignUp($authRequestToken: String!, $displayName: String!, $handle: String, $discoverability: Boolean!) {
+  signUp(authRequestToken: $authRequestToken, displayName: $displayName, handle: $handle, discoverability: $discoverability) {
     subject
     requestLapsed
   }

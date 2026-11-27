@@ -47,6 +47,7 @@ class AuthRemoteRepository
     required String seed,
     required String displayName,
     required String invitationCode,
+    required bool discoverability,
     String? handle,
   }) async {
     final authRequestToken = await remoteApiService.setAuth(
@@ -61,6 +62,7 @@ class AuthRemoteRepository
       b.vars
         ..displayName = displayName
         ..authRequestToken = authRequestToken
+        ..discoverability = discoverability
         ..handle = handle;
     });
     final response = await remoteApiService

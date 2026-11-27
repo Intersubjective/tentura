@@ -7,10 +7,7 @@ import 'package:tentura_server/env.dart';
 import '../database/contact_match_storage.dart';
 import '../database/tentura_db.dart';
 
-@Injectable(
-  as: EmailDiscoverabilityPort,
-  env: [Environment.dev, Environment.prod],
-)
+@Injectable(as: EmailDiscoverabilityPort)
 class EmailDiscoverabilityRepository implements EmailDiscoverabilityPort {
   EmailDiscoverabilityRepository(this._database, Env env)
     : _keys = env.contactMatchKeyRing;

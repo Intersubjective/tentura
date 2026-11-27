@@ -27,6 +27,7 @@ void main() {
           seed: 'seed',
           displayName: 'Alice',
           invitationCode: 'invite',
+          discoverability: false,
         );
 
         expect(signup.accountId, 'account-a');
@@ -43,6 +44,7 @@ void main() {
           seed: 'seed',
           displayName: 'Alice',
           invitationCode: 'invite',
+          discoverability: false,
         ),
         throwsStateError,
       );

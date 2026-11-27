@@ -199,6 +199,10 @@ void main() {
               l10n.labelDisplayName,
             );
             await tester.enterText(name, 'New member');
+            final choice = find.text(l10n.buttonNo);
+            await tester.ensureVisible(choice);
+            await tester.tap(choice);
+            await tester.pump();
             final submit = find.widgetWithText(FilledButton, l10n.buttonCreate);
             await tester.ensureVisible(submit);
             // Ferry and HTTP callbacks may settle between rendered frames.

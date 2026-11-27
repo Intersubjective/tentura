@@ -2,19 +2,22 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:injectable/injectable.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/email_discoverability_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/consts/user_handle_consts.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/env.dart';
 
 import '../entity/jwt_entity.dart';
 import '../enum.dart';
@@ -25,18 +28,35 @@ final class AuthCase extends UseCaseBase {
   AuthCase(
     this._userRepository,
     this._invitationRepository, {
-    AttentionIntentCase? attentionIntents,
-    TransactionalAttentionCase? attention,
-    this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
     required super.env,
     required super.logger,
+    AttentionIntentCase? attentionIntents,
+    TransactionalAttentionCase? attention,
+    this._emailDiscoverability,
+    this._unitOfWork,
+    this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
   }) : _attentionIntents = attentionIntents,
        _attention = attention;
+
+  @FactoryMethod()
+  factory AuthCase.configured(
+    UserRepositoryPort userRepository,
+    InvitationRepositoryPort invitationRepository, {
+    required AttentionIntentCase attentionIntents,
+    required TransactionalAttentionCase attention,
+    required EmailDiscoverabilityPort emailDiscoverability,
+    required MutatingUnitOfWorkPort unitOfWork,
+    required Env env,
+    required Logger logger,
+    PhantomMergeWakePort phantomMergeWake,
+  }) = AuthCase;
 
   final UserRepositoryPort _userRepository;
   final InvitationRepositoryPort _invitationRepository;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final EmailDiscoverabilityPort? _emailDiscoverability;
+  final MutatingUnitOfWorkPort? _unitOfWork;
   final PhantomMergeWakePort _phantomMergeWake;
 
   late final _roles = {UserRoles.user};
@@ -86,6 +106,7 @@ final class AuthCase extends UseCaseBase {
     required String authRequestToken,
     required String displayName,
     String? handle,
+    bool? discoverability,
     void Function()? onRequestLapsed,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
@@ -101,6 +122,11 @@ final class AuthCase extends UseCaseBase {
         );
       }
     }
+    Future<UserEntity> createUser() => _userRepository.create(
+      publicKey: publicKey,
+      displayName: displayName,
+      handle: handle,
+    );
     final newUser = env.isNeedInvite
         ? switch (payload[AuthRequestIntentSignUp.keyCode]) {
             final String invitationId => await _createInvitedUser(
@@ -108,18 +134,40 @@ final class AuthCase extends UseCaseBase {
               publicKey: publicKey,
               displayName: displayName,
               handle: handle,
+              discoverability: discoverability,
               onRequestLapsed: onRequestLapsed,
             ),
             _ => throw const IdWrongException(
               description: 'Invite attribute not found!',
             ),
           }
-        : await _userRepository.create(
-            publicKey: publicKey,
-            displayName: displayName,
-            handle: handle,
-          );
+        : discoverability == null
+        ? await createUser()
+        : await _createUserWithDiscoverability(createUser, discoverability);
     return _issueJwt(newUser.id);
+  }
+
+  Future<UserEntity> _createUserWithDiscoverability(
+    Future<UserEntity> Function() createUser,
+    bool discoverability,
+  ) {
+    final unitOfWork =
+        _unitOfWork ??
+        (throw StateError('Signup discoverability requires a unit of work'));
+    return unitOfWork.run(
+      action: () async {
+        final user = await createUser();
+        await _saveDiscoverability(user.id, discoverability);
+        return user;
+      },
+    );
+  }
+
+  Future<bool> _saveDiscoverability(String userId, bool discoverability) {
+    final settings =
+        _emailDiscoverability ??
+        (throw StateError('Signup discoverability storage is unavailable'));
+    return settings.setForAccount(userId: userId, enabled: discoverability);
   }
 
   /// Sign up by accepting an invite whose code is passed explicitly (GraphQL /
@@ -159,6 +207,7 @@ final class AuthCase extends UseCaseBase {
     required String publicKey,
     required String displayName,
     String? handle,
+    bool? discoverability,
     void Function()? onRequestLapsed,
   }) async {
     final invitation = await _invitationRepository.getById(
@@ -194,6 +243,9 @@ final class AuthCase extends UseCaseBase {
             _ => null,
           },
         );
+        if (discoverability != null) {
+          await _saveDiscoverability(user.id, discoverability);
+        }
         if (invitation != null) {
           await transaction.record(
             await _attentionIntents!.inviteAccepted(

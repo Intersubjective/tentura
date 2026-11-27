@@ -46,6 +46,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
 
   final _formKey = GlobalKey<FormState>();
 
+  final _discoverabilityKey = GlobalKey<FormFieldState<bool>>();
+
   final _codeController = TextEditingController();
 
   final _titleController = TextEditingController();
@@ -226,6 +228,51 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                   ),
                 ),
 
+                AuthFormField(
+                  child: FormField<bool>(
+                    key: _discoverabilityKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (value) => value == null
+                        ? _l10n.signupChooseEmailDiscoverability
+                        : null,
+                    builder: (field) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_l10n.settingsEmailDiscoverability),
+                        RadioGroup<bool>(
+                          groupValue: field.value,
+                          onChanged: field.didChange,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<bool>(
+                                  value: true,
+                                  title: Text(_l10n.buttonYes),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<bool>(
+                                  value: false,
+                                  title: Text(_l10n.buttonNo),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (field.errorText case final error?)
+                          Text(
+                            error,
+                            style: _textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 // Register
                 AuthFormField(
                   child: BlocSelector<AuthCubit, AuthState, bool>(
@@ -246,13 +293,16 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
   );
 
   void _submitSignUp() {
-    if (!(_formKey.currentState?.validate() ?? false)) {
+    final valid = _formKey.currentState?.validate() ?? false;
+    final discoverability = _discoverabilityKey.currentState?.value;
+    if (!valid || discoverability == null) {
       return;
     }
     unawaited(
       _authCubit.signUp(
         invitationCode: normalizeInviteCode(_codeController.text),
         displayName: _titleController.text,
+        discoverability: discoverability,
         handle: _handleController.text.trim().toLowerCase().isEmpty
             ? null
             : _handleController.text.trim().toLowerCase(),

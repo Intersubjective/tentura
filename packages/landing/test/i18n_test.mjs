@@ -53,11 +53,15 @@ function installDom() {
       this.listeners = {};
       this.className = '';
       this.hidden = false;
+      this.checked = false;
+      this.disabled = false;
       this.data = '';
     }
     setAttribute(k, v) {
       this.attrs[k] = String(v);
       if (k === 'value') this.value = String(v);
+      if (k === 'checked') this.checked = true;
+      if (k === 'disabled') this.disabled = true;
     }
     getAttribute(k) {
       return this.attrs[k] ?? null;
@@ -114,12 +118,12 @@ function installDom() {
   };
 }
 
-function renderNameStep() {
+function renderNameStep(displayName = 'New member') {
   installDom();
   const card = document.createElement('div');
   renderPostSignup({
     card,
-    profile: { id: 'U1', displayName: 'New member' },
+    profile: { id: 'U1', displayName },
     setState: () => {},
     setPageTitle: () => {},
     track: () => {},
@@ -211,6 +215,7 @@ test('a failed name save and a placeholder inviter read Russian too', async () =
     const card = renderNameStep();
     globalThis.fetch = async () => ({ ok: false, status: 500 });
     card.querySelector('#display-name').value = 'Саня';
+    chooseDiscoverability(card, 'Нет');
     card.querySelector('FORM').fire('submit');
     await settle();
     await settle();
@@ -241,6 +246,7 @@ test('the pager speaks Russian and uses the app wording for its pages', async ()
       json: async () => ({ id: 'U1', displayName: 'Саня' }),
     });
     card.querySelector('#display-name').value = 'Саня';
+    chooseDiscoverability(card, 'Нет');
     card.querySelector('FORM').fire('submit');
     await settle();
     await settle();
@@ -342,3 +348,187 @@ test('main.js picks the locale before it renders anything', () => {
   assert.ok(init > 0, 'initLocale() is called');
   assert.ok(init < mainJs.indexOf('\nmain();'), 'before main() runs');
 });
+
+const discoverabilityLabel = "People who have my email can see I'm on Tentura";
+const profilePath = '/api/v2/accounts/me/profile';
+
+function choiceRadios(card) {
+  return card.all((node) => node.tagName === 'INPUT' && node.attrs.type === 'radio');
+}
+
+function radioLabel(card, radio) {
+  return card.all((node) =>
+    node.tagName === 'LABEL' &&
+    ((radio.attrs.id && node.attrs.for === radio.attrs.id) ||
+      node.all((child) => child === radio).length > 0)
+  )[0]?.textContent.trim();
+}
+
+function chooseDiscoverability(card, label) {
+  const radio = choiceRadios(card).find((node) => radioLabel(card, node) === label);
+  assert.ok(radio, `The name step offers ${label}`);
+  // A browser checks the input before dispatching input/change events.
+  radio.checked = true;
+  radio.fire('input');
+  radio.fire('change');
+}
+
+function nameStepAlert(card) {
+  const alerts = card.all((node) => node.attrs.role === 'alert');
+  assert.equal(alerts.length, 1);
+  return alerts[0];
+}
+
+function interceptProfileSave(testContext, respond) {
+  const requests = [];
+  testContext.mock.method(globalThis, 'fetch', async (url, init) => {
+    const path = new URL(url, 'https://tentura.test').pathname;
+    const body = JSON.parse(init.body);
+    requests.push({ path, method: init.method, credentials: init.credentials, body });
+    return respond(body);
+  });
+  return requests;
+}
+
+function successfulNameSave(body) {
+  return { ok: true, json: async () => ({ id: 'U1', ...body }) };
+}
+
+test('Name step email discoverability offers an unanswered Yes or No in both locales', async () => {
+  setLocale('en');
+  const english = renderNameStep();
+  assert.ok(english.textContent.includes(discoverabilityLabel));
+  assert.deepEqual(choiceRadios(english).map((radio) => radioLabel(english, radio)).sort(), ['No', 'Yes']);
+  assert.doesNotMatch(english.textContent, /phantom/i);
+
+  await inRussian(async () => {
+    const russian = renderNameStep();
+    const translatedLabel = TRANSLATIONS.ru[discoverabilityLabel];
+    assert.match(translatedLabel, CYRILLIC);
+    assert.ok(russian.textContent.includes(translatedLabel));
+    assert.equal(TRANSLATIONS.ru.Yes, 'Да');
+    assert.equal(TRANSLATIONS.ru.No, 'Нет');
+    assert.deepEqual(choiceRadios(russian).map((radio) => radioLabel(russian, radio)).sort(), ['Да', 'Нет']);
+    assert.doesNotMatch(russian.textContent, /phantom/i);
+
+    for (const card of [english, russian]) {
+      for (const radio of choiceRadios(card)) {
+        assert.ok(!radio.checked && radio.getAttribute('checked') === null);
+        assert.equal(radio.disabled, false);
+      }
+    }
+  });
+});
+
+test('Name step email discoverability blocks submission until a choice is made and explains why in both locales', async (context) => {
+  const requests = interceptProfileSave(context, successfulNameSave);
+
+  const submitWithoutChoice = async () => {
+    const card = renderNameStep();
+    card.querySelector('#display-name').value = 'Ada Lovelace';
+    const form = card.querySelector('form');
+    form.fire('submit');
+    await settle();
+    assert.deepEqual(requests, [], 'A valid name alone must send no request');
+    assert.equal(card.querySelector('form'), form, 'The name form stays open');
+    assert.equal(card.querySelector('.pager'), null);
+    return nameStepAlert(card).textContent;
+  };
+
+  setLocale('en');
+  const englishError = await submitWithoutChoice();
+  assert.match(englishError, /choose|select|answer|pick/i);
+  assert.doesNotMatch(englishError, /phantom/i);
+  await inRussian(async () => {
+    const russianError = await submitWithoutChoice();
+    assert.match(russianError, /выбер|выбор|укаж|ответ/i);
+    assert.equal(russianError, TRANSLATIONS.ru[englishError]);
+    assert.doesNotMatch(russianError, /phantom/i);
+  });
+});
+
+for (const [label, discoverability] of [['Yes', true], ['No', false]]) {
+  test(`Name step email discoverability saves ${label} with the new name before showing the pager`, async (context) => {
+    let releaseSave;
+    const pending = new Promise((resolve) => { releaseSave = resolve; });
+    const requests = interceptProfileSave(context, async (body) => {
+      await pending;
+      return successfulNameSave(body);
+    });
+    setLocale('en');
+    const card = renderNameStep();
+    card.querySelector('#display-name').value = 'Ada Lovelace';
+    chooseDiscoverability(card, label);
+
+    try {
+      card.querySelector('form').fire('submit');
+      await settle();
+      assert.deepEqual(requests, [{
+        path: profilePath,
+        method: 'PATCH',
+        credentials: 'include',
+        body: { displayName: 'Ada Lovelace', discoverability },
+      }]);
+      assert.ok(card.querySelector('#display-name'), 'The name step stays open while saving');
+      assert.equal(card.querySelector('.pager'), null);
+    } finally {
+      releaseSave();
+      await settle();
+    }
+    assert.ok(card.querySelector('.pager'));
+  });
+}
+
+test('Name step email discoverability saves the choice when the prefilled name is unchanged', async (context) => {
+  const requests = interceptProfileSave(context, successfulNameSave);
+  setLocale('en');
+  const card = renderNameStep('Ada Lovelace');
+  assert.equal(card.querySelector('#display-name').value, 'Ada Lovelace');
+  chooseDiscoverability(card, 'No');
+  card.querySelector('form').fire('submit');
+  await settle();
+
+  assert.equal(requests.length, 1, 'The choice must be saved even without a name change');
+  assert.equal(requests[0].path, profilePath);
+  assert.equal(requests[0].method, 'PATCH');
+  assert.equal(requests[0].credentials, 'include');
+  assert.equal(requests[0].body.discoverability, false);
+  assert.ok(card.querySelector('.pager'));
+});
+
+for (const [failure, respond] of [
+  ['server rejection', async () => ({ ok: false, status: 500 })],
+  ['network failure', async () => { throw new TypeError('raw network failure'); }],
+]) {
+  test(`Name step email discoverability keeps the form retryable after a ${failure}`, async (context) => {
+    const requests = interceptProfileSave(context, respond);
+    const attemptSave = async (option, retryLabel) => {
+      const previousRequests = requests.length;
+      const card = renderNameStep('Ada Lovelace');
+      chooseDiscoverability(card, option);
+      const form = card.querySelector('form');
+      form.fire('submit');
+      await settle();
+
+      assert.equal(requests.length, previousRequests + 1);
+      assert.equal(requests.at(-1).body.discoverability, false);
+      assert.equal(card.querySelector('form'), form);
+      assert.equal(card.querySelector('.pager'), null);
+      const submit = form.all((node) => node.tagName === 'BUTTON' && node.attrs.type === 'submit')[0];
+      assert.equal(submit.disabled, false);
+      assert.equal(submit.textContent, retryLabel);
+      const error = nameStepAlert(card).textContent;
+      assert.match(error, /\S/);
+      assert.doesNotMatch(error, /phantom|raw network failure/i);
+      return error;
+    };
+
+    setLocale('en');
+    const englishError = await attemptSave('No', 'Try again');
+    await inRussian(async () => {
+      const russianError = await attemptSave('Нет', 'Попробовать ещё раз');
+      assert.match(russianError, CYRILLIC);
+      assert.equal(russianError, TRANSLATIONS.ru[englishError]);
+    });
+  });
+}

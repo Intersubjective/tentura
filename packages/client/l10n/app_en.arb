@@ -119,6 +119,7 @@
   "@buttonYes": {
     "context": "Utils"
   },
+  "buttonNo": "No",
   "buttonOk": "OK",
   "@buttonOk": {
     "context": "Utils"
@@ -2508,6 +2509,7 @@
     "description": "Supporting line under the noisy-wall settings switch."
   },
   "settingsEmailDiscoverability": "People who have my email can see I'm on Tentura",
+  "signupChooseEmailDiscoverability": "Choose Yes or No to continue.",
   "emailDiscoverabilityExplainerTitle": "Find me by email",
   "emailDiscoverabilityExplainerBody": "People who already have your email address can check whether you're on Tentura. You can change this anytime in Settings.",
   "notificationSettings": "Notification settings",

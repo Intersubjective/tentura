@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.73.0';
+const _release = '7.74.0';
 
 void main() {
   test(
@@ -60,7 +60,7 @@ void main() {
         'comment': floorComments,
         'override': floorOverrides,
         'previous release references': sample.where(
-          (line) => line.contains('7.72.0'),
+          (line) => line.contains('7.73.0'),
         ),
       },
       {

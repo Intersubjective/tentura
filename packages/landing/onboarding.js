@@ -168,6 +168,11 @@ const RU = {
   'Account created': 'Аккаунт создан',
   'What should people call you?': 'Как к вам обращаться?',
   'Your name': 'Ваше имя',
+  "People who have my email can see I'm on Tentura":
+    'Люди, у которых есть мой адрес электронной почты, могут узнать, что я в Тентуре',
+  Yes: 'Да',
+  No: 'Нет',
+  'Choose Yes or No to continue.': 'Выберите «Да» или «Нет», чтобы продолжить.',
   'You can change your name any time in Profile.':
     'Имя можно изменить в любой момент в профиле.',
   Back: 'Назад',
@@ -562,19 +567,19 @@ export async function fetchMyProfile() {
 }
 
 /**
- * PATCH the display name; throws Error with a user-facing message. A 400 is
- * the server rejecting the name (expected input): the Error carries
+ * PATCH the signup choice and changed display name. A 400 is the server
+ * rejecting the name (expected input). The user-facing Error carries
  * `expected: true` so analytics records a breadcrumb, not a Sentry issue
  * (#762). Network failures and other statuses stay faults.
  */
-export async function saveDisplayName(name) {
+export async function saveDisplayName(name, discoverability) {
   let res;
   try {
     res = await fetch(`${API_BASE}/api/v2/accounts/me/profile`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ displayName: name }),
+      body: JSON.stringify({ displayName: name, discoverability }),
     });
   } catch {
     // The raw fetch error ("TypeError: Failed to fetch") means nothing to a
@@ -714,6 +719,8 @@ function renderNameStep({ prefill, track, onDone }) {
     'aria-describedby': 'display-name-hint',
   });
   const errorEl = el('p', { class: 'error', role: 'alert' });
+  const yes = el('input', { type: 'radio', name: 'discoverability', value: 'yes' });
+  const no = el('input', { type: 'radio', name: 'discoverability', value: 'no' });
   const submit = el(
     'button',
     { class: 'btn btn-primary', type: 'submit' },
@@ -744,16 +751,22 @@ function renderNameStep({ prefill, track, onDone }) {
       input.focus();
       return;
     }
-    if (name === prefill) {
-      track('signup_name_skipped', { reason: 'unchanged' });
-      onDone();
+    const discoverability = yes.checked ? true : no.checked ? false : null;
+    if (discoverability === null) {
+      errorEl.textContent = t('Choose Yes or No to continue.');
+      yes.focus();
       return;
     }
     submit.disabled = true;
     submit.textContent = t('Saving…');
     try {
-      await saveDisplayName(name);
-      track('signup_name_saved');
+      const nameChanged = name !== prefill;
+      await saveDisplayName(nameChanged ? name : undefined, discoverability);
+      if (!nameChanged) {
+        track('signup_name_skipped', { reason: 'unchanged' });
+      } else {
+        track('signup_name_saved');
+      }
       onDone(name);
     } catch (err) {
       trackError('signup_name_error', err);
@@ -783,6 +796,13 @@ function renderNameStep({ prefill, track, onDone }) {
         'p',
         { class: 'hint name-change-hint', id: 'display-name-hint' },
         t('You can change your name any time in Profile.'),
+      ),
+      el(
+        'fieldset',
+        { class: 'discoverability-options' },
+        el('legend', {}, t("People who have my email can see I'm on Tentura")),
+        el('label', {}, yes, t('Yes')),
+        el('label', {}, no, t('No')),
       ),
       submit,
       errorEl,

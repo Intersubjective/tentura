@@ -8,6 +8,7 @@ abstract class AuthRemoteRepositoryPort {
     required String seed,
     required String displayName,
     required String invitationCode,
+    required bool discoverability,
     String? handle,
   });
 
