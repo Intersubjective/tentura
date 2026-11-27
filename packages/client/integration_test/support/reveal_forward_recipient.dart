@@ -12,6 +12,7 @@ Future<Finder> revealForwardRecipientCheckbox(
   WidgetTester tester,
   String userId, {
   Duration timeout = const Duration(seconds: 20),
+  Stopwatch Function() createStopwatch = Stopwatch.new,
 }) async {
   final checkbox = find.byKey(
     TestIds.key(TestIds.forwardRecipientCheckbox(userId)),
@@ -22,7 +23,7 @@ Future<Finder> revealForwardRecipientCheckbox(
     of: picker,
     matching: find.byType(CustomScrollView),
   );
-  final elapsed = Stopwatch()..start();
+  final elapsed = createStopwatch()..start();
   var searchPending = true;
   Finder? activeSearch;
   await tester.pump();

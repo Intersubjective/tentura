@@ -53,8 +53,11 @@ class _SlowFrameTester extends WidgetController implements WidgetTester {
     Duration? duration,
     EnginePhase phase = EnginePhase.sendSemanticsUpdate,
   ]) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    await _tester.pump(duration, phase);
+    // Advance Flutter's test clock by the simulated frame delay.
+    await _tester.pump(
+      const Duration(milliseconds: 200) + (duration ?? Duration.zero),
+      phase,
+    );
     delayedFrames++;
   }
 
@@ -363,8 +366,9 @@ void main() {
 
           // Prove the same fixture and delayed-frame budget permit reaching
           // the target through the real search and scrolling the results.
+          final createStopwatch = tester.binding.clock.stopwatch;
           final searchFrames = _SlowFrameTester(tester);
-          final searchTime = Stopwatch()..start();
+          final searchTime = createStopwatch()..start();
           await (() async {
             await tester.enterText(search, sharedName);
             FocusManager.instance.primaryFocus?.unfocus();
@@ -390,13 +394,14 @@ void main() {
           expect(cubit.state.selectedIds, isEmpty);
 
           final slowFrames = _SlowFrameTester(tester);
-          final revealTime = Stopwatch()..start();
+          final revealTime = createStopwatch()..start();
           final Finder revealed;
           try {
             revealed = await revealForwardRecipientCheckbox(
               slowFrames,
               id,
               timeout: revealBudget,
+              createStopwatch: createStopwatch,
             ).timeout(watchdog);
           } finally {
             revealTime.stop();
