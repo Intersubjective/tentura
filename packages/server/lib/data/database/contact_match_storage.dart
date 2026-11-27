@@ -13,6 +13,24 @@ import 'main_db_scope_admission.dart';
 const _verifiedContacts = 'account_verified_contact';
 const _contactTables = [_verifiedContacts, 'phantom_contact_point'];
 
+const verifiedEmailMatchRowsSql =
+    '''
+FROM unnest(\$1::smallint[], \$2::bytea[]) AS candidate(version, digest)
+JOIN public.$_verifiedContacts AS contact
+  ON contact.hmac_key_version = candidate.version
+ AND contact.match_hmac = candidate.digest
+ AND contact.kind = 'email'
+''';
+
+List<TypedValue> verifiedEmailMatchParameters(
+  List<ContactMatchHash> hashes,
+) => [
+  TypedValue(Type.smallIntegerArray, [for (final hash in hashes) hash.version]),
+  TypedValue(Type.byteArrayArray, [
+    for (final hash in hashes) hash.digest.bytes,
+  ]),
+];
+
 @LazySingleton(as: VerifiedContactRekeyPort)
 final class VerifiedContactRekey implements VerifiedContactRekeyPort {
   VerifiedContactRekey(this._database, Env env)
@@ -142,22 +160,8 @@ Future<Set<String>> findMatchingVerifiedAccounts(
       final hashes = keyRing.candidateHashes(kind, value, versions).toList();
       if (hashes.isEmpty) return <String>{};
       final rows = await session.execute(
-        Sql.named('''
-SELECT DISTINCT contact.account_id
-FROM unnest(@versions::smallint[], @digests::bytea[]) AS candidate(version, digest)
-JOIN public.$_verifiedContacts AS contact
-  ON contact.hmac_key_version = candidate.version
- AND contact.match_hmac = candidate.digest
-WHERE contact.kind = 'email'
-'''),
-        parameters: {
-          'versions': TypedValue(Type.smallIntegerArray, [
-            for (final hash in hashes) hash.version,
-          ]),
-          'digests': TypedValue(Type.byteArrayArray, [
-            for (final hash in hashes) hash.digest.bytes,
-          ]),
-        },
+        'SELECT DISTINCT contact.account_id $verifiedEmailMatchRowsSql',
+        parameters: verifiedEmailMatchParameters(hashes),
       );
       return {
         for (final row in rows)

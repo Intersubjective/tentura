@@ -16,11 +16,12 @@ import 'package:tentura_server/domain/util/email_auth_util.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import 'contact_case.dart';
+import 'contact_check_case.dart';
 import 'forward_case.dart';
 
 typedef PhantomImportContact = ({String name, String? email, String? phone});
 typedef PhantomImportResult = ({
-  List<({int rowIndex, String id})> created,
+  List<({int rowIndex, String id, bool? alreadyOnTentura})> created,
   List<({int rowIndex, PhantomImportRefusal reason})> refused,
 });
 
@@ -43,6 +44,7 @@ final class PhantomCase {
     this._forwardCase,
     this._pendingForwards,
     this._peopleTags,
+    this._contactChecks,
   );
 
   final OwnerGraphTransactionPort _ownerGraph;
@@ -52,6 +54,7 @@ final class PhantomCase {
   final ForwardCase _forwardCase;
   final PhantomPendingForwardRepositoryPort _pendingForwards;
   final ScopedPeopleTagsRepositoryPort _peopleTags;
+  final ContactCheckCase _contactChecks;
 
   Future<String> create({
     required String ownerId,
@@ -115,22 +118,26 @@ final class PhantomCase {
       ));
     }
 
-    final created = <({int rowIndex, String id})>[];
+    final created = <({int rowIndex, String id, bool? alreadyOnTentura})>[];
     for (var offset = 0; offset < rows.length; offset += chunkSize) {
       final chunk = rows.sublist(offset, min(offset + chunkSize, rows.length));
-      final ids = await _importChunk(
+      final imported = await _importChunk(
         ownerId,
         chunk,
         clientOpId: clientOpId,
         chunkIndex: offset ~/ chunkSize,
       );
       created.addAll([
-        for (final (index, id) in ids.indexed)
-          (rowIndex: chunk[index].index, id: id),
+        for (final (index, row) in imported.indexed)
+          (
+            rowIndex: chunk[index].index,
+            id: row.id,
+            alreadyOnTentura: row.alreadyOnTentura,
+          ),
       ]);
-      if (ids.length < chunk.length) {
+      if (imported.length < chunk.length) {
         refused.addAll([
-          for (final row in rows.skip(offset + ids.length))
+          for (final row in rows.skip(offset + imported.length))
             (rowIndex: row.index, reason: PhantomImportRefusal.capReached),
         ]);
         break;
@@ -140,68 +147,84 @@ final class PhantomCase {
     return (created: created, refused: refused);
   }
 
-  Future<List<String>> _importChunk(
+  Future<List<PhantomImportedContact>> _importChunk(
     String ownerId,
     List<_ImportRow> rows, {
     required String? clientOpId,
     required int chunkIndex,
-  }) => _ownerGraph.run({ownerId}, ownerId, (scope) async {
-    if (clientOpId != null) {
-      final prior = await _repository.findImportedChunk(
-        scope,
-        ownerId,
-        clientOpId,
-        chunkIndex,
-      );
-      if (prior != null) {
-        if (prior.length > rows.length) {
-          throw const IdWrongException(
-            description:
-                'Reuse the import operation ID only with the same rows.',
-          );
+  }) async {
+    final result = await _ownerGraph.run({ownerId}, ownerId, (scope) async {
+      if (clientOpId != null) {
+        final prior = await _repository.findImportedChunk(
+          scope,
+          ownerId,
+          clientOpId,
+          chunkIndex,
+        );
+        if (prior != null) {
+          if (prior.length > rows.length) {
+            throw const IdWrongException(
+              description:
+                  'Reuse the import operation ID only with the same rows.',
+            );
+          }
+          return (created: prior, reachedDailyLimit: false);
         }
-        return prior;
       }
-    }
 
-    final remaining = await _repository.remainingActiveCapacity(scope, ownerId);
-    final ids = <String>[];
-    for (final row in rows.take(remaining)) {
-      final id = generateId('PH');
-      await _repository.insert(
-        scope,
-        ownerId: ownerId,
-        id: id,
-        name: row.name,
-        emoji: null,
-      );
-      await _repository.saveImportedContactPoints(
-        scope,
-        ownerId: ownerId,
-        id: id,
-        email: row.email,
-        keptPhone: row.keptPhone,
-      );
-      ids.add(id);
-    }
-    if (ids.isNotEmpty) {
-      await _peopleTags.addImportedPhantoms(
-        scope,
-        ownerId: ownerId,
-        phantomIds: ids,
-      );
-    }
-    if (clientOpId != null) {
-      await _repository.recordImportedChunk(
+      final remaining = await _repository.remainingActiveCapacity(
         scope,
         ownerId,
-        clientOpId,
-        chunkIndex,
-        ids,
       );
-    }
-    return ids;
-  });
+      final created = <PhantomImportedContact>[];
+      var reachedDailyLimit = false;
+      for (final row in rows.take(remaining)) {
+        final id = generateId('PH');
+        await _repository.insert(
+          scope,
+          ownerId: ownerId,
+          id: id,
+          name: row.name,
+          emoji: null,
+        );
+        await _repository.saveImportedContactPoints(
+          scope,
+          ownerId: ownerId,
+          id: id,
+          email: row.email,
+          keptPhone: row.keptPhone,
+        );
+        final email = row.email;
+        final check = email == null
+            ? null
+            : await _contactChecks.checkNormalizedEmail(
+                ownerId,
+                email.normalized,
+              );
+        if (check?.reachedDailyLimit == true) reachedDailyLimit = true;
+        created.add((id: id, alreadyOnTentura: check?.alreadyOnTentura));
+      }
+      if (created.isNotEmpty) {
+        await _peopleTags.addImportedPhantoms(
+          scope,
+          ownerId: ownerId,
+          phantomIds: [for (final row in created) row.id],
+        );
+      }
+      if (clientOpId != null) {
+        await _repository.recordImportedChunk(
+          scope,
+          ownerId,
+          clientOpId,
+          chunkIndex,
+          created,
+        );
+      }
+      return (created: created, reachedDailyLimit: reachedDailyLimit);
+    });
+    if (result.reachedDailyLimit) _contactChecks.logDailyLimit(ownerId);
+    return result.created;
+  }
 
   Future<bool> update({
     required String ownerId,

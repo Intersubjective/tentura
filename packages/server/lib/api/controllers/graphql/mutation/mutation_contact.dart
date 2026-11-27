@@ -1,4 +1,7 @@
+import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/contact_case.dart';
+import 'package:tentura_server/domain/use_case/contact_check_case.dart';
 
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
@@ -14,11 +17,34 @@ final class MutationContact extends GqlNodeBase {
   static final _subjectUserId = InputFieldString(fieldName: 'subjectUserId');
 
   static final _contactName = InputFieldString(fieldName: 'contactName');
+  static final _kind = InputFieldString(fieldName: 'kind');
+  static final _value = InputFieldString(fieldName: 'value');
+
+  static final _checkResult = GraphQLObjectType('ContactCheckResult', null)
+    ..fields.add(field('alreadyOnTentura', graphQLBoolean.nonNullable()));
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     contactSet,
     contactDelete,
+    contactCheck,
   ];
+
+  GraphQLObjectField<dynamic, dynamic> get contactCheck => GraphQLObjectField(
+    'contactCheck',
+    _checkResult.nonNullable(),
+    arguments: [_kind.field, _value.field],
+    resolve: (_, args) async {
+      final caller = getCredentials(args).sub;
+      if (_kind.fromArgsNonNullable(args) != ContactKind.email.wire) {
+        throw const IdWrongException(description: 'Only email can be checked');
+      }
+      final matched = await GetIt.I<ContactCheckCase>().checkEmail(
+        caller,
+        _value.fromArgsNonNullable(args),
+      );
+      return {'alreadyOnTentura': matched};
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get contactSet => GraphQLObjectField(
     'contactSet',

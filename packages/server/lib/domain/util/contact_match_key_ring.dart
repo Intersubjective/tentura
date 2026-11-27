@@ -62,9 +62,18 @@ final class ContactMatchKeyRing {
     ContactKind kind,
     String value,
     Set<int> referencedVersions,
+  ) => kind == ContactKind.email
+      ? candidateHashesForNormalizedEmail(
+          normalizeAuthEmail(value),
+          referencedVersions,
+        )
+      : const [];
+
+  Iterable<ContactMatchHash> candidateHashesForNormalizedEmail(
+    String email,
+    Iterable<int> referencedVersions,
   ) sync* {
-    if (kind != ContactKind.email) return;
-    final message = utf8.encode(normalizeAuthEmail(value));
+    final message = utf8.encode(email);
     for (final version in referencedVersions) {
       final key = _keys[version];
       if (key != null) yield (version: version, digest: key.convert(message));

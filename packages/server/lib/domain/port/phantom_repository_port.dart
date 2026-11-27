@@ -3,6 +3,8 @@ import 'dart:math' show max;
 import '../exception.dart';
 import 'owner_graph_transaction_port.dart';
 
+typedef PhantomImportedContact = ({String id, bool? alreadyOnTentura});
+
 abstract interface class PhantomRepositoryPort {
   Future<int> countActive(OwnerGraphScope scope, String ownerId);
 
@@ -22,7 +24,7 @@ abstract interface class PhantomRepositoryPort {
     required String? keptPhone,
   });
 
-  Future<List<String>?> findImportedChunk(
+  Future<List<PhantomImportedContact>?> findImportedChunk(
     OwnerGraphScope scope,
     String ownerId,
     String clientOpId,
@@ -34,7 +36,7 @@ abstract interface class PhantomRepositoryPort {
     String ownerId,
     String clientOpId,
     int chunkIndex,
-    List<String> createdIds,
+    List<PhantomImportedContact> created,
   );
 
   /// Returns false when the caller has no matching person.

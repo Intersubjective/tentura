@@ -97,7 +97,7 @@ SELECT id, 'phone', $3 FROM public.phantom WHERE id = $1 AND owner_id = $2
   }
 
   @override
-  Future<List<String>?> findImportedChunk(
+  Future<List<PhantomImportedContact>?> findImportedChunk(
     OwnerGraphScope scope,
     String ownerId,
     String clientOpId,
@@ -107,7 +107,7 @@ SELECT id, 'phone', $3 FROM public.phantom WHERE id = $1 AND owner_id = $2
     final row = await _database
         .customSelect(
           r'''
-SELECT created_ids FROM public.phantom_import_chunk
+SELECT created_ids, match_results FROM public.phantom_import_chunk
 WHERE owner_id = $1 AND client_op_id = $2 AND chunk_index = $3
 ''',
           variables: [
@@ -117,7 +117,14 @@ WHERE owner_id = $1 AND client_op_id = $2 AND chunk_index = $3
           ],
         )
         .getSingleOrNull();
-    return row?.read<List<dynamic>>('created_ids').cast<String>();
+    if (row == null) return null;
+    return switch ((row.data['created_ids'], row.data['match_results'])) {
+      (final List<String> ids, final List<bool?>? matches) => [
+        for (final (index, id) in ids.indexed)
+          (id: id, alreadyOnTentura: matches?[index]),
+      ],
+      _ => throw StateError('Invalid saved contact import result'),
+    };
   }
 
   @override
@@ -126,16 +133,25 @@ WHERE owner_id = $1 AND client_op_id = $2 AND chunk_index = $3
     String ownerId,
     String clientOpId,
     int chunkIndex,
-    List<String> createdIds,
+    List<PhantomImportedContact> created,
   ) async {
     requireOwnerGraphScope(_database, scope, ownerId);
     await _database.customStatement(
       r'''
 INSERT INTO public.phantom_import_chunk
-  (owner_id, client_op_id, chunk_index, created_ids)
-VALUES ($1, $2, $3, $4)
+  (owner_id, client_op_id, chunk_index, created_ids, match_results)
+VALUES ($1, $2, $3, $4, $5)
 ''',
-      [ownerId, clientOpId, chunkIndex, TypedValue(Type.textArray, createdIds)],
+      [
+        ownerId,
+        clientOpId,
+        chunkIndex,
+        TypedValue(Type.textArray, [for (final row in created) row.id]),
+        TypedValue<List<bool?>>(
+          Type.booleanArray,
+          [for (final row in created) row.alreadyOnTentura],
+        ),
+      ],
     );
   }
 

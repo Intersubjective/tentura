@@ -43,6 +43,7 @@ final class MutationPhantom extends GqlNodeBase {
                 ..fields.addAll([
                   field('rowIndex', graphQLInt.nonNullable()),
                   field('id', graphQLString.nonNullable()),
+                  field('alreadyOnTentura', graphQLBoolean),
                 ]))
               .nonNullable(),
         ).nonNullable(),
@@ -103,7 +104,11 @@ final class MutationPhantom extends GqlNodeBase {
         return {
           'created': [
             for (final row in result.created)
-              {'rowIndex': row.rowIndex, 'id': row.id},
+              {
+                'rowIndex': row.rowIndex,
+                'id': row.id,
+                'alreadyOnTentura': row.alreadyOnTentura,
+              },
           ],
           'refused': [
             for (final row in result.refused)
