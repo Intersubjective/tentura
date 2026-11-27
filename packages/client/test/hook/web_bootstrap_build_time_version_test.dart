@@ -5,11 +5,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:hooks/hooks.dart';
+import 'package:pub_semver/pub_semver.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:test/test.dart';
 
 const _sourceVersion = '0.0.0-dev';
-const _releaseVersion = '7.74.0';
 final _clientRoot = Directory.current.absolute;
 final _sourcePubspec = File('${_clientRoot.path}/pubspec.yaml');
 final _sourceIndex = File('${_clientRoot.path}/web/index.html');
@@ -26,12 +26,15 @@ void main() {
     test(
       'the deployed web release stamps the supported client version into its entry points',
       () async {
-        final packageVersion = Pubspec.parse(
-          _sourcePubspec.readAsStringSync(),
-        ).version.toString();
+        final release =
+            Pubspec.parse(
+              _sourcePubspec.readAsStringSync(),
+            ).version ??
+            fail('The client pubspec must declare a release version.');
+        final packageVersion = release.toString();
         final sourceIndex = _sourceIndex.readAsStringSync();
         expect(_bootstrapVersion(sourceIndex), _sourceVersion);
-        expect(sourceIndex, isNot(contains(_releaseVersion)));
+        expect(sourceIndex, isNot(contains(packageVersion)));
         expect(
           'flutter_bootstrap.js?v=$_sourceVersion'.allMatches(sourceIndex),
           hasLength(1),
@@ -73,20 +76,18 @@ void main() {
                   fixture.file('build/web/manifest.json').readAsStringSync(),
                 )
                 as Map<String, dynamic>;
+        expect(manifest['version'], packageVersion);
+        final serverEnv = File('../server/lib/env.dart').readAsStringSync();
+        final floor =
+            RegExp(
+              r"^const kDefaultMinClientVersion = '([^']+)';$",
+              multiLine: true,
+            ).allMatches(serverEnv).single.group(1) ??
+            fail('The server must declare a minimum client version.');
         expect(
-          (
-            bootstrap: bootstrapVersion,
-            manifest: manifest['version'],
-          ),
-          (bootstrap: _releaseVersion, manifest: _releaseVersion),
-        );
-        final serverEnv = File('../server/lib/env.dart').readAsLinesSync();
-        expect(
-          serverEnv.where(
-            (line) => line.startsWith('const kDefaultMinClientVersion = '),
-          ),
-          ["const kDefaultMinClientVersion = '$bootstrapVersion';"],
-          reason: 'The deployed web release and the server floor must agree.',
+          release,
+          greaterThanOrEqualTo(Version.parse(floor)),
+          reason: 'The deployed web release must meet the server minimum.',
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),

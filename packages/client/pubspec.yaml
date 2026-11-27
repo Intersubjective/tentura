@@ -95,6 +95,7 @@ dependencies:
 
   clock: any
 dev_dependencies:
+  pub_semver: ^2.2.0
   flutter_test:
     sdk: flutter
   integration_test:
