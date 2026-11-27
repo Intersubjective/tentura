@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import '../email_discoverability_fields.dart';
 import '../person_note_fields.dart';
 import 'query_beacon_display.dart';
 import 'query_beacon_hierarchy.dart';
@@ -90,6 +91,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryMutualFriends().all,
   ...QueryLineageSuggestions().all,
   ...QueryNotificationPreferences().all,
+  const EmailDiscoverabilityFields().read,
   ...QueryPeopleListMeta().all,
   ...QueryPeopleTags().all,
   ...QueryConstellationLayoutSnapshots().all,

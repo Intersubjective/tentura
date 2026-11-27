@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import '../email_discoverability_fields.dart';
 import '../person_note_fields.dart';
 import 'mutation_auth.dart';
 import 'mutation_author_invite.dart';
@@ -89,5 +90,6 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationFcm().all,
   ...MutationDebug().all,
   ...MutationNotificationPreferences().all,
+  const EmailDiscoverabilityFields().set,
   ...MutationTrustPreference().all,
 ];
