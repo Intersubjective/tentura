@@ -1,26 +1,49 @@
 {
-  "enabledMcpjsonServers": ["serena"],
+  "enabledMcpjsonServers": [
+    "serena"
+  ],
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
         "hooks": [
           {
-            "type": "command",
             "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); if [[ \"$f\" == *.dart ]]; then source \"$CLAUDE_PROJECT_DIR/rag_env/bin/activate\" && cd \"$CLAUDE_PROJECT_DIR\" && python3 rag_index.py --single \"$f\" 2>/dev/null || true; fi",
-            "timeout": 30000
+            "timeout": 30000,
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Edit|Write"
       },
       {
-        "matcher": "Bash",
         "hooks": [
           {
-            "type": "command",
             "command": "bash /home/vader/.claude/commands/ollama_compress.sh",
-            "timeout": 30000
+            "timeout": 30000,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager snapshot --repo \"$CLAUDE_PROJECT_DIR\"",
+            "type": "command"
           }
         ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "/home/vader/MY_SRC/alloy/.venv/bin/alloy manager brief --repo \"$CLAUDE_PROJECT_DIR\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "startup|resume|compact|clear"
       }
     ]
   }
