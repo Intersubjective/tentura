@@ -10,12 +10,15 @@ import 'package:logging/logging.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
@@ -23,7 +26,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
-import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import 'support/mark_unread_server_fake.dart';
 import 'support/noop_invite_setup_port.dart';
@@ -36,6 +38,7 @@ import 'support/noop_invite_setup_port.dart';
 // where the visible line must also fit without truncation.
 
 const _request = 'Fix the roof';
+const _forwardSender = 'UrecoverySndr';
 
 /// One receipt in the shape the server sends (`AttentionReceiptFields`),
 /// with the facts the new copy needs in the payload.
@@ -127,6 +130,41 @@ typedef _Case = ({
 });
 
 final _cases = <_Case>[
+  (
+    name: 'an invite joiner sees who sent the Request and that it has closed',
+    // Recipient-safe notice returned by Activity after delivery lapses.
+    wire: {
+      ..._wire(presentationKey: 'request_forward_lapsed', payload: const {}),
+      'category': 'connections',
+      'kind': 'coordinationChanged',
+      'priority': 'normal',
+      'title': '',
+      'body': '',
+      'actionUrl': '',
+      'beaconId': null,
+      'beaconTitle': null,
+      'actorUserId': _forwardSender,
+      'sourceEventKey': 'requestForwardLapsed:PF000000000001',
+      'destinationKind': 'safe_terminal',
+      'presentationPayloadJson': '{"eventType":"requestForwardLapsed"}',
+    },
+    expected: {
+      const Locale('en'): (
+        const Size(800, 800),
+        [
+          'Vadim sent you a request',
+          'has since closed',
+          'connected with Vadim',
+        ],
+      ),
+      const Locale('ru'): (
+        const Size(375, 667),
+        ['Vadim отправил(а) вам запрос', 'уже закрыт', 'на связи'],
+      ),
+    },
+    absent: ['phantom', 'фантом'],
+    requestTitleAtMostOnce: false,
+  ),
   (
     name: 'a linked Request status names the linked Request',
     wire: _wire(
@@ -227,6 +265,11 @@ void main() {
           );
           final server = MarkUnreadServerFake([receipt]);
           final accounts = _Accounts();
+          final actorProfiles = AttentionActorProfilesCase(
+            _Profiles(),
+            accounts,
+          );
+          addTearDown(actorProfiles.dispose);
           final sync = buildTestRealtimeSync();
           final attention = buildAttentionCase(
             repository: server,
@@ -242,7 +285,7 @@ void main() {
             setup: NoopInviteAcceptedSetupPort(),
             realtime: sync.case_,
             logger: Logger('updates-row-copy-real-path-cubit'),
-            actorProfiles: buildNoopAttentionActorProfiles(),
+            actorProfiles: actorProfiles,
           );
           accounts.emit('viewer');
           await _drain();
@@ -275,12 +318,22 @@ void main() {
 
           final row = find.byType(UpdatesFeedTile);
           expect(row, findsOneWidget);
+          final displayedText = tester
+              .widgetList<RichText>(
+                find.descendant(of: row, matching: find.byType(RichText)),
+              )
+              .map((text) => text.text.toPlainText())
+              .join(' | ');
           for (final text in texts) {
             final hit = find.descendant(
               of: row,
               matching: find.textContaining(text, findRichText: true),
             );
-            expect(hit, findsOneWidget, reason: text);
+            expect(
+              hit,
+              findsOneWidget,
+              reason: 'The row shows: $displayedText',
+            );
             final paragraph = tester.renderObject<RenderParagraph>(
               find.descendant(
                 of: row,
@@ -324,6 +377,14 @@ void main() {
       );
     });
   }
+}
+
+final class _Profiles extends Fake implements ProfileRepositoryPort {
+  @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async => [
+    if (ids.contains(_forwardSender))
+      const Profile(id: _forwardSender, displayName: 'Vadim'),
+  ];
 }
 
 final class _Accounts implements AttentionAccountPort {

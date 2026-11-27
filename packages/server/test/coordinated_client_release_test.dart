@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _release = '7.70.0';
+const _release = '7.72.0';
 
 void main() {
   test('the shipped client declares one release version', () {
@@ -50,7 +50,9 @@ void main() {
         ),
       },
       {
-        'comment': [contains('kDefaultMinClientVersion, currently $_release)')],
+        'comment': [
+          contains('kDefaultMinClientVersion, currently $_release)'),
+        ],
         'override': ['# MIN_CLIENT_VERSION=$_release'],
       },
     );

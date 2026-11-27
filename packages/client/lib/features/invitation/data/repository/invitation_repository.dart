@@ -37,7 +37,7 @@ typedef InvitationsFetchResult = ({
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class InvitationRepository implements InvitationAcceptPort {
+class InvitationRepository implements RequestInvitePreviewPort {
   InvitationRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -218,16 +218,32 @@ class InvitationRepository implements InvitationAcceptPort {
   Future<InvitePreview> fetchInvitePreview(String code) =>
       _fetchInvitePreview(code, _remoteApiService.getAuthenticatedJson);
 
+  @override
+  Future<InvitePreview> fetchRequestInvitePreview(
+    String code,
+    String requestId,
+  ) => _fetchInvitePreview(
+    code,
+    _remoteApiService.getAuthenticatedJson,
+    requestId: requestId,
+  );
+
   Future<InvitePreview> fetchSignupInvitePreview(String code) =>
       _fetchInvitePreview(code, _remoteApiService.getPublicJson);
 
   Future<InvitePreview> _fetchInvitePreview(
     String code,
-    Future<Map<String, dynamic>> Function(Uri) getJson,
-  ) async {
+    Future<Map<String, dynamic>> Function(Uri) getJson, {
+    String? requestId,
+  }) async {
     try {
+      final uri = _inviteApiUri(
+        '/api/v2/invite/${Uri.encodeComponent(code)}/preview',
+      );
       final json = await getJson(
-        _inviteApiUri('/api/v2/invite/${Uri.encodeComponent(code)}/preview'),
+        requestId == null
+            ? uri
+            : uri.replace(queryParameters: {'r': requestId}),
       );
       return InvitePreview.fromJson(json);
     } on ServerStatusException catch (e) {

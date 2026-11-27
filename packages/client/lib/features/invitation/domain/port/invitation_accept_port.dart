@@ -8,3 +8,12 @@ abstract class InvitationAcceptPort {
 
   Future<ExistingInviteAcceptance> acceptExistingInvite(String code);
 }
+
+/// Authenticated previews for invitations with an attached Request.
+abstract interface class RequestInvitePreviewPort
+    implements InvitationAcceptPort {
+  Future<InvitePreview> fetchRequestInvitePreview(
+    String code,
+    String requestId,
+  );
+}

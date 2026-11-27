@@ -78,6 +78,19 @@ abstract final class AttentionDismissibleSql {
 visible_raw AS (
   SELECT (authorized.receipt).*, authorized.tombstone_copy
   FROM public.visible_attention_receipts($1) authorized
+  WHERE (authorized.receipt).presentation_key IS DISTINCT FROM 'request_forward_offered'
+     OR (
+       (authorized.receipt).seen_at IS NULL
+       AND EXISTS (
+         SELECT 1
+         FROM public.phantom_pending_forward f
+         WHERE f.id = (authorized.receipt).target_entity_id
+           AND f.sender_id = (authorized.receipt).account_id
+           AND f.beacon_id = (authorized.receipt).beacon_id
+           AND f.merge_id = (authorized.receipt).presentation_payload->>'mergeId'
+           AND f.state = 'offered'
+       )
+     )
 ),
 scope AS (
   SELECT base.beacon_id
@@ -102,6 +115,8 @@ visible AS (
   SELECT
     visible_raw.*,
     CASE
+      WHEN visible_raw.presentation_key = 'request_forward_offered'
+      THEN 'activity'
       WHEN visible_raw.beacon_id IS NOT NULL
        AND visible_raw.beacon_id IN (SELECT scope.beacon_id FROM scope)
       THEN 'myWork'
@@ -168,6 +183,10 @@ eligible_pinned AS (
   /// predicate also spells the `unread` view of History, which §3 keeps.
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
+
+  /// A saved forward has its own decision card even when its Request is pinned.
+  static String linkedPersonForwardOffer(String alias) =>
+      "($alias.presentation_key = 'request_forward_offered') IS TRUE";
 
   /// Private link notices are presented on the Field.
   static String fieldPersonLink(String alias) =>

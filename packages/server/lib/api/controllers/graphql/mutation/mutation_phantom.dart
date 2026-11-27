@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_case.dart';
+import 'package:tentura_server/domain/use_case/phantom_forward_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 
 import '../custom_types.dart';
@@ -18,6 +19,8 @@ final class MutationPhantom extends GqlNodeBase {
   static final _name = InputFieldString(fieldName: 'name');
   static final _emoji = InputFieldString(fieldName: 'emoji');
   static final _phantomId = InputFieldString(fieldName: 'phantomId');
+  static final _beaconId = InputFieldString(fieldName: 'beaconId');
+  static final _note = InputFieldString(fieldName: 'note');
   static final _mergeId = InputFieldString(fieldName: 'mergeId');
   static final _userId = InputFieldString(fieldName: 'userId');
   static final _position = GraphQLFieldInput(
@@ -78,6 +81,24 @@ final class MutationPhantom extends GqlNodeBase {
       ),
     ),
     GraphQLObjectField(
+      'beaconForwardToPhantom',
+      graphQLString.nonNullable(),
+      arguments: [_beaconId.field, _phantomId.field, _note.fieldNullable],
+      resolve: (_, args) async {
+        final beaconId = _beaconId.fromArgsNonNullable(args);
+        final code = await _case.forwardRequest(
+          ownerId: getCredentials(args).sub,
+          phantomId: _phantomId.fromArgsNonNullable(args),
+          beaconId: beaconId,
+          note: _note.fromArgs(args) ?? '',
+        );
+        return Uri(
+          pathSegments: ['', 'invite', code],
+          queryParameters: {'r': beaconId},
+        ).toString();
+      },
+    ),
+    GraphQLObjectField(
       'phantomLink',
       graphQLBoolean.nonNullable(),
       arguments: [_phantomId.field, _userId.field],
@@ -85,6 +106,16 @@ final class MutationPhantom extends GqlNodeBase {
         ownerId: getCredentials(args).sub,
         phantomId: _phantomId.fromArgsNonNullable(args),
         userId: _userId.fromArgsNonNullable(args),
+      ),
+    ),
+    GraphQLObjectField(
+      'phantomForwardConfirm',
+      graphQLBoolean.nonNullable(),
+      arguments: [_id.field, _mergeId.fieldNullable],
+      resolve: (_, args) => GetIt.I<PhantomForwardDeliveryCase>().confirm(
+        senderId: getCredentials(args).sub,
+        id: _id.fromArgsNonNullable(args),
+        mergeId: _mergeId.fromArgs(args),
       ),
     ),
     GraphQLObjectField(

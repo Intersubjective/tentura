@@ -386,6 +386,12 @@ WITH reactivated AS (
       current_merge_id = NULL, revision = revision + 1, updated_at = now()
   WHERE owner_id = $1 AND current_merge_id = $2 AND id = $3
   RETURNING id
+), restored_forwards AS (
+  UPDATE public.phantom_pending_forward
+  SET state = 'pending', merge_id = NULL, recipient_id = NULL
+  WHERE sender_id = $1 AND merge_id = $2
+    AND phantom_id IN (SELECT id FROM reactivated)
+    AND state IN ('claimed', 'offered')
 )
 UPDATE public.phantom_merge SET undone_at = now()
 WHERE id = $2 AND phantom_id IN (SELECT id FROM reactivated)

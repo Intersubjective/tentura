@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/entity/phantom_pending_forward.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -77,6 +78,7 @@ import 'table/person_field_first_seen_inits.dart';
 import 'table/phantom_link_hint_dismissals.dart';
 import 'table/phantom_merge_jobs.dart';
 import 'table/phantom_merges.dart';
+import 'table/phantom_pending_forwards.dart';
 import 'table/phantoms.dart';
 import 'table/user_block_intents.dart';
 import 'table/user_blocks.dart';
@@ -152,6 +154,7 @@ part 'tentura_db.g.dart';
     PhantomLinkHintDismissals,
     PhantomMergeJobs,
     PhantomMerges,
+    PhantomPendingForwards,
     Phantoms,
     Pollings,
     PollingActs,

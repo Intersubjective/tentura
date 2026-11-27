@@ -6179,6 +6179,13 @@
       }
     }
   },
+  "updatesRequestForwardLapsed": "{name} sent you a request, but it has since closed. You're connected with {name}.",
+  "@updatesRequestForwardLapsed": {
+    "description": "Feed notice for a Request that closed before its invite forward could be delivered",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "updatesQuestionsMessageFrom": "{name} wrote in Questions",
   "@updatesQuestionsMessageFrom": {
     "description": "Updates row headline: someone wrote in a Request's Questions (#736)",
@@ -10929,6 +10936,16 @@
   "personNoteAddHint": "Add a note",
   "personNoteTooLong": "Use 4,000 characters or fewer.",
   "personNoteRetry": "Try again",
+  "forwardPickMyPlaceholders": "Pick from my placeholders",
+  "forwardNoPlaceholders": "You have no placeholders to choose from.",
+  "personAttachRequest": "Attach a request",
+  "personNoForwardableRequests": "You have no requests available to forward.",
+  "placeholderForwardName": "{name} (not on Tentura yet)",
+  "@placeholderForwardName": {"placeholders": {"name": {"type": "String"}}},
+  "placeholderForwardPending": "Pending",
+  "placeholderForwardLapsed": "Lapsed",
+  "linkedPersonForwardQuestion": "Forward «{title}» to {name} now?",
+  "@linkedPersonForwardQuestion": {"placeholders": {"title": {"type": "String"}, "name": {"type": "String"}}},
   "personPanelNewLink": "New link",
   "personPanelLinkExisting": "This is someone already on Tentura…",
   "personLinkMerged": "{name} was linked to a Tentura account",

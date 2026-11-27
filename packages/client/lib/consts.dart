@@ -227,6 +227,11 @@ Uri inviteShareUri(String invitationId) {
   return Uri.parse(kServerName).replace(path: '/invite/$invitationId');
 }
 
+/// Resolves a server-relative link (e.g. `/invite/<code>?r=<id>`) against the
+/// server origin so a copied link or QR code opens for its recipient.
+Uri serverAbsoluteUri(String link, {String base = kServerName}) =>
+    Uri.parse(base).resolveUri(Uri.parse(link));
+
 /// WebSocket server base URL; defaults to [kServerName].
 /// In dev without a reverse proxy, set to the Tentura API directly
 /// (e.g. `http://localhost:2080`) since Flutter's dev server cannot proxy WS.

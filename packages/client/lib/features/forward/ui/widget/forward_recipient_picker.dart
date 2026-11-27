@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
@@ -20,9 +21,13 @@ import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/features/phantoms/domain/port/phantom_repository_port.dart';
+import 'package:tentura/features/phantoms/ui/widget/phantom_invite_presentation.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
@@ -529,6 +534,61 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
   }
 
+  Future<void> _pickPlaceholder(BuildContext context) async {
+    if (_inviteFlowActive) return;
+    final state = context.read<ForwardCubit>().state;
+    final ownerId = context.read<ProfileCubit>().state.profile.id;
+    if (ownerId.isEmpty) return;
+    _inviteFlowActive = true;
+    try {
+      final field = await GetIt.I<ConstellationRepositoryPort>().fetch();
+      if (!context.mounted) return;
+      final l10n = L10n.of(context)!;
+      var note = state.note;
+      final picked = await pickPlaceholderForwardItem(
+        context,
+        title: l10n.forwardPickMyPlaceholders,
+        empty: l10n.forwardNoPlaceholders,
+        items: [
+          for (final person in field.phantoms)
+            if (person.ownerId == ownerId)
+              (id: person.id, name: person.displayName),
+        ],
+        input: TextFormField(
+          initialValue: note,
+          decoration: InputDecoration(labelText: l10n.forwardSharedNoteHint),
+          onChanged: (value) => note = value,
+        ),
+      );
+      if (picked == null || !context.mounted) return;
+      await sharePlaceholderRequest(
+        context,
+        phantomId: picked,
+        beaconId: state.beaconId,
+        note: note.trim(),
+      );
+    } on Exception catch (error, stackTrace) {
+      if (context.mounted) {
+        showSnackBar(
+          context,
+          isError: true,
+          text: L10n.of(context)!.errorGenericAction,
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    } finally {
+      _inviteFlowActive = false;
+    }
+  }
+
+  bool _canPickPlaceholder(BuildContext context, ForwardState state) =>
+      kPhantomsEnabled &&
+      state.beacon?.isRequest == true &&
+      !_needsMakeLiveBeforeInvite(context) &&
+      GetIt.I.isRegistered<ConstellationRepositoryPort>() &&
+      GetIt.I.isRegistered<PhantomRepositoryPort>();
+
   /// Whether the copy speaks of a Post (#501): the host's `copyProfile`
   /// wins, as a new Post's draft is not a loaded beacon.
   bool _isPost(ForwardState state) =>
@@ -892,6 +952,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   delegate: ForwardPinnedSliverHeaderDelegate(
                                     height:
                                         ForwardInviteBar.buttonHeight +
+                                        (_canPickPlaceholder(context, state)
+                                            ? ForwardInviteBar
+                                                  .placeholderButtonHeight
+                                            : 0) +
                                         tt.rowGap * 2,
                                     child:
                                         BlocSelector<
@@ -909,6 +973,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                                 ),
                                                 onClearSelection:
                                                     cubit.clearSelection,
+                                                onPickPlaceholder:
+                                                    _canPickPlaceholder(
+                                                      context,
+                                                      state,
+                                                    )
+                                                    ? () => unawaited(
+                                                        _pickPlaceholder(
+                                                          context,
+                                                        ),
+                                                      )
+                                                    : null,
                                               ),
                                         ),
                                   ),

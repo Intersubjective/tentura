@@ -29,6 +29,7 @@ import 'package:tentura/features/my_work/data/repository/archive_repository.dart
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/forward/domain/entity/placeholder_forward.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -730,6 +731,9 @@ final class BeaconViewCase extends UseCaseBase {
   );
 
   /// All forward edges on the beacon, newest first (`ForwardEdgesFetch`: `order_by: created_at desc`).
+  Future<List<PlaceholderForward>> fetchPendingForwards(String beaconId) =>
+      _forwardRepository.fetchPendingForwards(beaconId);
+
   Future<List<ForwardEdge>> fetchForwardEdgesForBeacon(String beaconId) =>
       _forwardRepository.fetchEdges(beaconId: beaconId);
 

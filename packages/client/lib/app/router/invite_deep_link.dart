@@ -14,6 +14,9 @@ Uri transformInviteDeepLink({
   final id = Uri.decodeComponent(match.group(1)!);
   return uri.replace(
     path: isAuthenticated ? '$kPathAcceptInvite/$id' : '$kPathSignUp/$id',
-    queryParameters: {kQueryIsDeepLink: 'true'},
+    queryParameters: {
+      kQueryIsDeepLink: 'true',
+      'r': ?uri.queryParameters['r'],
+    },
   );
 }

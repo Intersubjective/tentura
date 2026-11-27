@@ -9,6 +9,7 @@ import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/help_offer_status.dart';
@@ -33,6 +34,8 @@ import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.data.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
+import '../gql/_g/confirm_offered_request_forward.req.gql.dart';
+import '../gql/_g/forward_delivery_result_fields.data.gql.dart';
 import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show
@@ -44,6 +47,8 @@ import '../gql/_g/forward_mark_read.req.gql.dart';
 import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
+import '../gql/_g/beacon_pending_forwards.req.gql.dart';
+import '../../domain/entity/placeholder_forward.dart';
 import '../gql/_g/forward_reasons_fetch.req.gql.dart';
 import '../gql/_g/beacon_offer_help.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
@@ -182,27 +187,54 @@ class ForwardRepository {
         ),
       )
       .firstLinkResponse(label: _label)
-      .then((r) {
-        final payload = r.dataOrThrow(label: _label).beaconForward;
-        final result = ForwardDeliveryResult(
-          batchId: payload.batchId,
-          deliveredRecipientIds: payload.deliveredRecipientIds.toList(),
-          availabilitySkippedRecipientIds: payload
-              .availabilitySkippedRecipientIds
-              .toList(),
-          alreadyForwardedRecipientIds: payload.alreadyForwardedRecipientIds
-              .toList(),
-          blockedSkippedRecipientIds: payload.blockedSkippedRecipientIds
-              .toList(),
-        );
-        if (!_forwardChangesController.isClosed) {
-          _forwardChangesController.add(beaconId);
-        }
-        if (!_forwardCommandCompletedController.isClosed) {
-          _forwardCommandCompletedController.add(beaconId);
-        }
-        return result;
-      });
+      .then(
+        (r) => _completeForward(
+          beaconId,
+          r.dataOrThrow(label: _label).beaconForward,
+        ),
+      );
+
+  Future<ForwardDeliveryResult> forwardOfferedRequest(
+    LinkedPersonForwardOffer offer,
+  ) => _remoteApiService
+      .request(
+        GConfirmOfferedRequestForwardReq((r) {
+          r.vars
+            ..beaconId = offer.requestId
+            ..recipientIds.addAll([?offer.recipientId])
+            ..offerId = offer.offerId
+            ..mergeId = offer.mergeId;
+        }),
+      )
+      .firstLinkResponse(label: _label)
+      .then(
+        (r) => _completeForward(
+          offer.requestId,
+          r.dataOrThrow(label: _label).beaconForward,
+        ),
+      );
+
+  ForwardDeliveryResult _completeForward(
+    String beaconId,
+    GForwardDeliveryResultFields payload,
+  ) {
+    final result = ForwardDeliveryResult(
+      batchId: payload.batchId,
+      deliveredRecipientIds: payload.deliveredRecipientIds.toList(),
+      availabilitySkippedRecipientIds: payload.availabilitySkippedRecipientIds
+          .toList(),
+      alreadyForwardedRecipientIds: payload.alreadyForwardedRecipientIds
+          .toList(),
+      blockedSkippedRecipientIds: payload.blockedSkippedRecipientIds.toList(),
+    );
+    if (!_forwardChangesController.isClosed) {
+      _forwardChangesController.add(beaconId);
+    }
+    if (!_forwardCommandCompletedController.isClosed) {
+      _forwardCommandCompletedController.add(beaconId);
+    }
+    return result;
+  }
 
   Future<List<ForwardInboundSource>> fetchInboundForwardSources({
     required String beaconId,
@@ -455,6 +487,27 @@ class ForwardRepository {
           );
         },
       );
+
+  Future<List<PlaceholderForward>> fetchPendingForwards(String beaconId) async {
+    final response = await _remoteApiService
+        .request(GBeaconPendingForwardsReq((r) => r.vars.beaconId = beaconId))
+        .firstLinkResponse(label: _label);
+    final rows = response.dataOrThrow(label: _label).beaconPendingForwards;
+    return [
+      for (final row in [...?rows])
+        if (switch (row.state) {
+              'pending' => PlaceholderForwardStatus.pending,
+              'lapsed' => PlaceholderForwardStatus.lapsed,
+              _ => null,
+            }
+            case final status?)
+          (
+            senderId: row.senderId,
+            displayName: row.displayName,
+            status: status,
+          ),
+    ];
+  }
 
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>
       _remoteApiService

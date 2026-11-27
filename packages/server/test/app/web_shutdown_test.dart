@@ -10,11 +10,35 @@ void main() {
   group(
     'Test web server shutdown',
     () {
+      late String childKernel;
+      setUpAll(() async {
+        // Compile the real child once before measuring server startup.
+        final directory = await Directory.systemTemp.createTemp(
+          'tentura_web_shutdown_',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        childKernel = '${directory.path}/shutdown.dill';
+        final compilation = await Process.run(Platform.resolvedExecutable, [
+          'compile',
+          'kernel',
+          'test/support/web_shutdown_child.dart',
+          '-o',
+          childKernel,
+        ]);
+        expect(
+          compilation.exitCode,
+          0,
+          reason: '${compilation.stdout}\n${compilation.stderr}',
+        );
+      });
+
+      Future<_Child> startChild(String mode) => _Child.start(childKernel, mode);
+
       for (final signal in [ProcessSignal.sigterm, ProcessSignal.sigint]) {
         test(
           '${signal.name} stops the worker before the entrypoint exits',
           () async {
-            final child = await _Child.start('entrypoint');
+            final child = await startChild('entrypoint');
             expect(child.process.kill(signal), isTrue);
             final code = await child.process.exitCode.timeout(_shutdownBudget);
             await child.drained.timeout(_shutdownBudget);
@@ -32,7 +56,7 @@ void main() {
         test(
           '${signal.name} closes the server before runWithTestEnv returns',
           () async {
-            final child = await _Child.start('return');
+            final child = await startChild('return');
             expect(child.process.kill(signal), isTrue);
             final returned = await child.returned.future.timeout(
               _shutdownBudget,
@@ -59,7 +83,7 @@ void main() {
       test(
         'runWithTestEnv waits for worker dependency cleanup to finish',
         () async {
-          final child = await _Child.start('barrier');
+          final child = await startChild('barrier');
           expect(child.process.kill(), isTrue);
           final first = await Future.any([
             child.disposing.future.then((_) => 'disposing'),
@@ -101,7 +125,7 @@ void main() {
         test(
           '${signal.name} releases ports so the app exits naturally',
           () async {
-            final child = await _Child.start('return');
+            final child = await startChild('return');
             expect(child.process.kill(signal), isTrue);
             await child.returned.future.timeout(_shutdownBudget);
             final code = await child.process.exitCode.timeout(
@@ -210,10 +234,10 @@ final class _Child {
     fail('Runner did not install both SIGINT and SIGTERM handlers.\n$output');
   }
 
-  static Future<_Child> start(String mode) async {
+  static Future<_Child> start(String kernel, String mode) async {
     final process = await Process.start(
       Platform.resolvedExecutable,
-      ['run', 'test/support/web_shutdown_child.dart', mode],
+      [kernel, mode],
       includeParentEnvironment: false,
       environment: {
         'PATH': Platform.environment['PATH']!,

@@ -37,9 +37,13 @@ final class InvitePreviewController extends BaseController {
         ? null
         : jwt.sub;
     try {
+      final requestId = request.url.queryParameters['r'] ?? '';
       final result = await _invitationCase.preview(
         code: code,
         callerUserId: callerUserId,
+        requestId: requestId.isEmpty || requestId.contains('\u0000')
+            ? null
+            : requestId,
       );
       return Response.ok(
         jsonEncode(result.toJson()),

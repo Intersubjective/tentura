@@ -48,6 +48,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
 
   final PostJoinNavigationCubit _postJoinNavigation;
   int _previewGeneration = 0;
+  String? _requestId;
 
   static const _previewAuthRetryDelays = [
     Duration(milliseconds: 250),
@@ -66,9 +67,10 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     }
   }
 
-  Future<void> start(String rawCode) async {
+  Future<void> start(String rawCode, {String? requestId}) async {
     if (isClosed) return;
     final generation = ++_previewGeneration;
+    _requestId = requestId;
     final code = normalizeInviteCode(rawCode);
     emit(AcceptInviteState(code: code));
     final formatMessage = inviteCodeFormatMessage(rawCode);
@@ -79,7 +81,13 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     for (var attempt = 0; ; attempt++) {
       if (isClosed || generation != _previewGeneration) return;
       try {
-        final preview = await _repository.fetchInvitePreview(code);
+        final repository = _repository;
+        final preview =
+            await (requestId != null &&
+                    requestId.isNotEmpty &&
+                    repository is RequestInvitePreviewPort
+                ? repository.fetchRequestInvitePreview(code, requestId)
+                : repository.fetchInvitePreview(code));
         if (isClosed || generation != _previewGeneration) return;
         await _handlePreview(code, preview);
         return;
@@ -210,7 +218,10 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   }
 
   void _bounceUnauthenticated(String code, {InvitePreview? preview}) {
-    if (kIsWeb && goToLanding(invitePath: '/invite/$code')) {
+    if (kIsWeb &&
+        goToLanding(
+          invitePath: inviteLandingUri(code, requestId: _requestId).toString(),
+        )) {
       return;
     }
     final beacon = preview?.beacon;

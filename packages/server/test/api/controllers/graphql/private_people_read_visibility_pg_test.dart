@@ -44,6 +44,7 @@ const _viewerTag = 'PT781b000002';
 const _noteSearch = 'GardenLedger731';
 const _entryNote = 'Seed order for GardenLedger731';
 const _accountNote = 'Pickup schedule for GardenLedger731';
+const _pendingForwardNote = 'Bring the blue watering can from Plot 43';
 const _ownerAvatarPrefix = 'private/$_owner/';
 
 final _phantomIdPattern = RegExp('PH[0-9a-f]{12}');
@@ -62,6 +63,7 @@ Future<void> main() async {
     late _Api api;
     late List<String> privateIds;
     late String inviteCode;
+    late _JsonReply previewBeforeForward;
     late Connection writer;
     late List<String> avatarKeys;
     final storage = _AvatarStorage();
@@ -74,6 +76,7 @@ Future<void> main() async {
           anyOf(
             contains(_entryNote),
             contains(_accountNote),
+            contains(_pendingForwardNote),
             contains(_ownerAvatarPrefix),
             contains(Uri.encodeComponent(_ownerAvatarPrefix)),
           ),
@@ -180,6 +183,42 @@ mutation ForwardToHelper($request: String!, $helper: String!) {
         forwarded['beaconForward'],
         containsPair('deliveredRecipientIds', [_viewer]),
       );
+
+      previewBeforeForward = await api.preview(
+        inviteCode,
+        requestId: _requestId,
+      );
+      final saved = await api.query(
+        _owner,
+        r'''
+mutation SaveInviteForward($request: String!, $person: String!, $note: String!) {
+  beaconForwardToPhantom(beaconId: $request, phantomId: $person, note: $note)
+}
+''',
+        {
+          'request': _requestId,
+          'person': privateIds.first,
+          'note': _pendingForwardNote,
+        },
+      );
+      expect(
+        saved['beaconForwardToPhantom'],
+        '/invite/$inviteCode?r=$_requestId',
+      );
+      final pending = await writer.execute(
+        Sql.named('''
+SELECT state, note FROM public.phantom_pending_forward
+WHERE sender_id = @owner AND phantom_id = @person AND beacon_id = @request
+'''),
+        parameters: {
+          'owner': _owner,
+          'person': privateIds.first,
+          'request': _requestId,
+        },
+      );
+      expect(pending.map((row) => row.toList()), [
+        ['pending', _pendingForwardNote],
+      ]);
 
       await writer.execute('''
 INSERT INTO public.beacon_participant (beacon_id, user_id, role, status, room_access)
@@ -340,6 +379,14 @@ query RequestForwards($request: String!) {
           allOf(
             containsPair('senderId', _owner),
             containsPair('recipientId', _viewer),
+            containsPair(
+              'sender',
+              {'userId': _owner, 'displayName': _ownerName},
+            ),
+            containsPair(
+              'recipient',
+              {'userId': _viewer, 'displayName': _viewerName},
+            ),
           ),
         ]);
         expect(response['beaconEligibleInboundForwards'], [
@@ -391,16 +438,32 @@ query InvitationDetails($code: String!) {
       },
     );
 
-    for (final includeRequest in [false, true]) {
+    for (final (description, hasForward, includeRequest) in [
+      (
+        'a bare Request hint grants no preview before a forward is saved',
+        false,
+        true,
+      ),
+      (
+        'an invite preview without a Request hint protects the saved forward',
+        true,
+        false,
+      ),
+      (
+        'a Request hint shows the saved Request and protects the invite recipient',
+        true,
+        true,
+      ),
+    ]) {
       test(
-        includeRequest
-            ? 'an invite preview with a Request hint protects the recipient'
-            : 'an invite preview protects the recipient',
+        description,
         () async {
-          final preview = await api.preview(
-            inviteCode,
-            requestId: includeRequest ? _requestId : null,
-          );
+          final preview = hasForward
+              ? await api.preview(
+                  inviteCode,
+                  requestId: includeRequest ? _requestId : null,
+                )
+              : previewBeforeForward;
           expect(preview['codeStatus'], 'available');
           expect(preview['callerStatus'], 'existing-user');
           expect(preview['inviter'], {
@@ -408,7 +471,12 @@ query InvitationDetails($code: String!) {
             'displayName': _ownerName,
             'image': null,
           });
-          expect(preview['beacon'], isNull);
+          expect(
+            preview['beacon'],
+            hasForward && includeRequest
+                ? containsPair('id', _requestId)
+                : isNull,
+          );
           expectNoPrivateEntries(preview.wire);
           expectNoPrivateNotesOrAvatarKeys(
             preview.wire,

@@ -112,22 +112,82 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
     required String eventId,
     required String presentationKey,
     required Map<String, String> facts,
+  }) => _recordPersonalNotice(
+    actorUserId: ownerId,
+    recipientId: ownerId,
+    reason: 'owner',
+    eventType: eventType,
+    eventId: eventId,
+    presentationKey: presentationKey,
+    targetEntityId: phantomId,
+    payload: {'targetEntityId': phantomId, ...facts},
+  );
+
+  Future<void> recordRequestForwardLapsed({
+    required String senderId,
+    required String recipientId,
+    required String pendingForwardId,
+  }) => _recordPersonalNotice(
+    actorUserId: senderId,
+    recipientId: recipientId,
+    reason: AttentionRecipientReason.forwardRecipient.name,
+    eventType: 'requestForwardLapsed',
+    eventId: pendingForwardId,
+    presentationKey: kRequestForwardLapsedPresentationKey,
+    placement: AttentionPlacement.primary,
+    payload: const {'eventType': 'requestForwardLapsed'},
+  );
+
+  Future<void> recordRequestForwardOffered({
+    required String ownerId,
+    required String beaconId,
+    required String pendingForwardId,
+    required String mergeId,
+    required String linkedRecipientId,
+    required String displayName,
+  }) => _recordPersonalNotice(
+    actorUserId: ownerId,
+    recipientId: ownerId,
+    reason: 'owner',
+    eventType: 'requestForwardOffered',
+    eventId: '$mergeId:$pendingForwardId',
+    presentationKey: kRequestForwardOfferedPresentationKey,
+    beaconId: beaconId,
+    targetEntityId: pendingForwardId,
+    placement: AttentionPlacement.primary,
+    payload: {
+      'mergeId': mergeId,
+      'displayName': displayName,
+      'recipientId': linkedRecipientId,
+    },
+  );
+
+  Future<void> _recordPersonalNotice({
+    required String actorUserId,
+    required String recipientId,
+    required String reason,
+    required String eventType,
+    required String eventId,
+    required String presentationKey,
+    required Map<String, Object?> payload,
+    String? beaconId,
+    String? targetEntityId,
+    AttentionPlacement placement = AttentionPlacement.timelineOnly,
   }) async {
     final sourceEventKey = '$eventType:$eventId';
-    final payload = {'targetEntityId': phantomId, ...facts};
     final occurrence = await _recordOccurrence(
       sourceEventKey: sourceEventKey,
       eventType: eventType,
-      actorUserId: ownerId,
+      actorUserId: actorUserId,
       payload: payload,
     );
     if (occurrence == null) return;
     final occurrenceId = occurrence.read<String>('id');
     await _recordRecipients(occurrenceId, [
       {
-        'account_id': ownerId,
-        'reasons': ['owner'],
-        'role_facts': {'targetEntityId': phantomId},
+        'account_id': recipientId,
+        'reasons': [reason],
+        'role_facts': {'targetEntityId': ?targetEntityId},
         'collapse_key': sourceEventKey,
         'channel_eligible': false,
       },
@@ -135,20 +195,29 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
     await _insertReceipts(
       occurrenceId: occurrenceId,
       sourceEventKey: sourceEventKey,
-      actorUserId: ownerId,
+      actorUserId: actorUserId,
       kind: NotificationKind.coordinationChanged,
-      placement: AttentionPlacement.timelineOnly,
+      beaconId: beaconId,
+      placement: placement,
       rows: [
         {
-          'account_id': ownerId,
+          'account_id': recipientId,
           'category': NotificationCategory.connections.name,
           'dedup_key': sourceEventKey,
-          'destination_kind': AttentionDestinationKind.safeTerminal.wireName,
-          'target_entity_id': phantomId,
+          'destination_kind':
+              (beaconId == null
+                      ? AttentionDestinationKind.safeTerminal
+                      : AttentionDestinationKind.beacon)
+                  .wireName,
+          'target_entity_id': ?targetEntityId,
           'presentation_key': presentationKey,
           'presentation_payload': payload,
           'suppression_class': AttentionSuppressionClass.standard.name,
-          'access_policy': AttentionAccessPolicy.recipientSafe.wireName,
+          'access_policy':
+              (beaconId == null
+                      ? AttentionAccessPolicy.recipientSafe
+                      : AttentionAccessPolicy.beaconContent)
+                  .wireName,
           'requires_action': false,
         },
       ],

@@ -26,7 +26,9 @@ class NotificationOutboxRepository implements NotificationOutboxRepositoryPort {
   final TenturaDb _database;
 
   static final _emailEligible =
-      "NOT ${AttentionDismissibleSql.fieldPersonLink('notification_outbox')}";
+      "NOT ${AttentionDismissibleSql.fieldPersonLink('notification_outbox')} "
+      "AND presentation_key IS DISTINCT FROM '$kRequestForwardLapsedPresentationKey' "
+      "AND presentation_key IS DISTINCT FROM '$kRequestForwardOfferedPresentationKey'";
 
   static const _columns = '''
 id, account_id, category, kind, priority,

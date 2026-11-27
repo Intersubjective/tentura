@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/forward/domain/entity/placeholder_forward.dart';
 import 'package:tentura/features/forward/domain/forward_trail.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -316,6 +317,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// Forward edges involving the viewer (sender or recipient), newest first  -  Forwards screen feed.
     @Default([]) List<ForwardEdge> viewerForwardEdges,
+    @Default([]) List<PlaceholderForward> pendingPlaceholderForwards,
 
     /// Capability tags per forward edge, keyed by `'${senderId}__${recipientId}'`.
     @Default({}) Map<String, List<String>> forwardReasonSlugs,

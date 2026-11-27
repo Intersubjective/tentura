@@ -14,15 +14,18 @@ class ForwardInviteBar extends StatelessWidget {
     required this.hasSelection,
     required this.onInvite,
     required this.onClearSelection,
+    this.onPickPlaceholder,
     super.key,
   });
 
   /// Matches [TenturaCommandButton]'s own fixed compact height.
   static const double buttonHeight = 40;
+  static const placeholderButtonHeight = kMinInteractiveDimension;
 
   final bool hasSelection;
   final VoidCallback onInvite;
   final VoidCallback onClearSelection;
+  final VoidCallback? onPickPlaceholder;
 
   @override
   Widget build(BuildContext context) {
@@ -36,28 +39,44 @@ class ForwardInviteBar extends StatelessWidget {
         tt.screenHPadding,
         tt.rowGap,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(
-            child: Semantics(
-              identifier: TestIds.forwardInviteNewPerson,
-              button: true,
-              child: TenturaCommandButton(
-                key: TestIds.key(TestIds.forwardInviteNewPerson),
-                label: l10n.forwardInviteNewPerson,
-                icon: const Icon(Icons.person_add_alt_1_outlined),
-                onPressed: onInvite,
-              ),
+          SizedBox(
+            height: buttonHeight,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Semantics(
+                    identifier: TestIds.forwardInviteNewPerson,
+                    button: true,
+                    child: TenturaCommandButton(
+                      key: TestIds.key(TestIds.forwardInviteNewPerson),
+                      label: l10n.forwardInviteNewPerson,
+                      icon: const Icon(Icons.person_add_alt_1_outlined),
+                      onPressed: onInvite,
+                    ),
+                  ),
+                ),
+                if (hasSelection)
+                  Semantics(
+                    identifier: TestIds.forwardClearSelection,
+                    child: IconButton(
+                      key: TestIds.key(TestIds.forwardClearSelection),
+                      tooltip: l10n.forwardClearSelection,
+                      icon: const Icon(Icons.deselect),
+                      onPressed: onClearSelection,
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (hasSelection)
-            Semantics(
-              identifier: TestIds.forwardClearSelection,
-              child: IconButton(
-                key: TestIds.key(TestIds.forwardClearSelection),
-                tooltip: l10n.forwardClearSelection,
-                icon: const Icon(Icons.deselect),
-                onPressed: onClearSelection,
+          if (onPickPlaceholder case final pick?)
+            SizedBox(
+              height: placeholderButtonHeight,
+              child: TextButton(
+                onPressed: pick,
+                child: Text(l10n.forwardPickMyPlaceholders),
               ),
             ),
         ],

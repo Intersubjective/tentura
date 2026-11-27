@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
+import '../../domain/invite_code.dart';
 import '../bloc/accept_invite_cubit.dart';
 import '../dialog/invitation_accept_dialog.dart';
 
@@ -14,10 +15,12 @@ import '../dialog/invitation_accept_dialog.dart';
 class AcceptInviteScreen extends StatefulWidget implements AutoRouteWrapper {
   const AcceptInviteScreen({
     @PathParam('id') this.id = '',
+    @QueryParam('r') this.requestId,
     super.key,
   });
 
   final String id;
+  final String? requestId;
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
@@ -37,7 +40,12 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(context.read<AcceptInviteCubit>().start(widget.id));
+      unawaited(
+        context.read<AcceptInviteCubit>().start(
+          widget.id,
+          requestId: widget.requestId,
+        ),
+      );
     });
   }
 
@@ -102,7 +110,12 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     BuildContext context,
     String code,
   ) async {
-    if (goToLanding(invitePath: '/invite/$code')) {
+    if (goToLanding(
+      invitePath: inviteLandingUri(
+        code,
+        requestId: widget.requestId,
+      ).toString(),
+    )) {
       context.read<AcceptInviteCubit>().clearPendingSignupNavigation();
       return;
     }

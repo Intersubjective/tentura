@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/phantom_merge_wake_port.dart';
+import 'package:tentura_server/domain/port/phantom_pending_forward_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -42,6 +43,7 @@ final class InvitationCase extends UseCaseBase {
     BeaconRoomRepositoryPort? room,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._pendingForwards,
     this._phantomMergeWake = const PhantomMergeWakePort.disabled(),
     required super.env,
     required super.logger,
@@ -74,6 +76,7 @@ final class InvitationCase extends UseCaseBase {
 
   final TransactionalAttentionCase? _attention;
   final PhantomMergeWakePort _phantomMergeWake;
+  final PhantomPendingForwardRepositoryPort? _pendingForwards;
 
   Future<InvitationEntity> create({
     required String userId,
@@ -191,6 +194,7 @@ final class InvitationCase extends UseCaseBase {
   Future<InvitePreviewResult> preview({
     required String code,
     String? callerUserId,
+    String? requestId,
   }) async {
     final invitation = await _invitationRepository.getById(invitationId: code);
     if (invitation == null) {
@@ -206,10 +210,11 @@ final class InvitationCase extends UseCaseBase {
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
-    final beaconId = invitation.beaconId;
-    final beacon = beaconId == null
-        ? null
-        : await _previewBeaconForInvite(invitation, beaconId, codeStatus);
+    final beacon = await _previewBeaconForInvite(
+      invitation,
+      codeStatus,
+      requestId,
+    );
 
     final phantomInvite = invitation.phantomId != null;
     final InviteCallerStatus callerStatus;
@@ -250,14 +255,31 @@ final class InvitationCase extends UseCaseBase {
 
   Future<InvitePreviewBeacon?> _previewBeaconForInvite(
     InvitationEntity invitation,
-    String beaconId,
     InviteCodeStatus codeStatus,
+    String? requestId,
   ) async {
+    final phantomId = invitation.phantomId;
+    final beaconId = phantomId == null ? invitation.beaconId : requestId;
+    if (beaconId == null) return null;
+
+    if (phantomId != null) {
+      final pendingForwards = _pendingForwards;
+      if (codeStatus != InviteCodeStatus.available ||
+          pendingForwards == null ||
+          !await pendingForwards.hasPending(
+            phantomId: phantomId,
+            senderId: invitation.issuer.id,
+            beaconId: beaconId,
+          )) {
+        return null;
+      }
+    }
+
     BeaconEntity beacon;
     try {
       beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     } on OwnerlessRequest catch (request) {
-      return codeStatus == InviteCodeStatus.available
+      return phantomId == null && codeStatus == InviteCodeStatus.available
           ? InvitePreviewBeacon.lapsedRequest(
               id: beaconId,
               title: request.title,
@@ -266,6 +288,7 @@ final class InvitationCase extends UseCaseBase {
     } catch (_) {
       return null;
     }
+    if (phantomId != null && beacon.kind != BeaconKind.request) return null;
 
     final issuerId = invitation.issuer.id;
     Future<bool> issuerCanReadContent() => _guard.canReadContent(
@@ -293,10 +316,12 @@ final class InvitationCase extends UseCaseBase {
                     );
             },
           )) {
-        return InvitePreviewBeacon.lapsedRequest(
-          id: beacon.id,
-          title: beacon.title,
-        );
+        return phantomId == null
+            ? InvitePreviewBeacon.lapsedRequest(
+                id: beacon.id,
+                title: beacon.title,
+              )
+            : null;
       }
       return InvitePreviewBeacon.visible(
         id: beacon.id,

@@ -54,6 +54,15 @@ final class PersonJoinedNotice extends PersonLinkNotice {
   const PersonJoinedNotice({required super.phantomId});
 }
 
+typedef LinkedPersonForwardOffer = ({
+  String offerId,
+  String mergeId,
+  String requestId,
+  String requestTitle,
+  String name,
+  String? recipientId,
+});
+
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {
   const factory AttentionReceipt({
@@ -73,6 +82,7 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? actorUserId,
     String? sourceEventKey,
     PersonLinkNotice? personLinkNotice,
+    LinkedPersonForwardOffer? linkedPersonForwardOffer,
     String? destinationKind,
     String? targetEntityId,
     String? presentationKey,

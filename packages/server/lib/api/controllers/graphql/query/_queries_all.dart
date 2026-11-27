@@ -21,6 +21,7 @@ import 'query_fact_card.dart';
 import 'query_saved_fact.dart';
 import 'query_forward_candidates.dart';
 import 'query_constellation_field.dart';
+import 'query_pending_forward.dart';
 import 'query_constellation_layout_snapshots.dart';
 import 'query_constellation_tag_magnets.dart';
 import 'query_constellation_field_requests.dart';
@@ -75,6 +76,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QuerySavedFact().all,
   ...QueryForwardCandidates().all,
   ...QueryConstellationField().all,
+  const QueryPendingForward().fieldForRequest,
   ...QueryConstellationFieldRequests().all,
   ...QueryConstellationMutualTrust().all,
   ...QueryConstellationTrustChain().all,

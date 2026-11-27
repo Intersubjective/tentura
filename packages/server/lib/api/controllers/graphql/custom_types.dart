@@ -1476,6 +1476,7 @@ final gqlTypeConstellationPhantom =
     GraphQLObjectType('ConstellationPhantom', null)
       ..fields.addAll([
         field('id', graphQLString.nonNullable()),
+        field('ownerId', graphQLString),
         field('displayName', graphQLString.nonNullable()),
         field('emoji', graphQLString),
         field('hasPrivateAvatar', graphQLBoolean.nonNullable()),

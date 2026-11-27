@@ -309,6 +309,13 @@ final class AttentionRepository implements AttentionRepositoryPort {
       coordinationItemId: coordinationItemId,
       actorUserId: actorUserId,
       sourceEventKey: sourceEventKey,
+      linkedPersonForwardOffer: _linkedPersonForwardOffer(
+        presentationKey: presentationKey,
+        targetEntityId: targetEntityId,
+        beaconId: beaconId,
+        beaconTitle: beaconTitle,
+        payload: presentationPayloadJson,
+      ),
       personLinkNotice: _personLinkNotice(
         sourceEventKey,
         targetEntityId,
@@ -347,6 +354,47 @@ final class AttentionRepository implements AttentionRepositoryPort {
       postRootImageId: postRootImageId,
       eventsPreview: eventsPreview,
     );
+  }
+
+  static LinkedPersonForwardOffer? _linkedPersonForwardOffer({
+    required String? presentationKey,
+    required String? targetEntityId,
+    required String? beaconId,
+    required String? beaconTitle,
+    required String payload,
+  }) {
+    if (presentationKey != 'request_forward_offered' ||
+        targetEntityId == null ||
+        targetEntityId.isEmpty ||
+        beaconId == null ||
+        beaconId.isEmpty ||
+        beaconTitle == null ||
+        beaconTitle.isEmpty) {
+      return null;
+    }
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return null;
+    }
+    if (decoded case {
+      'mergeId': final String mergeId,
+      'displayName': final String displayName,
+    } when mergeId.isNotEmpty && displayName.trim().isNotEmpty) {
+      final recipientId = decoded['recipientId'];
+      return (
+        offerId: targetEntityId,
+        mergeId: mergeId,
+        requestId: beaconId,
+        requestTitle: beaconTitle,
+        name: displayName,
+        recipientId: recipientId is String && recipientId.isNotEmpty
+            ? recipientId
+            : null,
+      );
+    }
+    return null;
   }
 
   static PersonLinkNotice? _personLinkNotice(

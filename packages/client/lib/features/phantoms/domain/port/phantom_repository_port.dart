@@ -13,6 +13,12 @@ abstract interface class PhantomRepositoryPort {
     String? emoji,
   });
 
+  Future<Uri> forwardRequest({
+    required String phantomId,
+    required String beaconId,
+    String? note,
+  });
+
   Future<void> delete({required String id});
   Future<String> inviteEnsure({required String id});
   Future<String> inviteRotate({required String id});

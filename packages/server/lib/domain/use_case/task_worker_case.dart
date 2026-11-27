@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/port/notification_outbox_repository_port.d
 import 'package:tentura_server/domain/port/private_object_gc_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/phantom_forward_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/phantom_merge_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
@@ -76,6 +77,7 @@ final class TaskWorkerCase extends UseCaseBase {
     PostExpiryWarningSweepCase postExpiryWarningSweep,
     AttentionCaptureSettlementCase attentionCaptureSettlement, {
     PhantomMergeCase? phantomMerge,
+    PhantomForwardDeliveryCase? phantomForwardDelivery,
     PrivateObjectGcPort? privateObjectGc,
   }) => Future.value(
     TaskWorkerCase(
@@ -110,6 +112,7 @@ final class TaskWorkerCase extends UseCaseBase {
       postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
       phantomMerge: phantomMerge,
+      phantomForwardDelivery: phantomForwardDelivery,
       privateObjectGc: privateObjectGc,
       env: env,
       logger: logger,
@@ -148,6 +151,7 @@ final class TaskWorkerCase extends UseCaseBase {
     this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
     this._phantomMerge,
+    this._phantomForwardDelivery,
     this._clock = DateTime.timestamp,
   });
 
@@ -184,6 +188,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final PostExpiryWarningSweepCase? _postExpiryWarningSweep;
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
   final PhantomMergeCase? _phantomMerge;
+  final PhantomForwardDeliveryCase? _phantomForwardDelivery;
 
   /// Reads "now" for every cadence check; tests drive it by hand.
   final DateTime Function() _clock;
@@ -210,6 +215,7 @@ final class TaskWorkerCase extends UseCaseBase {
       (_) => _phantomMerge?.runDue(leaseOwner: _leaseOwner, clock: _clock),
       nudged: _consumePhantomMergeNudge,
     ),
+    _Job(const Duration(seconds: 30), (_) => _phantomForwardDelivery?.sweep()),
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
     _Job(
       const Duration(seconds: 10),

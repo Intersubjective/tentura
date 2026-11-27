@@ -546,18 +546,23 @@ final class QueryAttention extends GqlNodeBase {
   static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
     // Stored receipts may carry writer-specific metadata outside the public
     // presentation contract. Keep the receipt while omitting those fields.
-    final isPersonLink =
-        receipt.presentationKey == 'person_link_merged' ||
-        receipt.presentationKey == 'person_link_joined';
+    final personalNoticeKeys = switch (receipt.presentationKey) {
+      'person_link_merged' || 'person_link_joined' => const {
+        'displayName',
+        'mergeId',
+        'userId',
+      },
+      kRequestForwardOfferedPresentationKey => const {
+        'displayName',
+        'mergeId',
+        'recipientId',
+      },
+      _ => const <String>{},
+    };
     final payload = <String, Object>{
       for (final entry in receipt.presentationPayload.entries)
         if ((attentionPresentationPayloadAllowedKeys.contains(entry.key) ||
-                (isPersonLink &&
-                    const {
-                      'displayName',
-                      'mergeId',
-                      'userId',
-                    }.contains(entry.key))) &&
+                personalNoticeKeys.contains(entry.key)) &&
             entry.value is String)
           entry.key: entry.value! as String
         // #189 — the «вам» zone's flag (`attentionReceiptIsPersonal`;

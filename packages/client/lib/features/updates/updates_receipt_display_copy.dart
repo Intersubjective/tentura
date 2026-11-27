@@ -840,6 +840,17 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? postAuthorName,
   String? partnerName,
 }) {
+  if (presentationKey == 'request_forward_lapsed') {
+    final name =
+        _nonBlank(actorName) ??
+        actorNameFromPresentationPayload(presentationPayloadJson);
+    return UpdatesFeedRowCopy(
+      headline: name == null
+          ? l10n.inviteLapsedTitle
+          : l10n.updatesRequestForwardLapsed(name),
+      body: '',
+    );
+  }
   if (presentationKey == 'mutual_connection_formed') {
     final payload = _payloadMap(presentationPayloadJson);
     if (payload case {

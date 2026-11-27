@@ -100,6 +100,7 @@ Phantom _mapPhantom(
   final inviteCreatedAt = row.inviteCreatedAt;
   return Phantom(
     id: row.id,
+    ownerId: row.ownerId,
     displayName: row.displayName,
     emoji: row.emoji,
     hasPrivateAvatar: row.hasPrivateAvatar,

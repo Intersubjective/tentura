@@ -1,6 +1,6 @@
 import { initAnalytics, initVisit, track, trackError, setAttemptId, setAccount, newAttemptId } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
-import { parseInviteCode, parseInviteCodeRaw, fetchPreview } from './preview.js';
+import { parseInviteCode, parseInviteCodeRaw, fetchPreview, requestContextQuery } from './preview.js';
 import { startEmailMagicLink, startTestLogin } from './auth.js';
 import {
   parseInviteEntryInput,
@@ -34,6 +34,7 @@ const GOOGLE_ENABLED = Boolean(
 );
 const QA_TEST_LOGIN = Boolean(LANDING_CONFIG.qaTestLogin);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
+const requestId = new URLSearchParams(location.search).get('r');
 
 // #663: pick the reader's language (and set <html lang>) before any render.
 initLocale();
@@ -140,7 +141,7 @@ function openProductUrl() {
 }
 
 function openAcceptInviteUrl(code) {
-  return appHashUrl(`/accept-invite/${encodeURIComponent(code)}`);
+  return appHashUrl(`/accept-invite/${encodeURIComponent(code)}`) + requestContextQuery(requestId);
 }
 
 function appRecoverUrl(inviteCode) {
@@ -150,6 +151,7 @@ function appRecoverUrl(inviteCode) {
   url.searchParams.set('auth_attempt_id', attemptId);
   if (inviteCode) {
     url.searchParams.set('invite', inviteCode);
+    if (requestId) url.searchParams.set('r', requestId);
   }
   return { href: url.toString(), attemptId };
 }
@@ -235,7 +237,7 @@ function googleReturnTo(inviteCode) {
   const origin = API_BASE
     ? new URL(API_BASE, window.location.href).origin
     : window.location.origin;
-  return `${origin}/invite/${encodeURIComponent(inviteCode)}`;
+  return `${origin}/invite/${encodeURIComponent(inviteCode)}${requestContextQuery(requestId)}`;
 }
 
 function ctaGoogleSignIn(inviteCode) {
@@ -1000,7 +1002,7 @@ async function main() {
       return;
     }
     try {
-      const preview = await fetchPreview(code);
+      const preview = await fetchPreview(code, requestId);
       track('preview_loaded', {
         codeStatus: preview.codeStatus,
         callerStatus: preview.callerStatus,

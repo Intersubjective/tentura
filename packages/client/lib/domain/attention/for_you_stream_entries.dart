@@ -74,6 +74,15 @@ List<ForYouStreamEntry> forYouStreamEntries({
     // unread view is untouched.
     if (receipt.itemKind == AttentionItemKind.watchingDigest) continue;
 
+    if (receipt.linkedPersonForwardOffer != null) {
+      if (!receipt.isSeen) {
+        entries.add(
+          ForYouStreamEntry(receipt: receipt, kind: ForYouStreamEntryKind.tile),
+        );
+      }
+      continue;
+    }
+
     final beaconId = receipt.beaconId ?? '';
     if (beaconId.isEmpty) {
       entries.add(

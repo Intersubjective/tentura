@@ -1,0 +1,3 @@
+mutation ForwardRequestToPlaceholder($beaconId: String!, $phantomId: String!, $note: String) {
+  beaconForwardToPhantom(beaconId: $beaconId, phantomId: $phantomId, note: $note)
+}

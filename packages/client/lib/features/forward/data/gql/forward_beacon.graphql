@@ -1,3 +1,5 @@
+# import 'forward_delivery_result_fields.graphql'
+
 mutation ForwardBeacon(
   $beaconId: String!,
   $recipientIds: [String!]!,
@@ -22,10 +24,6 @@ mutation ForwardBeacon(
     recipientReasons: $recipientReasons,
     recipientBandProvenance: $recipientBandProvenance
   ) {
-    batchId
-    deliveredRecipientIds
-    availabilitySkippedRecipientIds
-    alreadyForwardedRecipientIds
-    blockedSkippedRecipientIds
+    ...ForwardDeliveryResultFields
   }
 }

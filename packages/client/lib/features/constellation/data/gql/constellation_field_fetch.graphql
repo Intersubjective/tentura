@@ -92,6 +92,7 @@ query ConstellationFieldFetch(
     }
     phantoms {
       id
+      ownerId
       displayName
       emoji
       hasPrivateAvatar

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/util/ui_utils.dart';
@@ -77,6 +78,40 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
     final userId = await pickPersonToLink(context, widget.linkCandidates());
     if (!mounted || userId == null) return false;
     await _repository.link(phantomId: widget.person.id, userId: userId);
+    return true;
+  }
+
+  Future<bool> _attachRequest() async {
+    final viewer = context.read<ProfileCubit>().state.profile;
+    final requests = await GetIt.I<MyWorkRepository>().fetchInit(
+      userId: viewer.id,
+    );
+    if (!mounted) return false;
+    final l10n = L10n.of(context)!;
+    final candidates = {
+      for (final beacon in [
+        ...requests.authoredNonArchived,
+        ...requests.helpOfferedNonArchived.map((row) => row.beacon),
+        ...requests.obligationBeacons
+            .where((row) => !row.viewerArchived)
+            .map((row) => row.beacon),
+      ])
+        if (beacon.isRequest && beacon.viewerCanForwardAt(widget.nowUtc))
+          beacon.id: (id: beacon.id, name: beacon.title),
+    };
+    final personId = widget.person.id;
+    final requestId = await pickPlaceholderForwardItem(
+      context,
+      title: l10n.personAttachRequest,
+      empty: l10n.personNoForwardableRequests,
+      items: candidates.values.toList(),
+    );
+    if (!mounted || requestId == null) return false;
+    await sharePlaceholderRequest(
+      context,
+      phantomId: personId,
+      beaconId: requestId,
+    );
     return true;
   }
 
@@ -176,6 +211,11 @@ class _PhantomContextPanelState extends State<PhantomContextPanel> {
                   : () => _run(() => _copy(rotate: true)),
               child: Text(l10n.personPanelNewLink),
             ),
+            if (GetIt.I.isRegistered<MyWorkRepository>())
+              OutlinedButton(
+                onPressed: _busy ? null : () => _run(_attachRequest),
+                child: Text(l10n.personAttachRequest),
+              ),
             TextButton(
               onPressed: _busy ? null : () => _run(_link),
               child: Text(l10n.personPanelLinkExisting),
@@ -199,40 +239,10 @@ Future<String?> pickPersonToLink(
   List<({String id, String name})> people,
 ) {
   final l10n = L10n.of(context)!;
-  return showTenturaAdaptiveSheet<String>(
-    context: context,
-    builder: (context) {
-      final tt = context.tt;
-      return Padding(
-        padding: tt.cardPadding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              l10n.personPanelPickExisting,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: tt.rowGap),
-            if (people.isEmpty)
-              Text(l10n.personPanelNoPeople)
-            else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: people.length,
-                  itemBuilder: (context, index) {
-                    final person = people[index];
-                    return ListTile(
-                      title: Text(person.name),
-                      onTap: () => Navigator.of(context).pop(person.id),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      );
-    },
+  return pickPlaceholderForwardItem(
+    context,
+    title: l10n.personPanelPickExisting,
+    empty: l10n.personPanelNoPeople,
+    items: people,
   );
 }
