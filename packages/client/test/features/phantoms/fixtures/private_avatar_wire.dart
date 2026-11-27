@@ -46,6 +46,12 @@ class PrivateAvatarWire {
   PrivateAvatarWire({
     Iterable<String> savedAvatars = const [],
     this.emoji = accountlessEmoji,
+    this.accountlessDisplayName = accountlessName,
+    this.contacts = const {
+      accountHolderId: 'Anna',
+      otherAccountHolderId: 'Alex',
+    },
+    this.responseFor,
     bool pauseUploadResponse = false,
   }) : _seedPhotos = {
          for (final (index, id) in savedAvatars.indexed)
@@ -57,6 +63,12 @@ class PrivateAvatarWire {
   }
 
   final String? emoji;
+  final String accountlessDisplayName;
+  final Map<String, String> contacts;
+
+  /// Overrides the payload for calls the scenario handles. Null uses the
+  /// ordinary Field or avatar fixture response.
+  final FutureOr<Object?> Function(AvatarWireCall)? responseFor;
   final _JpegPicker _picker;
   final Completer<void>? _uploadResponseGate;
   final calls = <AvatarWireCall>[];
@@ -214,7 +226,9 @@ class PrivateAvatarWire {
     if (call.field == 'personPrivateAvatarUpload') {
       await _uploadResponseGate?.future;
     }
-    final payload = _payload(call, root, document);
+    final respond = responseFor;
+    final override = respond == null ? null : await respond(call);
+    final payload = override ?? _payload(call, root, document);
     return _json({
       'data': {
         '__typename': call.isMutation ? 'mutation_root' : 'query_root',
@@ -288,12 +302,9 @@ class PrivateAvatarWire {
         constellationFieldWire(
               now: avatarFixtureTime,
               viewerId: avatarViewer.id,
-              contacts: const {
-                accountHolderId: 'Anna',
-                otherAccountHolderId: 'Alex',
-              },
+              contacts: contacts,
               phantoms: [
-                _accountlessRow(accountlessId, accountlessName, emoji),
+                _accountlessRow(accountlessId, accountlessDisplayName, emoji),
                 for (final entry in _newPeople.entries)
                   _accountlessRow(
                     entry.key,

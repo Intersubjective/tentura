@@ -4119,6 +4119,7 @@ type mutation_root {
   personPrivateAvatarUpload(subjectUserId: String, subjectPhantomId: String, file: v2_Upload = {}): Boolean!
   personNoteDelete(subjectUserId: String, subjectPhantomId: String): Boolean!
   phantomCreate(name: String!, emoji: String, position: v2_ConstellationAnchorPositionInput): String!
+  phantomCreateBatch(rows: [v2_PhantomImportContactInput!]!, keepContacts: Boolean, clientOpId: String): v2_PhantomImportResult!
   phantomUpdate(id: String!, name: String!, emoji: String): Boolean!
   phantomDelete(id: String!): Boolean!
   beaconForwardToPhantom(beaconId: String!, phantomId: String!, note: String): String!
@@ -8418,6 +8419,27 @@ type v2_PersonNoteSection {
 type v2_PersonNoteSubject {
   subjectUserId: String
   subjectPhantomId: String
+}
+
+input v2_PhantomImportContactInput {
+  name: String!
+  email: String
+  phone: String
+}
+
+type v2_PhantomImportResult {
+  created: [v2_PhantomImportCreated!]!
+  refused: [v2_PhantomImportRefused!]!
+}
+
+type v2_PhantomImportCreated {
+  rowIndex: Int!
+  id: String!
+}
+
+type v2_PhantomImportRefused {
+  rowIndex: Int!
+  message: String!
 }
 
 type v2_ConstellationPhantom {

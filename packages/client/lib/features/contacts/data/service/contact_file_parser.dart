@@ -1,31 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-final class ImportedContact {
-  ImportedContact._(
-    this.name,
-    List<String> emails,
-    List<String> phones, [
-    Uint8List? photoBytes,
-  ]) : emails = List.unmodifiable(emails),
-       phones = List.unmodifiable(phones),
-       photoBytes = photoBytes?.asUnmodifiableView();
+import '../../domain/entity/imported_contact.dart';
 
-  final String name;
-  final List<String> emails;
-  final List<String> phones;
-  final Uint8List? photoBytes;
-
-  static ImportedContact? _fromFields(
-    String name,
-    List<String> emails,
-    List<String> phones, {
-    Uint8List? photoBytes,
-  }) {
-    if (name.isEmpty && emails.isEmpty && phones.isEmpty) return null;
-    return ImportedContact._(name, emails, phones, photoBytes);
-  }
-}
+export '../../domain/entity/imported_contact.dart';
 
 final _vCardFold = RegExp(r'\r?\n[ \t]');
 final _vCardEscape = RegExp(r'\\([\\,;nN])');
@@ -94,7 +72,7 @@ ImportedContact? _parseCard(List<String> lines) {
   }
 
   if (version != '3.0' && version != '4.0') return null;
-  return ImportedContact._fromFields(
+  return ImportedContact.fromFields(
     name.isEmpty ? structuredName : name,
     emails,
     phones,
@@ -157,7 +135,7 @@ List<ImportedContact> parseGoogleContactsCsv(List<int> bytes) {
     }
     offset = row.end;
     final displayName = _cell(row.cells, name).trim();
-    final contact = ImportedContact._fromFields(
+    final contact = ImportedContact.fromFields(
       displayName.isNotEmpty
           ? displayName
           : _joinName(

@@ -10876,6 +10876,20 @@
   "@personCreateAction": {
     "description": "Short add-person action in the Field app bar and empty banner."
   },
+  "contactImportEntry": "Import from contacts",
+  "contactImportAction": "Import",
+  "contactImportSearch": "Search contacts",
+  "contactImportUsePhoto": "Use their photo as my private picture",
+  "contactImportKeepDetails": "Keep phone/email privately",
+  "contactImportOnMap": "Already on my map",
+  "contactImportShortName": "Enter at least {min} characters for the name",
+  "contactImportNoMatches": "No matching contacts",
+  "contactImportEmptyFile": "No contacts found in the file",
+  "contactImportReadFailed": "Could not read the contact file",
+  "contactImportFailed": "Could not finish the import. Try again.",
+  "contactImportRowRefused": "Could not import this contact",
+  "contactImportCapReached": "Remove someone not on Tentura yet first.",
+  "@contactImportShortName": {"placeholders": {"min": {"type": "int"}}},
   "personCreateName": "Name",
   "@personCreateName": {
     "description": "Name field for a person who is not on Tentura."

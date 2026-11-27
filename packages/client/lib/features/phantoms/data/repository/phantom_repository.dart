@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/constellation_anchor_position_input.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -8,9 +9,11 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../domain/port/phantom_repository_port.dart';
+import '../../domain/entity/phantom_import.dart';
 import '../../domain/exception.dart';
 import '../gql/_g/forward_request_to_placeholder.req.gql.dart';
 import '../gql/_g/phantom_create.req.gql.dart';
+import '../gql/_g/phantom_create_batch.req.gql.dart';
 import '../gql/_g/phantom_delete.req.gql.dart';
 import '../gql/_g/phantom_hint_dismiss.req.gql.dart';
 import '../gql/_g/phantom_invite_ensure.req.gql.dart';
@@ -43,6 +46,44 @@ final class PhantomRepository implements PhantomRepositoryPort {
       }
     }),
     (data) => data.phantomCreate,
+  );
+
+  @override
+  Future<List<PhantomImportOutcome>> createBatch({
+    required List<PhantomImportContact> rows,
+    required bool keepContacts,
+    required String clientOpId,
+  }) => _mutate(
+    GPhantomCreateBatchReq((builder) {
+      builder.vars
+        ..keepContacts = keepContacts
+        ..clientOpId = clientOpId
+        ..rows.replace([
+          for (final row in rows)
+            Gv2_PhantomImportContactInput((input) {
+              input
+                ..name = row.name
+                ..email = row.email
+                ..phone = row.phone;
+            }),
+        ]);
+    }),
+    (data) {
+      final result = data.phantomCreateBatch;
+      final outcomes = <PhantomImportOutcome>[
+        for (final row in result.created)
+          PhantomImportCreated(row.rowIndex, row.id),
+        for (final row in result.refused)
+          PhantomImportRefused(row.rowIndex, row.message),
+      ];
+      final indices = outcomes.map((row) => row.rowIndex).toSet();
+      if (outcomes.length != rows.length ||
+          indices.length != rows.length ||
+          indices.any((index) => index < 0 || index >= rows.length)) {
+        throw const FormatException('Invalid contact import result indices');
+      }
+      return outcomes;
+    },
   );
 
   @override
