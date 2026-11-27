@@ -263,14 +263,7 @@ final class MutationPhantom extends GqlNodeBase {
 final class _ImportRowsType extends GraphQLListType<dynamic, dynamic> {
   _ImportRowsType()
     : super(
-        GraphQLInputObjectType(
-          'PhantomImportContactInput',
-          inputFields: [
-            GraphQLInputObjectField('name', graphQLString.nonNullable()),
-            GraphQLInputObjectField('email', graphQLString),
-            GraphQLInputObjectField('phone', graphQLString),
-          ],
-        ).nonNullable(),
+        gqlInputPhantomImportContact.nonNullable(),
       );
 
   @override

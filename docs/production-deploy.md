@@ -132,6 +132,8 @@ RESEND_FROM_EMAIL=Tentura <auth@yourdomain.com>
 # Use dedicated random values; keep GENEALOGY_NODE_KEY_SECRET stable after first deploy.
 UNSUBSCRIBE_SIGNING_SECRET=<openssl rand -base64 32>
 GENEALOGY_NODE_KEY_SECRET=<openssl rand -base64 32>
+# Contact import (#781): `version:secret` pairs. Never drop or change a version that stored rows reference.
+CONTACT_MATCH_HMAC_KEYS=1:<openssl rand -base64 32>
 
 # === GOOGLE OAUTH ===
 GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
