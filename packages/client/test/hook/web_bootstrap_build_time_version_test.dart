@@ -53,20 +53,7 @@ void main() {
           'coordinated-release',
           version: packageVersion,
         );
-        await fixture.compileWebApp(buildId: '');
-        for (final tool in [
-          'trim_web_deploy_artifact',
-          'apply_versioned_web_assets',
-          'generate_wasm_preload_artifacts',
-        ]) {
-          _expectSuccess(await fixture.runDart(['tool/$tool.dart']));
-        }
-        _expectSuccess(
-          await fixture.runDart([
-            'tool/verify_web_version_consistency.dart',
-            'build/web',
-          ]),
-        );
+        await _buildDeployedWebRelease(fixture);
         final bootstrapVersion = _bootstrapVersion(
           fixture.file('build/web/index.html').readAsStringSync(),
         );
@@ -88,6 +75,53 @@ void main() {
           release,
           greaterThanOrEqualTo(Version.parse(floor)),
           reason: 'The deployed web release must meet the server minimum.',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+
+    test(
+      'the deployed entry points publish the new minor release',
+      () async {
+        const expectedRelease = '7.76.0';
+        final sourceIndex = _sourceIndex.readAsStringSync();
+        expect(
+          'flutter_bootstrap.js?v=$_sourceVersion'.allMatches(sourceIndex),
+          hasLength(1),
+        );
+        expect(sourceIndex, isNot(contains(expectedRelease)));
+        final sourceManifest =
+            jsonDecode(
+                  File(
+                    '${_clientRoot.path}/web/manifest.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        expect(sourceManifest.containsKey('version'), isFalse);
+
+        final packageVersion = Pubspec.parse(
+          _sourcePubspec.readAsStringSync(),
+        ).version;
+        final fixture = _WebBuildFixture.create(
+          work,
+          'next-minor-release',
+          version: packageVersion.toString(),
+        );
+        await _buildDeployedWebRelease(fixture);
+
+        final manifest =
+            jsonDecode(
+                  fixture.file('build/web/manifest.json').readAsStringSync(),
+                )
+                as Map<String, dynamic>;
+        expect(
+          (
+            bootstrap: _bootstrapVersion(
+              fixture.file('build/web/index.html').readAsStringSync(),
+            ),
+            manifest: manifest['version'],
+          ),
+          (bootstrap: expectedRelease, manifest: expectedRelease),
         );
       },
       timeout: const Timeout(Duration(minutes: 5)),
@@ -317,6 +351,23 @@ String? _bootstrapVersion(String html) {
   ).allMatches(html).toList();
   expect(scripts, hasLength(1));
   return Uri.parse(scripts.single.group(1)!).queryParameters['v'];
+}
+
+Future<void> _buildDeployedWebRelease(_WebBuildFixture fixture) async {
+  await fixture.compileWebApp(buildId: '');
+  for (final tool in [
+    'trim_web_deploy_artifact',
+    'apply_versioned_web_assets',
+    'generate_wasm_preload_artifacts',
+  ]) {
+    _expectSuccess(await fixture.runDart(['tool/$tool.dart']));
+  }
+  _expectSuccess(
+    await fixture.runDart([
+      'tool/verify_web_version_consistency.dart',
+      'build/web',
+    ]),
+  );
 }
 
 void _expectSuccess(ProcessResult result) {
