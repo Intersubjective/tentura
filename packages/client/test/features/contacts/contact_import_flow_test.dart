@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:gql/ast.dart';
+import 'package:gql/language.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:intl/message_format.dart';
@@ -24,9 +26,12 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/contacts/data/service/contact_file_parser.dart';
+import 'package:tentura/features/contacts/domain/use_case/contact_import_case.dart';
+import 'package:tentura/features/contacts/ui/bloc/contact_import_cubit.dart';
 import 'package:tentura/features/people_tags/data/repository/people_tags_repository.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/phantoms/data/repository/phantom_repository.dart';
+import 'package:tentura/features/phantoms/domain/entity/phantom_import.dart';
 import 'package:tentura/features/phantoms/domain/port/phantom_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -35,6 +40,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/phone_surface.dart';
+import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
 import '../constellation/fixtures/constellation_reference_fixture.dart';
 import '../phantoms/fixtures/private_avatar_wire.dart';
@@ -51,6 +57,12 @@ const _noPhotoId = 'PH123456789014';
 const _capRefusal = 'Remove someone not on Tentura yet first.';
 const _batch = 'phantomCreateBatch';
 const _upload = 'personPrivateAvatarUpload';
+const _alreadyOnTentura = 'Already on Tentura — send them an invite yourself.';
+const _checkLimit =
+    "Couldn't check if they're already on Tentura: daily check limit reached.";
+const _alreadyOnTenturaRu = 'Уже в Тентуре — отправьте приглашение сами.';
+const _checkLimitRu =
+    'Не удалось проверить, есть ли человек в Тентуре: дневной лимит проверок исчерпан.';
 const _fixturePath = 'test/features/contacts/fixtures';
 final _editingNeeded = RegExp(
   r'\b(edit(?: name)?|too short|at least (?:3|three)|minimum (?:3|three))\b',
@@ -61,9 +73,328 @@ final _russianEditingNeeded = RegExp(
   caseSensitive: false,
 );
 final _internalName = RegExp('phantom|фантом', caseSensitive: false);
+final _internalContactTerms = RegExp(
+  'phantom|placeholder|фантом|заглушка',
+  caseSensitive: false,
+);
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  group('Contact match notices after import', () {
+    test(
+      'a batch requests and preserves each saved contact match answer',
+      () async {
+        final rows = [
+          for (final (index, answer) in const [true, false, null].indexed)
+            {
+              '__typename': 'PhantomImportCreated',
+              'rowIndex': index,
+              'id': 'PH${index + 1}',
+              'alreadyOnTentura': answer,
+            },
+        ];
+        final contacts = parseVCard(
+          _vCard(const [
+            _Card('Anna Kim', email: 'anna@example.test'),
+            _Card('Boris Lane', email: 'boris@example.test'),
+            _Card('Nora James'),
+          ]).bytes,
+        );
+        final sent = <WireSent>[];
+        Set<String>? selectedFields;
+        await withRemoteWire(
+          {
+            'PhantomCreateBatch': {
+              '__typename': 'mutation_root',
+              _batch: {
+                '__typename': 'PhantomImportResult',
+                'created': rows,
+                'refused': <Object?>[],
+              },
+            },
+          },
+          sent,
+          (remote) async {
+            final cubit = ContactImportCubit(
+              ContactImportCase(
+                PhantomRepository(remote),
+                runOperation: (_, _, submit) => submit('test-import'),
+                preparePhoto: (_) => throw StateError('No contact has a photo'),
+                uploadPhoto: (_, _) =>
+                    throw StateError('No contact has a photo'),
+              ),
+              contacts,
+            );
+            try {
+              for (final (index, _) in contacts.indexed) {
+                cubit.select(index, selected: true);
+              }
+              expect(await cubit.submit(), isTrue);
+              expect(sent.single.operationName, 'PhantomCreateBatch');
+              expect(cubit.state.status, ContactImportStatus.ready);
+              expect(cubit.state.rows.map((row) => row.created), [
+                true,
+                true,
+                true,
+              ]);
+              final outcomes = cubit.state.rows
+                  .map((row) => row.outcome)
+                  .whereType<PhantomImportCreated>();
+              expect(
+                {
+                  'requested match field': selectedFields?.contains(
+                    'alreadyOnTentura',
+                  ),
+                  'saved contacts and answers in checklist order': [
+                    for (final outcome in outcomes)
+                      (outcome.id, _matchAnswer(outcome)),
+                  ],
+                },
+                {
+                  'requested match field': true,
+                  'saved contacts and answers in checklist order': [
+                    ('PH1', true),
+                    ('PH2', false),
+                    ('PH3', null),
+                  ],
+                },
+              );
+            } finally {
+              await cubit.close();
+            }
+          },
+          selectResponse: (query, data) {
+            final operation = parseString(
+              query,
+            ).definitions.whereType<OperationDefinitionNode>().single;
+            final created = _selectedField(
+              _selectedField(operation.selectionSet, _batch).selectionSet!,
+              'created',
+            );
+            final fields = created.selectionSet!.selections
+                .whereType<FieldNode>()
+                .map((field) => field.name.value)
+                .toSet();
+            selectedFields = fields;
+            // GraphQL only returns the fields the operation actually selected.
+            return {
+              ...data,
+              _batch: {
+                ...data[_batch] as Map<String, Object?>,
+                'created': [
+                  for (final row in rows)
+                    {
+                      '__typename': row['__typename'],
+                      for (final field in fields) field: row[field],
+                    },
+                ],
+              },
+            };
+          },
+        );
+      },
+    );
+
+    testWidgets(
+      'mixed answers stay with their saved rows and leave the sheet editable',
+      (tester) async {
+        const matched = 'Anna Kim';
+        const limited = 'Boris Lane';
+        const unmatched = 'Nora James';
+        const next = 'Alex Park';
+        await _withField(
+          tester,
+          _ContactPicker(
+            _vCard(const [
+              _Card(matched, email: 'anna@example.test'),
+              _Card(limited, email: 'boris@example.test'),
+              _Card(unmatched, email: 'nora@example.test'),
+              _Card(next),
+            ]),
+          ),
+          (flow) async {
+            await flow.openChecklist();
+            for (final name in [matched, limited, unmatched]) {
+              await flow.tick(name);
+            }
+            final before = _displayedCopy();
+            await flow.submit();
+            expect(flow.rows.map((row) => row['email']), [
+              'anna@example.test',
+              'boris@example.test',
+              'nora@example.test',
+            ]);
+            final l10n = lookupL10n(flow.locale);
+            for (final name in [matched, limited, unmatched]) {
+              _expectSavedRow(
+                tester,
+                name,
+                l10n,
+                others: const [matched, limited, unmatched, next],
+              );
+            }
+            expect(find.text(l10n.contactImportRowRefused), findsNothing);
+            expect(find.text(l10n.contactImportCapReached), findsNothing);
+            expect(find.text(l10n.contactImportFailed), findsNothing);
+            _expectPublicCopySince(before);
+            final nextCheckbox = _contactCheck(next);
+            expect(nextCheckbox, findsOneWidget);
+            expect(tester.widget<Checkbox>(nextCheckbox).onChanged, isNotNull);
+
+            final matches = find.text(_alreadyOnTentura);
+            final limits = find.text(_checkLimit);
+            expect(
+              {
+                'match notices': matches.evaluate().length,
+                'limit notices': limits.evaluate().length,
+                'match notice on $matched': _rowFor(
+                  matched,
+                  matches,
+                  others: const [limited, unmatched, next],
+                ).evaluate().length,
+                'limit notice on $limited': _rowFor(
+                  limited,
+                  limits,
+                  others: const [matched, unmatched, next],
+                ).evaluate().length,
+              },
+              {
+                'match notices': 1,
+                'limit notices': 1,
+                'match notice on $matched': 1,
+                'limit notice on $limited': 1,
+              },
+            );
+          },
+          respond: (call) => call.field == _batch
+              ? _batchResult(
+                  call,
+                  created: const {
+                    unmatched: _noPhotoId,
+                    limited: _secondId,
+                    matched: _createdId,
+                  },
+                  matchAnswers: const {
+                    matched: true,
+                    limited: null,
+                    unmatched: false,
+                  },
+                )
+              : null,
+        );
+      },
+    );
+
+    testWidgets(
+      'a saved row without email and a refused row show no match notices',
+      (tester) async {
+        const noEmail = 'Nora James';
+        const refused = 'Boris Lane';
+        const matched = 'Anna Kim';
+        await _withField(
+          tester,
+          _ContactPicker(
+            _vCard(const [
+              _Card(noEmail),
+              _Card(refused, email: 'boris@example.test'),
+              _Card(matched, email: 'anna@example.test'),
+            ]),
+          ),
+          (flow) async {
+            await flow.openChecklist();
+            for (final name in [noEmail, refused, matched]) {
+              await flow.tick(name);
+            }
+            await flow.submit();
+            final l10n = lookupL10n(flow.locale);
+            expect(flow.rows.first['email'], isNull);
+            _expectSavedRow(
+              tester,
+              noEmail,
+              l10n,
+              others: const [refused, matched],
+            );
+            expect(
+              _rowFor(
+                refused,
+                find.text(l10n.contactImportCapReached),
+                others: const [noEmail, matched],
+              ),
+              findsOneWidget,
+            );
+            expect(find.text(_checkLimit), findsNothing);
+            final notice = find.text(_alreadyOnTentura);
+            expect(notice, findsOneWidget);
+            expect(
+              _rowFor(matched, notice, others: const [noEmail, refused]),
+              findsOneWidget,
+            );
+          },
+          respond: (call) => call.field == _batch
+              ? _batchResult(
+                  call,
+                  created: const {noEmail: _createdId, matched: _secondId},
+                  refused: const {refused: _capRefusal},
+                  matchAnswers: const {noEmail: null, matched: true},
+                )
+              : null,
+        );
+      },
+    );
+
+    for (final (answer, description, message, otherMessage) in const [
+      (true, 'an existing account', _alreadyOnTenturaRu, _checkLimitRu),
+      (null, 'the daily check limit', _checkLimitRu, _alreadyOnTenturaRu),
+    ]) {
+      testWidgets(
+        'Russian phone checklist shows $description on the saved row',
+        (tester) async {
+          const name = 'Анна Ким';
+          const other = 'Борис Лейн';
+          const locale = Locale('ru');
+          final l10n = lookupL10n(locale);
+          await _withField(
+            tester,
+            _ContactPicker(
+              _vCard(const [
+                _Card(name, email: 'anna@example.test'),
+                _Card(other),
+              ]),
+            ),
+            (flow) async {
+              await flow.openPicker(label: l10n.contactImportEntry);
+              final options = [
+                l10n.contactImportUsePhoto,
+                l10n.contactImportKeepDetails,
+              ];
+              await _tap(tester, _contactCheck(name, options: options));
+              final before = _displayedCopy();
+              await flow.submit(label: l10n.contactImportAction);
+              _expectSavedRow(tester, name, l10n, others: const [other]);
+              expect(find.text(l10n.contactImportFailed), findsNothing);
+              expect(find.text(otherMessage), findsNothing);
+              _expectPublicCopySince(before);
+              final notice = find.text(message);
+              expect(notice, findsOneWidget);
+              expect(
+                _rowFor(name, notice, others: const [other]),
+                findsOneWidget,
+              );
+            },
+            respond: (call) => call.field == _batch
+                ? _batchResult(
+                    call,
+                    created: const {name: _createdId},
+                    matchAnswers: {name: answer},
+                  )
+                : null,
+            locale: locale,
+          );
+        },
+      );
+    }
+  });
 
   group('Importing people from a contact file', () {
     testWidgets(
@@ -685,6 +1016,48 @@ Boris Lane,boris@example.test
   });
 }
 
+FieldNode _selectedField(SelectionSetNode selection, String name) => selection
+    .selections
+    .whereType<FieldNode>()
+    .singleWhere((field) => field.name.value == name);
+
+Object? _matchAnswer(PhantomImportCreated outcome) {
+  try {
+    return (outcome as dynamic).alreadyOnTentura as bool?;
+    // Report a missing answer separately from a genuine null response.
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    return 'no match answer in the saved outcome';
+  }
+}
+
+void _expectSavedRow(
+  WidgetTester tester,
+  String name,
+  L10n l10n, {
+  required List<String> others,
+}) {
+  final options = [l10n.contactImportUsePhoto, l10n.contactImportKeepDetails];
+  final checkbox = _contactCheck(name, options: options);
+  expect(checkbox, findsOneWidget);
+  expect(tester.widget<Checkbox>(checkbox).onChanged, isNull);
+  expect(
+    _rowFor(
+      name,
+      find.text(l10n.contactImportOnMap),
+      others: others.where((other) => other != name).toList(),
+    ),
+    findsOneWidget,
+  );
+}
+
+void _expectPublicCopySince(Set<String> before) {
+  expect(
+    _displayedCopy().difference(before).where(_internalContactTerms.hasMatch),
+    isEmpty,
+  );
+}
+
 Future<void> _withField(
   WidgetTester tester,
   _ContactPicker picker,
@@ -871,6 +1244,7 @@ Map<String, Object?> _batchResult(
   AvatarWireCall call, {
   required Map<String, String> created,
   Map<String, String> refused = const {},
+  Map<String, bool?> matchAnswers = const {},
 }) {
   final indices = {
     for (final (index, row) in _submittedRows(call).indexed)
@@ -882,8 +1256,12 @@ Map<String, Object?> _batchResult(
       for (final entry in created.entries)
         {
           '__typename': 'PhantomImportCreated',
-          'rowIndex': indices[entry.key]!,
+          'rowIndex':
+              indices[entry.key] ??
+              (throw StateError('No submitted contact named ${entry.key}')),
           'id': entry.value,
+          if (matchAnswers.containsKey(entry.key))
+            'alreadyOnTentura': matchAnswers[entry.key],
         },
     ],
     'refused': [

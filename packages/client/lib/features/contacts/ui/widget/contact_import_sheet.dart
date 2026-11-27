@@ -175,7 +175,12 @@ class _ContactRow extends StatelessWidget {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     final statusStyle = Theme.of(context).textTheme.bodySmall;
-    final refusal = switch (row.outcome) {
+    final outcomeMessage = switch (row.outcome) {
+      PhantomImportCreated(alreadyOnTentura: true) =>
+        l10n.contactImportAlreadyOnTentura,
+      PhantomImportCreated(alreadyOnTentura: null)
+          when row.source.emails.firstOrNull?.trim().isNotEmpty == true =>
+        l10n.contactImportCheckLimitReached,
       PhantomImportRefused(
         message: 'Remove someone not on Tentura yet first.',
       ) =>
@@ -209,7 +214,8 @@ class _ContactRow extends StatelessWidget {
                     style: statusStyle,
                   ),
                 if (onMap) Text(l10n.contactImportOnMap, style: statusStyle),
-                if (refusal != null) Text(refusal, style: statusStyle),
+                if (outcomeMessage != null)
+                  Text(outcomeMessage, style: statusStyle),
               ],
             ),
           ),
