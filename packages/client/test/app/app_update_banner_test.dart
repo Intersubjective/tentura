@@ -30,8 +30,8 @@ import '../support/phone_surface.dart';
 import '../support/test_realtime_sync.dart';
 
 const _installedVersion = '7.64.7';
-const _previousRelease = '7.71.0';
-const _currentRelease = '7.72.0';
+const _previousRelease = '7.72.0';
+const _currentRelease = '7.73.0';
 const _accountId = 'Uviewer000001';
 
 void main() {
@@ -162,8 +162,10 @@ Future<int> _updateBannerCount(
     socket.pong(floor);
     await tester.pumpAndSettle();
     if (repeatPong) {
+      final bannersBeforeRepeat = find.byType(MaterialBanner).evaluate().length;
       socket.pong(floor);
       await tester.pumpAndSettle();
+      expect(bannersBeforeRepeat, 1, reason: 'The first pong showed a banner.');
     }
     return find
         .ancestor(
