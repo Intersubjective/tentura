@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/model/constellation_anchor_position_input.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -74,7 +75,7 @@ final class PhantomRepository implements PhantomRepositoryPort {
       }),
       (data) => data.beaconForwardToPhantom,
     );
-    return Uri.parse(link);
+    return serverAbsoluteUri(link);
   }
 
   @override

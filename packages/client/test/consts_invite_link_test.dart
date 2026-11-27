@@ -10,4 +10,13 @@ void main() {
       expect(uri.host, Uri.parse(kServerName).host);
     }
   });
+
+  test('serverAbsoluteUri puts a server-relative invite link on the origin', () {
+    final uri = serverAbsoluteUri(
+      '/invite/Iabc123?r=Bxyz',
+      base: 'https://app.example.org',
+    );
+    expect(uri.toString(), 'https://app.example.org/invite/Iabc123?r=Bxyz');
+    expect(uri.hasScheme, isTrue);
+  });
 }

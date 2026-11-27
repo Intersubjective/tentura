@@ -47,6 +47,8 @@ const _requestId = 'B000000000042';
 const _title = 'Fix the bike';
 const _note = 'can you help?';
 const _link = '/invite/I000000000011?r=$_requestId';
+// The server answers with a relative link; the client puts it on the origin.
+const _sharedLink = 'https://test.tentura.invalid$_link';
 const _shareChannel = MethodChannel('dev.fluttercommunity.plus/share');
 const _recordField = 'beaconForwardToPhantom';
 final _now = DateTime.utc(2026, 11, 26);
@@ -426,8 +428,8 @@ class _PlatformLinks {
       russian: RegExp(r'^Скопировать(?: ссылку(?:-приглашение)?| в буфер)?$'),
     );
     await _tap(tester, share);
-    expect(shared, [_link]);
+    expect(shared, [_sharedLink]);
     await _tap(tester, copy);
-    expect(copied, [_link]);
+    expect(copied, [_sharedLink]);
   }
 }
