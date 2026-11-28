@@ -116,14 +116,19 @@ void main() {
   }
 
   group('a compatible client patch release keeps the existing server floor', () {
-    test('the web release check accepts the newer deployed version', () async {
-      await expectReleaseCheckPasses(
-        'client',
-        'hook/web_bootstrap_build_time_version_test.dart',
-        testName:
-            'the deployed web release stamps the supported client version into its entry points',
-      );
-    }, timeout: const Timeout(Duration(minutes: 6)));
+    test(
+      'the web release check accepts the newer deployed version',
+      () async {
+        await expectReleaseCheckPasses(
+          'client',
+          'hook/web_bootstrap_build_time_version_test.dart',
+          testName:
+              'the deployed web release stamps the supported client version into its entry points',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 6)),
+      tags: ['web-build'],
+    );
 
     test(
       'the current release check accepts the newer client version',
