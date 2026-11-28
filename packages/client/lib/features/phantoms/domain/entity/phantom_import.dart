@@ -7,9 +7,14 @@ sealed class PhantomImportOutcome {
 }
 
 final class PhantomImportCreated extends PhantomImportOutcome {
-  const PhantomImportCreated(super.rowIndex, this.id);
+  const PhantomImportCreated(
+    super.rowIndex,
+    this.id, {
+    required this.alreadyOnTentura,
+  });
 
   final String id;
+  final bool? alreadyOnTentura;
 }
 
 final class PhantomImportRefused extends PhantomImportOutcome {

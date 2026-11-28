@@ -72,7 +72,11 @@ final class PhantomRepository implements PhantomRepositoryPort {
       final result = data.phantomCreateBatch;
       final outcomes = <PhantomImportOutcome>[
         for (final row in result.created)
-          PhantomImportCreated(row.rowIndex, row.id),
+          PhantomImportCreated(
+            row.rowIndex,
+            row.id,
+            alreadyOnTentura: row.alreadyOnTentura,
+          ),
         for (final row in result.refused)
           PhantomImportRefused(row.rowIndex, row.message),
       ];

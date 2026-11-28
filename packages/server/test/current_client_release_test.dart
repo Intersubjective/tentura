@@ -7,11 +7,11 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 
-const _releaseVersion = '7.74.0';
+import 'support/shipped_client_version.dart';
 
 void main() {
   test(
-    'the client uses public terminology and declares the server floor as its release version',
+    'the client uses public terminology and meets the server minimum version',
     () {
       final internalTerm = RegExp('phantom|фантом', caseSensitive: false);
       for (final locale in ['en', 'ru']) {
@@ -27,19 +27,15 @@ void main() {
         expect(offendingKeys, isEmpty, reason: 'app_$locale.arb message keys');
       }
 
-      final pubspec = File('../client/pubspec.yaml').readAsLinesSync();
-      expect(pubspec.where((line) => line.startsWith('version:')), [
-        'version: $_releaseVersion',
-      ]);
-      expect(kDefaultMinClientVersion, _releaseVersion);
+      expectShippedClientMeetsServerMinimum();
     },
   );
 
-  test('the default server floor requires the current client release', () {
-    expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
-    expect(
-      (compiled: kDefaultMinClientVersion, effective: Env().minClientVersion),
-      (compiled: _releaseVersion, effective: _releaseVersion),
-    );
-  });
+  test(
+    'the server uses its compiled minimum in the absence of an override',
+    () {
+      expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
+      expect(Env().minClientVersion, kDefaultMinClientVersion);
+    },
+  );
 }

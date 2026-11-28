@@ -10887,6 +10887,8 @@
   "contactImportUsePhoto": "Use their photo as my private picture",
   "contactImportKeepDetails": "Keep phone/email privately",
   "contactImportOnMap": "Already on my map",
+  "contactImportAlreadyOnTentura": "Already on Tentura — send them an invite yourself.",
+  "contactImportCheckLimitReached": "Couldn't check if they're already on Tentura: daily check limit reached.",
   "contactImportShortName": "Enter at least {min} characters for the name",
   "contactImportNoMatches": "No matching contacts",
   "contactImportEmptyFile": "No contacts found in the file",

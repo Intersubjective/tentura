@@ -30,11 +30,48 @@ import '../support/phone_surface.dart';
 import '../support/test_realtime_sync.dart';
 
 const _installedVersion = '7.64.7';
-const _previousRelease = '7.73.0';
-const _currentRelease = '7.74.0';
+const _previousRelease = '7.75.0';
+const _currentRelease = '7.76.0';
 const _accountId = 'Uviewer000001';
 
 void main() {
+  group('the new server floor', () {
+    test('requires an update only from the previous minor release', () {
+      final floor = _defaultServerFloor();
+      expect(
+        (
+          previousNeedsUpdate: compareSemver(_previousRelease, floor) < 0,
+          newNeedsUpdate: compareSemver(_currentRelease, floor) < 0,
+        ),
+        (previousNeedsUpdate: true, newNeedsUpdate: false),
+        reason: 'The server announces min_client_version $floor.',
+      );
+    });
+
+    testWidgets(
+      'shows one update banner only on the older client',
+      (tester) async {
+        final floor = _defaultServerFloor();
+        final current = await _updateBannerCount(
+          tester,
+          installedVersion: _currentRelease,
+          floor: floor,
+        );
+        final previous = await _updateBannerCount(
+          tester,
+          installedVersion: _previousRelease,
+          floor: floor,
+        );
+        expect(
+          (previous: previous, current: current),
+          (previous: 1, current: 0),
+          reason: 'Update banners after receiving min_client_version $floor.',
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+  });
+
   testWidgets(
     'an installed client below the announced floor sees the update banner',
     (tester) async {

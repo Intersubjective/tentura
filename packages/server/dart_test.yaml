@@ -31,6 +31,14 @@ tags:
       check-custom-lints.sh) against the checkout. CI runs those gates
       directly through scripts/check-analysis.sh, so the Pipeline excludes
       this tag instead of analysing every package a second time.
+  web-build:
+    description: >-
+      Stages a client release and compiles the real web app (flutter pub get,
+      flutter build web --wasm) in a temp tree. Needs a local Flutter toolchain
+      with a warm pub cache; the Pipeline's server container is on another
+      device than that cache (pub fails with EXDEV), and the client shards
+      already run the plain web release check, so the Pipeline excludes this
+      tag. Run it locally with the server-regression profile.
   repo-files:
     description: >-
       Reads files outside packages/server (docs/contracts, scripts, workflows,

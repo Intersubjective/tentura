@@ -423,14 +423,14 @@ jobs:
                     # Bundled like the client shards (161 s -> 104 s on 4
                     # cores); pg-tagged files stay standalone and excluded.
                     entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4)
-                    dart test --exclude-tags pg,toolchain $entrypoints
+                    dart test --exclude-tags pg,toolchain,web-build $entrypoints
                     ! rg "package:tentura_server/data/repository" lib/domain
                     ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
                     ! rg "package:tentura_server/data/" lib/domain
                   else
                     # Listing the tagged files spares loading every suite.
                     repo_files=$(python3 ../../scripts/ci_select_tests.py test --tag repo-files)
-                    allow_empty dart test --tags repo-files --exclude-tags pg,toolchain $repo_files
+                    allow_empty dart test --tags repo-files --exclude-tags pg,toolchain,web-build $repo_files
                   fi
                   ;;
                 pg)

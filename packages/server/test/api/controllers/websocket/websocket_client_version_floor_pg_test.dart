@@ -22,8 +22,8 @@ import 'package:tentura_server/env.dart';
 import '../../../support/disposable_pg_target.dart';
 import 'websocket_realtime_protocol_test.mocks.dart';
 
-const _previousRelease = '7.73.0';
-const _currentRelease = '7.74.0';
+const _previousRelease = '7.75.0';
+const _currentRelease = '7.76.0';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -38,7 +38,7 @@ Future<void> main() async {
   });
 
   test(
-    'an authenticated websocket announces the coordinated client floor',
+    'an authenticated ping announces the supported client release',
     () async {
       expect(Platform.environment.containsKey('MIN_CLIENT_VERSION'), isFalse);
       final pong = await _receiveVersionPong(target.databaseEnv);

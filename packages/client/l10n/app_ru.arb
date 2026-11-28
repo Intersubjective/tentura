@@ -6887,6 +6887,8 @@
   "contactImportUsePhoto": "Использовать их фото как личное изображение",
   "contactImportKeepDetails": "Хранить телефон и почту приватно",
   "contactImportOnMap": "Уже на моей карте",
+  "contactImportAlreadyOnTentura": "Уже в Тентуре — отправьте приглашение сами.",
+  "contactImportCheckLimitReached": "Не удалось проверить, есть ли человек в Тентуре: дневной лимит проверок исчерпан.",
   "contactImportShortName": "В имени должно быть не менее {min} символов",
   "contactImportNoMatches": "Подходящих контактов нет",
   "contactImportEmptyFile": "В файле нет контактов",
